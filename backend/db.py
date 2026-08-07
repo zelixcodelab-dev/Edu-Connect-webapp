@@ -26,9 +26,20 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv(Path(__file__).parent / ".env")
 
-client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+# These come from the deployment environment (Railway/Render service variables)
+# or a local .env. Read them defensively so a missing value produces a clear,
+# actionable error instead of a cryptic KeyError deep in the import traceback.
+MONGO_URL = os.environ.get("MONGO_URL")
+_BASE_DB_NAME = os.environ.get("DB_NAME")
+if not MONGO_URL or not _BASE_DB_NAME:
+    raise RuntimeError(
+        "Missing required environment variables MONGO_URL and/or DB_NAME. "
+        "Set them in your deployment's service variables (and provision a MongoDB "
+        "or MongoDB Atlas database), then redeploy. Example: "
+        "MONGO_URL=mongodb+srv://user:pass@cluster/…  DB_NAME=educonnect"
+    )
 
-_BASE_DB_NAME = os.environ["DB_NAME"]
+client = AsyncIOMotorClient(MONGO_URL)
 
 # Shared platform database — tenant registry + platform owner + auth security.
 gdb = client[f"{_BASE_DB_NAME}_platform"]

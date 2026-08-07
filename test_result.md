@@ -125,6 +125,9 @@ backend:
         -working: true
         -agent: "testing"
         -comment: "VERIFIED: Created Globe Institute tenant, confirmed 20 seeded categories and 0 students. Created 'GlobeOnly' category in Globe tenant - NOT visible in default Edu Connect tenant. Cross-tenant data isolation working perfectly."
+        -working: true
+        -agent: "testing"
+        -comment: "REGRESSION TEST PASSED (16/16): Verified backend/db.py defensive MONGO_URL/DB_NAME reading caused NO regression. All functionality working: platform/tenant login with correct scope+branding+modules, /api/auth/me for both tokens, platform endpoints (/api/platform/tenants, /api/platform/summary), multi-tenant isolation (created RegCheck category, confirmed isolation), all 6 core endpoints (/api/accounts, /api/students, /api/transactions, /api/invoices, /api/users, /api/dashboard/summary), public branding endpoint. No issues found."
   - task: "Auth: platform owner vs tenant login, tenant-aware JWT, /auth/me branding"
     implemented: true
     working: true
@@ -249,6 +252,23 @@ agent_communication:
       5) Regression: as the default company admin, GET a few core endpoints (/api/dashboard/summary or /api/dashboard,
          /api/categories, /api/accounts, /api/students, /api/transactions, /api/invoices, /api/leads, /api/users) return 200.
       Note: self-registration (POST /api/auth/register) is intentionally disabled (403). Do not test email/push/storage.
+    -agent: "main"
+    -message: >
+      Focused REGRESSION test after backend/db.py change (defensive MONGO_URL/DB_NAME reading with clear error handling).
+      Verify: 1) POST /api/auth/login for BOTH accounts → 200 with correct scope/branding/modules, 2) GET /api/auth/me
+      for both tokens, 3) Platform endpoints (GET /api/platform/tenants, GET /api/platform/summary), 4) Multi-tenant
+      isolation (GET /api/categories, POST /api/categories RegCheck, confirm isolation), 5) Core endpoints as default
+      admin (/api/accounts, /api/students, /api/transactions, /api/invoices, /api/users, /api/dashboard/summary),
+      6) GET /api/branding (no auth) with branding.app_name. Report pass/fail per item.
+    -agent: "testing"
+    -message: >
+      REGRESSION TEST COMPLETE - ALL TESTS PASSED (16/16). Verified backend/db.py defensive MONGO_URL/DB_NAME reading
+      caused NO regression. Test results: ✅ Platform owner login (scope=platform, access_token), ✅ Tenant admin login
+      (scope=tenant, branding, enabled_modules), ✅ GET /api/auth/me for both tokens, ✅ GET /api/platform/tenants (1 tenant),
+      ✅ GET /api/platform/summary (companies=1, active=1), ✅ GET /api/categories (20 categories), ✅ POST /api/categories
+      (RegCheck created), ✅ RegCheck appears in category list (isolation verified), ✅ All 6 core endpoints return 200
+      (/api/accounts, /api/students, /api/transactions, /api/invoices, /api/users, /api/dashboard/summary),
+      ✅ GET /api/branding (public, app_name=Edu Connect). NO ISSUES FOUND. Backend is production-ready.
     -agent: "testing"
     -message: >
       BACKEND TESTING COMPLETE - ALL TESTS PASSED (35/35). Comprehensive testing performed across all 5 backend tasks:
