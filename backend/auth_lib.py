@@ -112,49 +112,68 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-async def get_current_user(request: Request) -> dict:
-    token: Optional[str] = request.cookies.get("access_token")
-    if not token:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
+async def _resolve_user_from_token(token: str) -> dict:
+    """Decode a JWT and load the corresponding user (platform owner or tenant
+    user), binding the tenant DB context. Raises HTTPException on any problem."""
+    payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Invalid token type")
 
-        scope = payload.get("scope", "tenant")
-        if scope == "platform":
-            owner = await gdb.platform_owners.find_one(
-                {"id": payload["sub"]}, {"_id": 0, "password_hash": 0}
-            )
-            if not owner:
-                raise HTTPException(status_code=401, detail="User not found")
-            owner["scope"] = "platform"
-            owner["role"] = "platform_owner"
-            return owner
-
-        # Tenant user — bind the tenant DB for this request BEFORE querying.
-        tenant_id = payload.get("tenant") or get_default_tenant_id()
-        set_current_tenant(tenant_id)
-        user = await db.users.find_one(
+    scope = payload.get("scope", "tenant")
+    if scope == "platform":
+        owner = await gdb.platform_owners.find_one(
             {"id": payload["sub"]}, {"_id": 0, "password_hash": 0}
         )
-        if not user:
+        if not owner:
             raise HTTPException(status_code=401, detail="User not found")
-        if user.get("deleted_at"):
-            # Row was soft-deleted after this token was issued — force
-            # re-authentication instead of leaking access.
-            raise HTTPException(status_code=401, detail="Account has been removed")
-        user["tenant_id"] = tenant_id
-        user["scope"] = "tenant"
-        return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        owner["scope"] = "platform"
+        owner["role"] = "platform_owner"
+        return owner
+
+    # Tenant user — bind the tenant DB for this request BEFORE querying.
+    tenant_id = payload.get("tenant") or get_default_tenant_id()
+    set_current_tenant(tenant_id)
+    user = await db.users.find_one(
+        {"id": payload["sub"]}, {"_id": 0, "password_hash": 0}
+    )
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if user.get("deleted_at"):
+        # Row was soft-deleted after this token was issued — force
+        # re-authentication instead of leaking access.
+        raise HTTPException(status_code=401, detail="Account has been removed")
+    user["tenant_id"] = tenant_id
+    user["scope"] = "tenant"
+    return user
+
+
+async def get_current_user(request: Request) -> dict:
+    # Collect candidate tokens. The Authorization header (app-controlled,
+    # from localStorage) is tried FIRST, then the httpOnly cookie. This makes
+    # auth robust to cookie/localStorage desync — a stale cookie left over
+    # from a previous session can never block a freshly-issued Bearer token.
+    candidates: list[str] = []
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        candidates.append(auth_header[7:])
+    cookie_token = request.cookies.get("access_token")
+    if cookie_token and cookie_token not in candidates:
+        candidates.append(cookie_token)
+
+    if not candidates:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    last_exc: Optional[HTTPException] = None
+    for token in candidates:
+        try:
+            return await _resolve_user_from_token(token)
+        except jwt.ExpiredSignatureError:
+            last_exc = HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError:
+            last_exc = HTTPException(status_code=401, detail="Invalid token")
+        except HTTPException as exc:
+            last_exc = exc
+    raise last_exc or HTTPException(status_code=401, detail="Not authenticated")
 
 
 

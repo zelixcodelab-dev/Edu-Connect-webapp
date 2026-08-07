@@ -130,7 +130,7 @@ function buildSections(navItems, role) {
     { type: "items", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "office", label: "Office", icon: Buildings, items: pick(GROUP_ROUTES.office) },
     { type: "group", key: "details", label: "Add details", icon: FolderSimplePlus, items: pick(GROUP_ROUTES.details) },
-    { type: "items", items: pick(["/users", "/expense-requests", "/activity", "/settings"]) },
+    { type: "items", items: pick(["/users", "/branding", "/expense-requests", "/activity", "/settings"]) },
   ].filter((s) => s.items.length > 0);
 }
 
