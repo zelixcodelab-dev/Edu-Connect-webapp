@@ -185,7 +185,7 @@ backend:
 frontend:
   - task: "White-label branding provider + dynamic theming (login, app shell, favicon/title)"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/lib/branding.jsx, frontend/src/index.css, frontend/src/pages/AuthPage.jsx, frontend/src/pages/AppShell.jsx"
     stuck_count: 0
     priority: "high"
@@ -194,17 +194,23 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Login page renders de-branded 'Edu Connect' with crimson brand (verified via screenshot). Not yet auto-tested end-to-end. Awaiting user go-ahead for frontend testing."
+        -working: true
+        -agent: "testing"
+        -comment: "VERIFIED: Login page displays 'Edu Connect' branding correctly. Platform owner and tenant admin login flows work. App shell sidebar renders with proper branding. Direct navigation to /branding page works and branding can be customized."
   - task: "Platform Console UI + tenant Branding page + module-gated nav"
     implemented: true
-    working: "NA"
+    working: false
     file: "frontend/src/pages/PlatformConsole.jsx, frontend/src/pages/Branding.jsx, frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: "NA"
         -agent: "main"
         -comment: "Platform console renders (wait_for_selector succeeded). Screenshot tool captures blank frames intermittently (heavy blur/animation) but selectors resolve. Awaiting user go-ahead for frontend testing."
+        -working: false
+        -agent: "testing"
+        -comment: "CRITICAL BUGS FOUND: (1) Company dialog does not close after saving - remains open and blocks all interactions (overlay intercepts pointer events). Workaround: press Escape. (2) Session persistence issue - auth token expires/invalidated causing 401 errors and redirects to /login after short period. (3) 'Customize' nav item missing from tenant admin sidebar even for super_admin role - direct navigation to /branding works. PARTIAL SUCCESS: Platform console loads, company creation works, company cards display correctly."
 
 metadata:
   created_by: "main_agent"
@@ -213,8 +219,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "Platform Console UI + tenant Branding page + module-gated nav"
+  stuck_tasks:
+    - "Platform Console UI + tenant Branding page + module-gated nav"
   test_all: false
   test_priority: "high_first"
 
@@ -267,3 +275,23 @@ agent_communication:
       branding API, and multi-tenant DATA ISOLATION all verified. Regression on core modules
       (categories, accounts, students, transactions, invoices, leads, users, dashboard/summary) all 200.
       Backend is production-ready.
+    -agent: "testing"
+    -message: >
+      FRONTEND TESTING COMPLETE - 3 CRITICAL BUGS FOUND. Tested platform console, tenant app, and branding customization.
+      
+      ✅ WORKING: Login page branding, platform owner login/console, company creation, tenant admin login, app shell sidebar, direct branding page access.
+      
+      ❌ CRITICAL BUG #1 - Company Dialog Not Closing: After clicking "Save company" in platform console, dialog remains open and blocks all interactions.
+      Dialog overlay intercepts pointer events preventing clicks on Edit, Logout, or any other buttons. Workaround: press Escape key.
+      Location: frontend/src/pages/PlatformConsole.jsx line 181 - setOpen(false) not being called or dialog state not updating.
+      
+      ❌ CRITICAL BUG #2 - Session Persistence Issue: Auth token expires/invalidated after short period causing 401 errors on /api/auth/me
+      and redirects to /login. Prevents completing multi-step flows. Check token expiration settings and cookie configuration.
+      
+      ❌ CRITICAL BUG #3 - Missing Customize Nav Item: The "Customize" nav item ([data-testid="nav-branding"]) is not visible in tenant admin
+      sidebar even for super_admin role. Direct navigation to /branding works. Location: frontend/src/pages/AppShell.jsx buildSections() function
+      not including branding item in nav sections.
+      
+      INCOMPLETE TESTS (due to bugs): Edit company flow, module gating verification, direct navigation redirect test.
+      
+      RECOMMENDATION: Fix these 3 critical bugs before production deployment. Bug #1 and #3 are frontend-only fixes. Bug #2 may require backend changes.
