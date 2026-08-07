@@ -113,31 +113,49 @@ class _DBProxy:
 db = _DBProxy()
 
 
+import logging
+
+_log = logging.getLogger("db.indexes")
+
+# (collection, keys, kwargs) — keys is a str or a list of (field, direction) tuples.
+_TENANT_INDEXES = [
+    ("users", "email", {"unique": True}),
+    ("accounts", "user_id", {}),
+    ("clients", "user_id", {}),
+    ("categories", "user_id", {}),
+    ("transactions", [("user_id", 1), ("date", -1)], {}),
+    ("transactions", "linked_invoice_id", {}),
+    ("transactions", "linked_student_payment_id", {}),
+    ("transactions", "linked_student_id", {}),
+    ("transactions", "linked_expense_request_id", {}),
+    ("invoices", "user_id", {}),
+    ("invoices", "linked_visit_invoice_id", {}),
+    ("students", "user_id", {}),
+    ("students", "referrer_user_id", {}),
+    ("expense_requests", "status", {}),
+    ("notifications", [("recipient_user_id", 1), ("created_at", -1)], {}),
+    ("messages", "thread_id", {}),
+    ("colleges", "name_lower", {"unique": True}),
+    ("leads", "office", {}),
+    ("leads", "assigned_to_user_id", {}),
+]
+
+
 async def ensure_tenant_indexes(tenant_id: str) -> None:
-    """Create the per-tenant indexes for a company's database. Idempotent."""
+    """Create the per-tenant indexes for a company's database. Idempotent.
+
+    Each index is created independently and best-effort: if MongoDB refuses
+    (e.g. ``OutOfDiskSpace`` / ``OperationFailure`` on a storage-limited or
+    full database), we log and continue so tenant provisioning still finishes
+    and the company stays loginable. Indexes are pure optimizations here — the
+    app functions correctly without them.
+    """
     tdb = tenant_database(tenant_id)
-    try:
-        await tdb.users.create_index("email", unique=True)
-    except Exception:
-        pass
-    await tdb.accounts.create_index("user_id")
-    await tdb.clients.create_index("user_id")
-    await tdb.categories.create_index("user_id")
-    await tdb.transactions.create_index([("user_id", 1), ("date", -1)])
-    await tdb.transactions.create_index("linked_invoice_id")
-    await tdb.transactions.create_index("linked_student_payment_id")
-    await tdb.transactions.create_index("linked_student_id")
-    await tdb.transactions.create_index("linked_expense_request_id")
-    await tdb.invoices.create_index("user_id")
-    await tdb.invoices.create_index("linked_visit_invoice_id")
-    await tdb.students.create_index("user_id")
-    await tdb.students.create_index("referrer_user_id")
-    await tdb.expense_requests.create_index("status")
-    await tdb.notifications.create_index([("recipient_user_id", 1), ("created_at", -1)])
-    await tdb.messages.create_index("thread_id")
-    try:
-        await tdb.colleges.create_index("name_lower", unique=True)
-    except Exception:
-        pass
-    await tdb.leads.create_index("office")
-    await tdb.leads.create_index("assigned_to_user_id")
+    for collection, keys, kwargs in _TENANT_INDEXES:
+        try:
+            await tdb[collection].create_index(keys, **kwargs)
+        except Exception as exc:  # noqa: BLE001 — never let indexing break provisioning
+            _log.warning(
+                "Skipping index on %s.%s (%s): %s",
+                tenant_db_name(tenant_id), collection, keys, exc,
+            )

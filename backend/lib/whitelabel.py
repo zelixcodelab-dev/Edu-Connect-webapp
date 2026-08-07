@@ -6,9 +6,12 @@ without circular imports.
 """
 import os
 import re
+import logging
 
 from db import gdb, tenant_database, ensure_tenant_indexes
 from auth_lib import hash_password, gen_id, now_iso
+
+_log = logging.getLogger("whitelabel")
 
 
 # --------------------------------------------------------------------------
@@ -151,6 +154,17 @@ async def _seed_tenant_defaults(tenant_id: str, admin_user_id: str, currency: st
     })
 
 
+async def _seed_tenant_defaults_safe(tenant_id: str, admin_user_id: str, currency: str) -> None:
+    """Best-effort defaults seeding. The company's registry row and admin
+    user are already created before this runs, so a failure here (e.g.
+    ``OutOfDiskSpace`` on a full DB) must not abort provisioning — the
+    company must stay loginable. We log and move on."""
+    try:
+        await _seed_tenant_defaults(tenant_id, admin_user_id, currency)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("Default data seeding skipped for tenant %s: %s", tenant_id, exc)
+
+
 async def email_in_use(email: str) -> bool:
     """True if the email is already a platform owner or any company's user."""
     email = (email or "").lower().strip()
@@ -206,7 +220,7 @@ async def provision_tenant(
         "approval_status": "approved",
         "created_at": now_iso(),
     })
-    await _seed_tenant_defaults(tid, admin_id, b.get("currency", "INR"))
+    await _seed_tenant_defaults_safe(tid, admin_id, b.get("currency", "INR"))
     return doc
 
 
