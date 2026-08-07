@@ -1,0 +1,52 @@
+# Render.com Blueprint for this monorepo (frontend/ + backend/).
+# Deploy via Render → "New +" → "Blueprint" → pick this repo. Render reads
+# this file and creates BOTH services with the correct root directories,
+# which resolves the "Couldn't find a package.json in /opt/render/project/src"
+# error (package.json lives in ./frontend, not the repo root).
+#
+# After the first deploy, set the two env vars marked `sync: false`:
+#   - Backend  MONGO_URL  → your MongoDB Atlas connection string
+#   - Frontend REACT_APP_BACKEND_URL → the backend service's public URL (https://<backend>.onrender.com)
+
+services:
+  # ---------------- Backend: FastAPI (Python) ----------------
+  - type: web
+    name: educonnect-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/
+    envVars:
+      - key: MONGO_URL
+        sync: false            # paste your MongoDB Atlas URI in the dashboard
+      - key: DB_NAME
+        value: educonnect
+      - key: JWT_SECRET
+        generateValue: true    # Render generates a strong secret
+      - key: ADMIN_EMAIL
+        value: owner@educonnect.app
+      - key: ADMIN_PASSWORD
+        value: Owner@12345
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_COOKIE_SAMESITE
+        value: none
+      - key: CORS_ORIGINS
+        sync: false            # set to your frontend URL (comma-separated) after it's created
+
+  # ---------------- Frontend: React (CRA/craco) static site ----------------
+  - type: web
+    name: educonnect-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: yarn install && yarn build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        sync: false            # set to the educonnect-api public URL
+    routes:
+      - type: rewrite         # SPA fallback so client-side routes work
+        source: /*
+        destination: /index.html
