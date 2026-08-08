@@ -156,7 +156,7 @@ export default function Branding() {
             <div className="flex items-center gap-3">
               <BrandMark size={44} />
               <div>
-                <p className="font-display font-semibold">{form.app_name || "Edu Connect"}</p>
+                <p className="font-display font-semibold">{form.app_name || "EduConnect Pro"}</p>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{form.company_line}</p>
               </div>
             </div>

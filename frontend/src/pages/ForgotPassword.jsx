@@ -48,7 +48,7 @@ export default function ForgotPassword() {
         <div className="flex items-center gap-2.5">
           <BrandMark size={40} />
           <div className="flex flex-col">
-            <span className="font-display text-base font-semibold leading-tight">{branding?.app_name || "Edu Connect"}</span>
+            <span className="font-display text-base font-semibold leading-tight">{branding?.app_name || "EduConnect Pro"}</span>
             <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{branding?.company_line || ""}</span>
           </div>
         </div>

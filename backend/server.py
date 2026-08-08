@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI(title="Edu Connect API")
+app = FastAPI(title="EduConnect Pro API")
 
 # Mount all feature routers (each already includes the /api prefix).
 app.include_router(auth.router)
@@ -63,7 +63,7 @@ health = APIRouter(prefix="/api", tags=["health"])
 
 @health.get("/")
 async def root() -> dict[str, str]:
-    return {"service": "Edu Connect", "status": "ok"}
+    return {"service": "EduConnect Pro", "status": "ok"}
 
 
 # Resolve the commit SHA once at import time. Prefer the env var Emergent sets
@@ -99,7 +99,7 @@ async def healthz() -> dict:
         db_error = str(exc)
     latency_ms = round((time.perf_counter() - started) * 1000, 2)
     return {
-        "service": "Edu Connect",
+        "service": "EduConnect Pro",
         "status": "ok" if db_ok else "degraded",
         "db": {"connected": db_ok, "latency_ms": latency_ms, "error": db_error},
         "commit": COMMIT_SHA,

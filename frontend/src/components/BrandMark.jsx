@@ -5,7 +5,7 @@ import { useBranding } from "@/lib/branding";
 // from the app name initials. Used across the login page and app shell.
 export default function BrandMark({ size = 44, rounded = "rounded-xl", className = "" }) {
   const { branding } = useBranding();
-  const name = branding?.app_name || "Edu Connect";
+  const name = branding?.app_name || "EduConnect Pro";
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])

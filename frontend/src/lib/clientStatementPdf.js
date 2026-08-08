@@ -84,7 +84,7 @@ function _drawFooter(doc) {
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFontSize(8);
   doc.setTextColor(168, 162, 158);
-  doc.text("Edu Connect", 48, pageHeight - 24);
+  doc.text("EduConnect Pro", 48, pageHeight - 24);
   doc.text("Generated " + new Date().toLocaleString(), pageWidth - 48, pageHeight - 24, { align: "right" });
 }
 

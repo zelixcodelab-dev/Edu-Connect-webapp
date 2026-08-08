@@ -181,7 +181,7 @@ function SidebarContent({ onItemClick, user, onLogout }) {
       <div className="px-6 py-5 flex items-center gap-3 border-b border-[hsl(var(--sidebar-border))]">
         <BrandMark size={44} className="shadow-sm" />
         <div className="flex flex-col min-w-0">
-          <span className="font-display text-base font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate">{branding?.app_name || "Edu Connect"}</span>
+          <span className="font-display text-base font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate">{branding?.app_name || "EduConnect Pro"}</span>
           <span className="text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-muted))] truncate">{branding?.company_line || ""}</span>
         </div>
       </div>
@@ -289,7 +289,7 @@ export default function AppShell() {
     || PAGE_TITLES[location.pathname]
     || (location.pathname.startsWith("/students/") ? "Student" : "")
     || (location.pathname.startsWith("/agents/") ? "Agent detail" : "")
-    || (branding?.app_name || "Edu Connect");
+    || (branding?.app_name || "EduConnect Pro");
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 

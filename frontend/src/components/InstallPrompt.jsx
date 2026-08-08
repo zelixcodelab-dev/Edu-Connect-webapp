@@ -8,7 +8,7 @@ import { useBranding } from "@/lib/branding";
 // Screen instructions. Dismissal is remembered for 24h via localStorage.
 export default function InstallPrompt() {
   const { branding } = useBranding();
-  const appName = branding?.app_name || "Edu Connect";
+  const appName = branding?.app_name || "EduConnect Pro";
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);

@@ -29,7 +29,7 @@ export default function AuthPage({ mode }) {
     if (ok) nav("/");
   };
 
-  const appName = branding?.app_name || "Edu Connect";
+  const appName = branding?.app_name || "EduConnect Pro";
   const appShort = branding?.app_short || appName;
 
   return (

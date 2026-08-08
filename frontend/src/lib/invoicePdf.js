@@ -48,7 +48,7 @@ export function downloadInvoicePDF({ invoice, client, user, payments }) {
   doc.setFontSize(11);
   doc.setTextColor(28, 25, 23);
   doc.setFont("helvetica", "bold");
-  doc.text(user?.business_name || user?.name || "Edu Connect", pageWidth - margin, 70, { align: "right" });
+  doc.text(user?.business_name || user?.name || "EduConnect Pro", pageWidth - margin, 70, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(120, 113, 108);
@@ -272,7 +272,7 @@ export function downloadInvoicePDF({ invoice, client, user, payments }) {
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFontSize(8);
   doc.setTextColor(168, 162, 158);
-  doc.text("Generated with " + (user?.business_name || "Edu Connect"), margin, pageHeight - 28);
+  doc.text("Generated with " + (user?.business_name || "EduConnect Pro"), margin, pageHeight - 28);
   doc.text(new Date().toLocaleString(), pageWidth - margin, pageHeight - 28, { align: "right" });
 
   doc.save(`${invoice.invoice_number}.pdf`);

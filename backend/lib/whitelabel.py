@@ -17,13 +17,13 @@ _log = logging.getLogger("whitelabel")
 # --------------------------------------------------------------------------
 # Branding
 # --------------------------------------------------------------------------
-DEFAULT_APP_NAME = os.environ.get("DEFAULT_APP_NAME", "Edu Connect")
+DEFAULT_APP_NAME = os.environ.get("DEFAULT_APP_NAME", "EduConnect Pro")
 
 DEFAULT_BRANDING = {
     "app_name": DEFAULT_APP_NAME,
     "app_short": "Connect",
     "company_line": "Admissions & Finance Suite",
-    "logo_url": "/brand-logo.png",        # default Edu Connect logo (public/)
+    "logo_url": "/brand-logo.png",        # default EduConnect Pro logo (public/)
     "brand_color": "#C70000",             # crimson (matches the base theme)
     "hero_title": "AdmissionOps,",
     "hero_accent": "Real-Time Tracker.",
@@ -38,7 +38,7 @@ BRANDING_FIELDS = list(DEFAULT_BRANDING.keys())
 def merged_branding(raw):
     """Merge a stored/partial branding dict over the defaults. Empty/None
     values fall back to the default (including logo_url — so a company that
-    hasn't set its own logo shows the default Edu Connect logo rather than a
+    hasn't set its own logo shows the default EduConnect Pro logo rather than a
     blank monogram)."""
     out = dict(DEFAULT_BRANDING)
     for k, v in (raw or {}).items():

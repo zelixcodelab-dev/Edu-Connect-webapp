@@ -1,4 +1,4 @@
-// Edu Connect — minimal service worker for PWA installability + basic offline shell.
+// EduConnect Pro — minimal service worker for PWA installability + basic offline shell.
 // Strategy:
 //   - Cache the app shell (HTML, CSS, JS, icons) on first load.
 //   - Network-first for everything (so users always get fresh data when online).

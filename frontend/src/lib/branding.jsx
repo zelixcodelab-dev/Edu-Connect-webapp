@@ -3,7 +3,7 @@ import api from "./api";
 
 // Must mirror backend lib/whitelabel.DEFAULT_BRANDING.
 export const DEFAULT_BRANDING = {
-  app_name: "Edu Connect",
+  app_name: "EduConnect Pro",
   app_short: "Connect",
   company_line: "Admissions & Finance Suite",
   logo_url: "/brand-logo.png",
