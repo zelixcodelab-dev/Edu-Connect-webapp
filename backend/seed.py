@@ -11,7 +11,7 @@ import os
 from db import db, gdb, set_default_tenant
 from auth_lib import hash_password, gen_id, now_iso
 from lib.whitelabel import (
-    DEFAULT_CATEGORIES, provision_tenant, DEFAULT_APP_NAME,
+    DEFAULT_CATEGORIES, provision_tenant, DEFAULT_APP_NAME, ensure_tenant_admin,
 )
 
 
@@ -59,15 +59,28 @@ async def seed_platform_and_default_tenant() -> None:
             "created_at": now_iso(),
         })
 
-    # 2) Default company — provisioned once. If any company already exists we
-    #    just bind the first as the fallback/default tenant.
+    # 2) Default company — provisioned once. If it already exists we bind it
+    #    as the fallback/default tenant AND repair its admin user in case an
+    #    earlier provisioning attempt failed partway (e.g. Atlas rejected an
+    #    over-long tenant DB name before the admin user was created).
+    demo_admin_email = (os.environ.get("DEMO_ADMIN_EMAIL") or "admin@educonnect.app").lower()
+    demo_admin_pw = os.environ.get("DEMO_ADMIN_PASSWORD") or "Admin@12345"
+
     existing = await gdb.tenants.find_one({}, sort=[("created_at", 1)])
     if existing:
         set_default_tenant(existing["id"])
+        try:
+            await ensure_tenant_admin(
+                existing,
+                (existing.get("admin_email") or demo_admin_email),
+                demo_admin_pw,
+                admin_name="Workspace Admin",
+            )
+        except Exception:
+            # Repair is best-effort; never block startup on it.
+            pass
         return
 
-    demo_admin_email = (os.environ.get("DEMO_ADMIN_EMAIL") or "admin@educonnect.app").lower()
-    demo_admin_pw = os.environ.get("DEMO_ADMIN_PASSWORD") or "Admin@12345"
     doc = await provision_tenant(
         name=DEFAULT_APP_NAME,
         admin_email=demo_admin_email,

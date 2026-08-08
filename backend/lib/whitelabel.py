@@ -224,6 +224,36 @@ async def provision_tenant(
     return doc
 
 
+async def ensure_tenant_admin(tenant: dict, admin_email: str, admin_password: str,
+                              admin_name: str = "Administrator") -> None:
+    """Repair a half-provisioned tenant: ensure its admin user (and default
+    data) exist inside the tenant DB. Idempotent — no-op if the admin already
+    exists. Needed because a tenant's registry row is written to the platform
+    DB *before* its admin user; if the admin insert failed earlier (e.g. Atlas
+    rejected an over-long DB name), the company was left un-loginable."""
+    tid = tenant["id"]
+    admin_email = (admin_email or "").lower().strip()
+    tdb = tenant_database(tid)
+    if await tdb.users.find_one({"email": admin_email}):
+        return
+    await ensure_tenant_indexes(tid)
+    b = tenant.get("branding") or {}
+    admin_id = gen_id()
+    await tdb.users.insert_one({
+        "id": admin_id,
+        "email": admin_email,
+        "name": admin_name,
+        "business_name": tenant.get("name", admin_name),
+        "password_hash": hash_password(admin_password),
+        "currency": b.get("currency", "INR"),
+        "role": "super_admin",
+        "office": None,
+        "approval_status": "approved",
+        "created_at": now_iso(),
+    })
+    await _seed_tenant_defaults_safe(tid, admin_id, b.get("currency", "INR"))
+
+
 async def find_tenant_for_email(email: str):
     """Scan companies for the (globally-unique) email. Returns
     ``(tenant_doc, user_doc)`` or ``(None, None)``. Company count is small so

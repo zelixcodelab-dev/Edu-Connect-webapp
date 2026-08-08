@@ -68,6 +68,20 @@ customise the app per company: access/permissions, logo, app name, enabled modul
 - Backend must allow the frontend origin: either the new regex (after pushing this code) or
   set `CORS_ORIGINS=https://<frontend-domain>` on Railway and redeploy backend.
 
+- 2026-06: **Atlas 38-byte DB-name fix + tenant self-repair.** MongoDB Atlas rejects database
+  names > 38 bytes; the natural `educonnect_t_<32-hex-uuid>` = 45 bytes → `AtlasError 8000`,
+  which broke login (tenant scan threw `OperationFailure`). Fixes:
+  - `db.tenant_db_name()` keeps the readable full name when ≤ 38 bytes, else falls back to a
+    deterministic `<base>_t_<16-hex sha1(uuid)>` (64-bit, stable) that always fits.
+  - `lib.whitelabel.ensure_tenant_admin()` + boot-seed repair: if a tenant's registry row exists
+    but its admin user was never created (earlier provisioning failed on the long name), the
+    admin user + defaults are (re)created on next startup so the company is loginable.
+  - Verified on preview: owner + tenant-admin login, new-company provisioning, and deletion all
+    work; all generated names ≤ 38 bytes.
+  - MIGRATION NOTE: on non-Atlas Mongo where a tenant DB name was 39–64 bytes and already held
+    data, the name now shortens → that data is orphaned. Only the *default* tenant is
+    auto-repaired. Fresh Atlas deploys are unaffected (no prior tenant data existed).
+
 ## Backlog / Remaining (P1/P2)
 - P1: Wire real integration keys when available — Resend (email), VAPID (web push),
   S3 (file upload), WhatsApp. Currently mocked/bypassed.

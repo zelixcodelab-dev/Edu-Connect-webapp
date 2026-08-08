@@ -19,6 +19,7 @@ database — no per-router changes required.
 """
 import os
 import contextvars
+import hashlib
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -81,8 +82,24 @@ def reset_current_tenant(token) -> None:
 
 
 def tenant_db_name(tenant_id: str) -> str:
+    """Deterministic, stable database name for a tenant.
+
+    MongoDB **Atlas caps database names at 38 bytes** (self-hosted allows 64).
+    The natural name ``{base}_t_{uuidhex}`` is ~45 bytes and Atlas rejects it
+    with ``AtlasError 8000 (database name too long)``. So: keep the readable
+    full name when it fits, otherwise fall back to a deterministic short name
+    built from a truncated SHA-1 of the tenant id (64-bit → negligible
+    collision risk for realistic tenant counts). Same input always yields the
+    same name, so lookups stay consistent across requests and restarts.
+    """
     safe = (tenant_id or "").replace("-", "")
-    return f"{_BASE_DB_NAME}_t_{safe}"
+    full = f"{_BASE_DB_NAME}_t_{safe}"
+    if len(full.encode("utf-8")) <= 38:
+        return full
+    tid = hashlib.sha1(safe.encode("utf-8")).hexdigest()[:16]  # 16 hex = 64-bit
+    suffix = f"_t_{tid}"
+    prefix = _BASE_DB_NAME[: max(1, 38 - len(suffix))]
+    return f"{prefix}{suffix}"
 
 
 def tenant_database(tenant_id: str):
