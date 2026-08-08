@@ -16,7 +16,7 @@ import StaffPickerDialog from "@/components/office-dashboard/StaffPickerDialog";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
 import CrmAnalytics from "@/components/office-dashboard/CrmAnalytics";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = { HEAD_OFFICE: "HEAD OFFICE", BRANCH_EKM: "BRANCH EKM", BRANCH_TVM: "BRANCH TVM" };
 
 const TABS = [
   { value: "crm", label: "Lead CRM" },
@@ -32,7 +32,7 @@ const WINDOWS = [
 export default function OfficeDashboard({ superView = false }) {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [office, setOffice] = useState("KM_BLR");
+  const [office, setOffice] = useState("HEAD OFFICE");
   const currency = superView ? "INR" : (user?.currency || "INR");
   const [windowKey, setWindowKey] = useState("month");
   const [tab, setTab] = useState("admissions");
@@ -112,7 +112,7 @@ export default function OfficeDashboard({ superView = false }) {
             <>
               <p className="label-eyebrow">Office overview</p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-2" data-testid="office-overview-title">
-                {OFFICE_LABEL[office] || office} office
+                {OFFICE_LABEL[office] || office} 
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-3" data-testid="office-switcher">
                 {Object.keys(OFFICE_LABEL).map((o) => (

@@ -19,7 +19,7 @@ import CreateUserDialog from "@/components/users/CreateUserDialog";
 import PermissionsDialog from "@/components/users/PermissionsDialog";
 import ResetPasswordDialog from "@/components/users/ResetPasswordDialog";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = { HEAD_OFFICE: "HEAD OFFICE", BRANCH_EKM: "BRANCH EKM", BRANCH_TVM: "BRANCH TVM" };
 
 const STATUS_STYLE = {
   pending: "bg-amber-100/60 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400",

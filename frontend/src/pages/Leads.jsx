@@ -89,7 +89,7 @@ export default function Leads() {
             className="flex items-center gap-1 rounded-lg bg-muted p-0.5 self-start sm:self-auto shrink-0"
             data-testid="crm-office-switcher"
           >
-            {[["all", "All offices"], ["KM_BLR", "KM BLR"], ["KM_TCR", "KM TCR"], ["KM_KMLY", "KM KMLY"]].map(([v, label]) => (
+            {[["all", "All offices"], ["HEAD_OFFICE", "HEAD OFFICE"], ["BRANCH_EKM", "BRANCH EKM"], ["BRANCH_TVM", "BRANCH TVM"]].map(([v, label]) => (
               <button
                 key={v}
                 type="button"
