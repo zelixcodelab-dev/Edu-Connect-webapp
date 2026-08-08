@@ -132,7 +132,15 @@ _ALLOW_ORIGIN_REGEX = (
     r"([a-z0-9-]+\.)*emergentagent\.com|"
     r"([a-z0-9-]+\.)*emergentagent\.net|"
     r"([a-z0-9-]+\.)*emergent\.host|"
-    r"([a-z0-9-]+\.)*emergent\.sh"
+    r"([a-z0-9-]+\.)*emergent\.sh|"
+    # Mainstream hosting platforms this white-label app is commonly deployed to.
+    # Lets a fresh Vercel/Railway/Render/Netlify frontend reach its backend
+    # without hand-editing CORS. Exact custom domains can still be added via
+    # the CORS_ORIGINS env var.
+    r"([a-z0-9-]+\.)*vercel\.app|"
+    r"([a-z0-9-]+\.)*up\.railway\.app|"
+    r"([a-z0-9-]+\.)*onrender\.com|"
+    r"([a-z0-9-]+\.)*netlify\.app"
     r")$"
 )
 app.add_middleware(

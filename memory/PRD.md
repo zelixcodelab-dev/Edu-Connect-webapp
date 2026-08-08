@@ -54,6 +54,20 @@ customise the app per company: access/permissions, logo, app name, enabled modul
   `OutOfDiskSpace`) can no longer abort provisioning or leave a company un-loginable.
   Verified via API: provision company → new admin login → delete. PASS.
 
+- 2026-06: **CORS hardening for external deploys** — `_ALLOW_ORIGIN_REGEX` in `backend/server.py`
+  now auto-allows `*.vercel.app`, `*.up.railway.app`, `*.onrender.com`, `*.netlify.app`
+  (custom domains still via `CORS_ORIGINS`). Root-caused a "Can't reach the server" login
+  failure on the user's Vercel frontend → Railway backend: CORS preflight from the Vercel
+  origin returned 400 with no `Access-Control-Allow-Origin`. Verified: vercel origin → 200
+  with echoed origin; evil.com → 400 blocked.
+
+### External deployment notes (Vercel frontend + Railway backend)
+- Frontend `REACT_APP_BACKEND_URL` MUST be the backend's **public** Railway domain
+  (e.g. `https://<svc>.up.railway.app`), NOT the private `*.railway.internal` hostname
+  (browsers can't resolve it). CRA bakes this at BUILD time → redeploy frontend after change.
+- Backend must allow the frontend origin: either the new regex (after pushing this code) or
+  set `CORS_ORIGINS=https://<frontend-domain>` on Railway and redeploy backend.
+
 ## Backlog / Remaining (P1/P2)
 - P1: Wire real integration keys when available — Resend (email), VAPID (web push),
   S3 (file upload), WhatsApp. Currently mocked/bypassed.
