@@ -226,7 +226,10 @@ export default function PlatformConsole() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border">
+      <header
+        className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="h-16 px-4 md:px-8 max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-gradient text-white flex items-center justify-center">
