@@ -23,7 +23,7 @@ DEFAULT_BRANDING = {
     "app_name": DEFAULT_APP_NAME,
     "app_short": "Connect",
     "company_line": "Admissions & Finance Suite",
-    "logo_url": "",                       # empty → frontend shows the default mark
+    "logo_url": "/brand-logo.png",        # default Edu Connect logo (public/)
     "brand_color": "#C70000",             # crimson (matches the base theme)
     "hero_title": "AdmissionOps,",
     "hero_accent": "Real-Time Tracker.",
@@ -36,14 +36,14 @@ BRANDING_FIELDS = list(DEFAULT_BRANDING.keys())
 
 
 def merged_branding(raw):
-    """Merge a stored/partial branding dict over the defaults."""
+    """Merge a stored/partial branding dict over the defaults. Empty/None
+    values fall back to the default (including logo_url — so a company that
+    hasn't set its own logo shows the default Edu Connect logo rather than a
+    blank monogram)."""
     out = dict(DEFAULT_BRANDING)
     for k, v in (raw or {}).items():
         if k in DEFAULT_BRANDING and v is not None and v != "":
             out[k] = v
-    # logo_url may legitimately be empty — copy it through if present
-    if raw and "logo_url" in raw:
-        out["logo_url"] = raw.get("logo_url") or ""
     return out
 
 

@@ -82,6 +82,15 @@ customise the app per company: access/permissions, logo, app name, enabled modul
     data, the name now shortens → that data is orphaned. Only the *default* tenant is
     auto-repaired. Fresh Atlas deploys are unaffected (no prior tenant data existed).
 
+- 2026-06: **Brand logo integrated.** Added the EDU Connect (by Zelix Code Lab) logo as the
+  default brand asset: `frontend/public/brand-logo.png` (login + in-app BrandMark) plus regenerated
+  `favicon.png`, `apple-touch-icon.png`, `pwa-icon-192/512`, `pwa-icon-maskable-512`. Set
+  `DEFAULT_BRANDING.logo_url = "/brand-logo.png"` in backend `lib/whitelabel.py` and frontend
+  `lib/branding.jsx`; simplified `merged_branding` so an empty stored logo falls back to the
+  default (companies can still override with their own logo). Verified on preview: login hero +
+  logged-in sidebar both render the logo. NOTE: appears on the live site only after Save to
+  Github + redeploy of BOTH frontend (public assets) and backend (branding default).
+
 ## Backlog / Remaining (P1/P2)
 - P1: Wire real integration keys when available — Resend (email), VAPID (web push),
   S3 (file upload), WhatsApp. Currently mocked/bypassed.

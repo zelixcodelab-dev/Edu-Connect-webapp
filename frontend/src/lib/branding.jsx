@@ -6,7 +6,7 @@ export const DEFAULT_BRANDING = {
   app_name: "Edu Connect",
   app_short: "Connect",
   company_line: "Admissions & Finance Suite",
-  logo_url: "",
+  logo_url: "/brand-logo.png",
   brand_color: "#C70000",
   hero_title: "AdmissionOps,",
   hero_accent: "Real-Time Tracker.",
