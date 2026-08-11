@@ -533,6 +533,15 @@ async def server_containers(server_id: str, owner: dict = Depends(require_permis
     return await _agent_call(s, "GET", "/containers")
 
 
+@router.get("/servers/{server_id}/containers/{name}/logs")
+async def server_container_logs(server_id: str, name: str, tail: int = 200,
+                                owner: dict = Depends(require_permission("server.view"))):
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    return await _agent_call(s, "GET", f"/containers/{name}/logs?tail={tail}")
+
+
 @router.post("/servers/{server_id}/containers/{name}/{action}")
 async def container_action(server_id: str, name: str, action: str, request: Request,
                            owner: dict = Depends(require_permission("server.restart"))):

@@ -164,6 +164,22 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Verified E2E + curl: real DB connections/collections, backup, server create + audited restart. Zero page errors.
 - NOTE: live VPS metrics/Docker/terminal + a read-only server/DB connection are pending real credentials from the user.
 
+### Phase 4b — VPS Docker Container Panel (DONE, 2026-08, self-tested E2E)
+- Backend proxy (`routers/registry.py`) already had: `GET /servers/{id}/containers`, `GET
+  /servers/{id}/containers/{name}/logs?tail=N`, `POST /servers/{id}/containers/{name}/{action}`
+  (start/stop/restart) — permission-gated (server.view / server.restart) + audited via `_agent_call`.
+- Frontend (`PlatformVps.jsx`): added Docker containers panel (shown only when server has_agent).
+  Containers dialog = connected/disconnected agent status, manual refresh, container list with
+  state badges (Running/Stopped/Restarting/Error), per-container Start/Stop/Restart (confirmation
+  + audit; Start disabled when running, Stop/Restart disabled when stopped; per-row busy spinner;
+  auto-refresh after action; success/error toasts). Logs dialog = terminal viewer, adjustable tail
+  (100/200/500/1000), Refresh logs without closing.
+- Verified E2E: ran the real `vps-agent/agent.py` (live psutil metrics) + a mock agent; backend proxy
+  returned real container list, logs (tail param) and stop action with audit; frontend dialogs
+  rendered correctly (screenshots). Test server cleaned up afterwards.
+- NOTE: resource stats per container (CPU/RAM/network) intentionally deferred to a later monitoring phase.
+
+
 
 ### Phase 3 — My Apps + Settings (DONE, 2026-06, self-tested E2E)
 - Backend (`routers/registry.py`): Apps registry (`gdb.apps`, seeds EduConnect Pro once) — list+counts,

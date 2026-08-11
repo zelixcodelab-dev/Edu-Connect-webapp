@@ -79,6 +79,14 @@ def containers(_=Depends(auth)):
     return {"containers": items}
 
 
+@app.get("/containers/{name}/logs")
+def container_logs(name: str, tail: int = 200, _=Depends(auth)):
+    code, out, err = _docker(["logs", "--tail", str(min(max(tail, 1), 1000)), name])
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or "logs failed")
+    return {"name": name, "logs": out or err or "(no output)"}
+
+
 @app.post("/containers/{name}/{action}")
 def container_action(name: str, action: str, _=Depends(auth)):
     if action not in ("start", "stop", "restart"):
