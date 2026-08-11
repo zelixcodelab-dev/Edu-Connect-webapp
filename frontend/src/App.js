@@ -38,6 +38,8 @@ import OfficeOverview from "@/pages/OfficeOverview";
 import Activity from "@/pages/Activity";
 import Branding from "@/pages/Branding";
 import PlatformConsole from "@/pages/PlatformConsole";
+import PlatformHome from "@/pages/PlatformHome";
+import PlatformModulePage from "@/pages/PlatformModulePage";
 import PermGate from "@/components/PermGate";
 
 // Keeps the live theme in sync with the signed-in company. On logout it
@@ -144,7 +146,9 @@ export default function App() {
           <Route path="/register" element={<PublicOnly><AuthPage mode="register" /></PublicOnly>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/platform" element={<PlatformProtected><PlatformConsole /></PlatformProtected>} />
+          <Route path="/platform" element={<PlatformProtected><PlatformHome /></PlatformProtected>} />
+          <Route path="/platform/clients/*" element={<PlatformProtected><PlatformConsole /></PlatformProtected>} />
+          <Route path="/platform/:moduleKey" element={<PlatformProtected><PlatformModulePage /></PlatformProtected>} />
           <Route element={<Protected><AppShell /></Protected>}>
             <Route path="/" element={<PermGate page="overview"><Dashboard /></PermGate>} />
             <Route path="/quick-entry" element={<PermGate page="quick_entry"><QuickEntry /></PermGate>} />

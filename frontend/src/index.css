@@ -238,3 +238,9 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .border-orange-500\/30, .hover\:border-orange-500\/30:hover {
     border-color: color-mix(in srgb, var(--brand-a) 30%, transparent) !important;
 }
+
+/* Platform Console motion */
+@keyframes platformFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.platform-fade-in { animation: platformFadeIn 0.35s ease both; }
+@keyframes platformPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.platform-pop { animation: platformPop 0.16s ease-out both; }

@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Buildings, Plus, PencilSimple, Trash, Key, ArrowClockwise, SignOut,
+  Buildings, Plus, PencilSimple, Trash, Key, ArrowClockwise, SignOut, ArrowLeft,
   Sun, Moon, UsersThree, Student, CheckCircle, Prohibit, Link as LinkIcon, Sparkle,
 } from "@phosphor-icons/react";
 
@@ -232,12 +232,16 @@ export default function PlatformConsole() {
       >
         <div className="h-16 px-4 md:px-8 max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button onClick={() => nav("/platform")} data-testid="clients-back-home" title="Platform home"
+              className="w-9 h-9 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center shrink-0">
+              <ArrowLeft size={17} />
+            </button>
             <div className="w-10 h-10 rounded-xl bg-amber-gradient text-white flex items-center justify-center">
               <Buildings size={22} weight="fill" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Platform Console</p>
-              <h1 className="font-display text-lg font-semibold leading-tight">Companies</h1>
+              <h1 className="font-display text-lg font-semibold leading-tight">Clients</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">

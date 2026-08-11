@@ -91,6 +91,34 @@ customise the app per company: access/permissions, logo, app name, enabled modul
   logged-in sidebar both render the logo. NOTE: appears on the live site only after Save to
   Github + redeploy of BOTH frontend (public assets) and backend (branding default).
 
+## Platform Console Rebuild — Multi-Module SaaS Control Center (in progress)
+Goal: transform the single-page Platform Console into a scalable control center with 6 modules
+(Clients, My Apps, Database, VPS Server, Connect, Settings) + Developer dashboard, RBAC, audit,
+global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /app/design_guidelines.json
+(premium minimal SaaS, red accent, Fraunces+Manrope, light/dark, app-launcher home).
+
+### Phase 1 — Foundation (DONE, 2026-06, self-tested)
+- Backend (`routers/platform.py`): RBAC (roles platform_owner/admin/developer/support/viewer +
+  granular ALL_PERMISSIONS + `require_permission` dep, enforced server-side; owner ⇒ all).
+  Audit log (`gdb.platform_audit`, `record_audit`, `GET /platform/audit`, wired into client
+  create/edit/delete/reset). `GET /platform/attention` (real signals: suspended clients, locked
+  logins, empty-state). `GET /platform/search?q=` (grouped results). `/platform/me` now returns permissions.
+- Frontend: new module-launcher Home (`pages/PlatformHome.jsx`), ⌘K command palette
+  (`components/platform/CommandPalette.jsx`), reusable kit (`components/platform/PlatformKit.jsx`:
+  StatusBadge, StatCard, SectionHeader, EmptyState, LoadingState, AttentionCard, Avatar,
+  useHasPermission), module inner-layout shell + shared top bar (`PlatformShell.jsx`),
+  generic module page (`PlatformModulePage.jsx`), module registry (`lib/platformModules.js`).
+  Routes: `/platform` (Home), `/platform/clients/*` (existing company mgmt = Clients module),
+  `/platform/:moduleKey` (module shells). CSS motion added to index.css.
+- Verified: /me perms(24), /attention, /search, /audit + audit side-effect on create; UI launcher,
+  palette, clients module, module shells — no page errors.
+
+### Roadmap (remaining phases)
+- Phase 2: Clients module full redesign (stat cards, data table, tabbed detail) + Connect (real support tickets: dashboard, list, conversation, assignment, SLA).
+- Phase 3: My Apps registry (generic app catalog) + Settings (users/roles/permissions, branding, plans).
+- Phase 4: Database + VPS Server modules (real data where safe + read-only infra connection when creds provided; danger actions gated by permission + confirmation + audit).
+- Later: Developer dashboard + staff user accounts (RBAC already supports the roles).
+
 ## Backlog / Remaining (P1/P2)
 - P1: Wire real integration keys when available — Resend (email), VAPID (web push),
   S3 (file upload), WhatsApp. Currently mocked/bypassed.

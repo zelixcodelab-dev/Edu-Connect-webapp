@@ -1,0 +1,125 @@
+{
+  "typography": {
+    "headings": {
+      "family": "'Fraunces', serif",
+      "weights": ["400", "600", "700"],
+      "usage": "Used for main module titles, hero text, and high-level dashboard headers to give a premium, authoritative SaaS feel.",
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "family": "'Manrope', 'Inter', sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Used for all UI elements, tables, forms, and cards for maximum readability and a clean modern aesthetic."
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-serif font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-serif font-semibold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-sans font-semibold tracking-tight",
+      "h4": "text-lg font-sans font-medium",
+      "body": "text-sm sm:text-base font-sans text-muted-foreground"
+    }
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#dc2626",
+      "foreground": "#ffffff",
+      "hover": "#b91c1c",
+      "gradient": "bg-gradient-to-br from-red-600 to-slate-900"
+    },
+    "background": {
+      "light": "#f8fafc",
+      "dark": "#020617"
+    },
+    "surface": {
+      "light": "#ffffff",
+      "dark": "#0f172a"
+    },
+    "border": {
+      "light": "#e2e8f0",
+      "dark": "#1e293b"
+    },
+    "status": {
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "danger": "#ef4444",
+      "info": "#3b82f6"
+    },
+    "accent": "Semantic use of red only. Limit full red backgrounds to primary CTA buttons, badges, and alerts. Use subtle red opacity (e.g., bg-red-500/10) for active navigation states."
+  },
+  "layouts": {
+    "home_launcher": {
+      "container": "max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8",
+      "header": "Flex row, between items: Logo, global search (Ctrl+K) trigger in center, Notification bell & User avatar on right.",
+      "needs_attention": "A dedicated section at the top. Use an attention-grabbing but clean card layout. E.g., grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4. Alerts should have subtle red or amber left borders.",
+      "module_grid": "Application-launcher style. grid-cols-2 md:grid-cols-3 gap-6 mt-8. Cards should be heavily padded (p-6), rounded-xl, with an icon, title, short description, and optional status badge."
+    },
+    "module_inner": {
+      "container": "flex h-screen bg-background overflow-hidden",
+      "topbar": "h-16 flex items-center justify-between px-6 border-b border-border bg-surface. Sticky top. Glassmorphism backdrop-blur-xl bg-surface/70.",
+      "sidebar": "w-64 flex-shrink-0 border-r border-border bg-surface h-full flex flex-col",
+      "content": "flex-1 overflow-y-auto p-6 md:p-8"
+    }
+  },
+  "components": {
+    "module_card": "rounded-xl border border-border bg-surface p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col items-center text-center gap-3",
+    "stat_card": "rounded-lg border border-border bg-surface p-6 flex flex-col gap-2",
+    "data_table": "w-full text-sm text-left. The header must be font-medium bg-muted/50. Rows hover state: hover:bg-muted/30. Use Shadcn Table component. Limit borders.",
+    "status_badge": "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium. Use soft backgrounds (bg-green-500/10 text-green-600).",
+    "command_palette": "Global search triggered by Ctrl+K. Large centered modal, blurred backdrop. Group results by 'Modules', 'Clients', 'Tickets'.",
+    "alert_card": "rounded-lg border-l-4 border-l-primary bg-surface p-4 shadow-sm flex items-start gap-3",
+    "button": "rounded-md font-medium transition-colors. Primary uses the brand red. Secondary uses outline.",
+    "confirmation_modal": "For danger actions: strictly use a red primary button, clear warning text, and require user to click 'Confirm'."
+  },
+  "motion": {
+    "hover_effects": "Subtle transforms (e.g., hover:-translate-y-1) and box-shadow changes for cards.",
+    "page_transitions": "Fade-in with slight upward translate (opacity-0 translate-y-4 to opacity-100 translate-y-0 duration-300).",
+    "dropdowns": "Fast fade-in and scale-in (scale-95 to scale-100).",
+    "alerts": "Staggered entrance for 'Needs Your Attention' cards."
+  },
+  "accessibility": {
+    "contrast": "Ensure text meets APCA/WCAG AA standards against backgrounds, particularly when using the red brand color.",
+    "focus": "All interactive elements must have focus-visible ring (focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2).",
+    "keyboard": "Command palette (Ctrl+K) ensures power-user keyboard navigability.",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='module-card-clients')."
+  },
+  "media": {
+    "icons": "Use lucide-react. Keep stroke width consistent (1.5 or 2). Compact and clearly recognizable.",
+    "images": "Not heavily image-dependent, but user avatars and app logos should be rounded or circular."
+  },
+  "image_urls": {
+    "user_avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjB1c2VyJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzg2NDg0MTAwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional male user avatar",
+        "category": "avatars"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1527980965255-d3b416303d12?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjB1c2VyJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzg2NDg0MTAwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional user avatar",
+        "category": "avatars"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Implement the home launcher screen strictly using a grid-based card layout, avoiding a permanent sidebar. Use max-width container for desktop.",
+    "Create the 'Needs Your Attention' list as a high-priority visual row above the launcher grid.",
+    "For the inside of modules (Clients, Apps, etc.), switch to a two-column layout: a left sidebar for sub-navigation and a main content area.",
+    "Use Shadcn UI components for buttons, inputs, dropdowns, tables, and dialogs. Use purely JavaScript files (.jsx) as requested.",
+    "Implement light and dark mode support using Tailwind's 'dark:' prefix. Dark mode must use a true-black or very dark slate (#020617) to maintain high contrast with the red accent.",
+    "Incorporate a mock Command Palette component that listens for Ctrl+K.",
+    "Use Fraunces font for large module headings and Manrope (or Inter) for dashboard content, stats, and tables."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Create depth through layered design elements with z-index hierarchy and glass-morphism effects with backdrop filters.",
+    "You MUST NOT apply universal transition like 'transition: all'. Add transitions for specific properties.",
+    "You MUST NOT center align the app container in global CSS.",
+    "Always use modern button styles with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Add data-testid attributes to all interactive elements.",
+    "Do not use complete transparent background in headers or overlays."
+  ]
+}
