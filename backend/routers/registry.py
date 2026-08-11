@@ -3,13 +3,19 @@
 Generic — applications are data, not hardcoded. EduConnect Pro is seeded once as
 the canonical product but any number of apps can be added.
 """
+import io
+import json as _json
 import logging
 import os
+import re
 import httpx
+from datetime import datetime, date
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from openpyxl import Workbook
 from pydantic import BaseModel, EmailStr, Field
 
 from db import gdb, client, tenant_db_name
@@ -406,6 +412,126 @@ async def db_collections(db_name: str, owner: dict = Depends(require_permission(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Cannot read collections: {e}")
     return {"database": db_name, "client": allowed[db_name]["client"], "collections": cols}
+
+
+# ─────────── Live DB browser (strictly read-only) ───────────
+_ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _json_safe(v):
+    if isinstance(v, ObjectId):
+        return str(v)
+    if isinstance(v, (datetime, date)):
+        return v.isoformat()
+    if isinstance(v, bytes):
+        return v.hex()
+    if isinstance(v, dict):
+        return {k: _json_safe(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_json_safe(x) for x in v]
+    return v
+
+
+def _build_query(field: str, value: str):
+    field = (field or "").strip()
+    value = (value or "").strip()
+    if not field or value == "":
+        return {}
+    if field == "_id":
+        try:
+            return {"_id": ObjectId(value)}
+        except Exception:
+            return {"_id": value}
+    # read-only "contains" match, case-insensitive; value is escaped
+    return {field: {"$regex": re.escape(value), "$options": "i"}}
+
+
+def _columns(docs):
+    cols = []
+    for d in docs:
+        for k in d.keys():
+            if k not in cols:
+                cols.append(k)
+    if "_id" in cols:
+        cols.remove("_id")
+        cols.insert(0, "_id")
+    return cols
+
+
+async def _read_collection(db_name, col_name):
+    allowed = await _allowed_dbs()
+    if db_name not in allowed:
+        raise HTTPException(status_code=404, detail="Unknown database")
+    db = _db_read_client()[db_name]
+    try:
+        names = await db.list_collection_names()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot read database: {e}")
+    if col_name not in names:
+        raise HTTPException(status_code=404, detail="Unknown collection")
+    return db[col_name]
+
+
+@router.get("/database/{db_name}/collections/{col_name}/documents")
+async def db_documents(db_name: str, col_name: str, page: int = 1, limit: int = 25,
+                       field: str = "", value: str = "",
+                       owner: dict = Depends(require_permission("database.view"))):
+    col = await _read_collection(db_name, col_name)
+    limit = max(1, min(limit, 100))
+    page = max(1, page)
+    q = _build_query(field, value)
+    try:
+        total = await col.count_documents(q)
+        cursor = col.find(q).skip((page - 1) * limit).limit(limit)
+        docs = [_json_safe(d) async for d in cursor]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot read documents: {e}")
+    return {
+        "database": db_name, "collection": col_name, "documents": docs,
+        "columns": _columns(docs), "total": total, "page": page, "limit": limit,
+        "pages": max(1, (total + limit - 1) // limit),
+    }
+
+
+def _cell(v):
+    if isinstance(v, (dict, list)):
+        v = _json.dumps(v, ensure_ascii=False)
+    if isinstance(v, str):
+        return _ILLEGAL.sub("", v)[:32000]
+    if isinstance(v, (int, float, bool)) or v is None:
+        return v
+    return str(v)
+
+
+@router.get("/database/{db_name}/collections/{col_name}/export")
+async def db_export(db_name: str, col_name: str, request: Request,
+                    field: str = "", value: str = "",
+                    owner: dict = Depends(require_permission("database.view"))):
+    """Read-only xlsx export of a collection (capped rows), audited."""
+    col = await _read_collection(db_name, col_name)
+    q = _build_query(field, value)
+    MAX_ROWS = 5000
+    try:
+        docs = [_json_safe(d) async for d in col.find(q).limit(MAX_ROWS)]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot read documents: {e}")
+    columns = _columns(docs) or ["(empty)"]
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title=(col_name[:31] or "data"))
+    ws.append(columns)
+    for d in docs:
+        ws.append([_cell(d.get(c, "")) for c in columns])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    await record_audit(owner, "database.export", f"{db_name}/{col_name}", request,
+                       meta={"rows": len(docs)})
+    fname = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{col_name}") + ".xlsx"
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 @router.post("/database/{db_name}/backup")

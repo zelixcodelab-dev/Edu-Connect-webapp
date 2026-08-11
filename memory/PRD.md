@@ -164,6 +164,20 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Verified E2E + curl: real DB connections/collections, backup, server create + audited restart. Zero page errors.
 - NOTE: live VPS metrics/Docker/terminal + a read-only server/DB connection are pending real credentials from the user.
 
+### Phase 4c — Live DB Browser (DONE, 2026-08, self-tested E2E)
+- Backend (`routers/registry.py`): read-only document browser + xlsx export.
+  `GET /database/{db}/collections/{col}/documents?page&limit&field&value` — paginated (25/pg, cap 100),
+  ObjectId/datetime JSON-safed, simple case-insensitive "contains" search (`$regex` escaped; `_id` exact),
+  find-only (no writes ever). `GET .../export` streams an xlsx (openpyxl, cap 5000 rows, nested→JSON cells,
+  control chars stripped), audited as `database.export`. Both gated by `database.view`. Uses `_db_read_client`
+  so it targets the external cluster automatically once `READONLY_MONGO_URL` is set, else platform+tenant DBs.
+- Frontend (`PlatformDatabase.jsx`): collection rows now open a document browser dialog — flat auto-column
+  table, field+value search + clear, prev/next pagination with count, "Export .xlsx" download, and a
+  click-row full-document JSON viewer.
+- Verified E2E + curl: pagination, search match/no-match, valid xlsx (header+rows), 404 on unknown db;
+  frontend table + JSON dialog render correctly (screenshots).
+- Added dep: openpyxl 3.1.5 (requirements.txt via pip freeze).
+
 ### Phase 4b — VPS Docker Container Panel (DONE, 2026-08, self-tested E2E)
 - Backend proxy (`routers/registry.py`) already had: `GET /servers/{id}/containers`, `GET
   /servers/{id}/containers/{name}/logs?tail=N`, `POST /servers/{id}/containers/{name}/{action}`
