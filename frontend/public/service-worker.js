@@ -6,7 +6,7 @@
 //   - Handle Web Push events → show OS-level notifications even when the app
 //     is closed.
 
-const CACHE = "educonnect-shell-v1";
+const CACHE = "educonnect-shell-v3";
 const SHELL = [
   "/manifest.json",
   "/favicon.png",
@@ -63,12 +63,12 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_) { /* not JSON */ }
-  const title = data.title || "KM Connect";
+  const title = data.title || "EduConnect Pro";
   const options = {
     body: data.body || "",
     icon: data.icon || "/pwa-icon-192.png",
-    badge: data.badge || "/finflow-icon.png",
-    tag: data.tag || "KM Connect",
+    badge: data.badge || "/favicon.png",
+    tag: data.tag || "EduConnect Pro",
     data: { url: data.url || "/" },
     renotify: false,
     requireInteraction: false,
