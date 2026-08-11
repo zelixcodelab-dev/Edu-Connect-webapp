@@ -134,6 +134,17 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Later: Developer dashboard + staff user accounts (RBAC already supports the roles).
 
 ## Backlog / Remaining (P1/P2)
+
+### Phase 3 — My Apps + Settings (DONE, 2026-06, self-tested E2E)
+- Backend (`routers/registry.py`): Apps registry (`gdb.apps`, seeds EduConnect Pro once) — list+counts,
+  create/get/patch/delete, active-users from assigned clients; app.* gated + audited. Settings: platform
+  singleton get/patch; staff CRUD in `gdb.platform_owners` with `platform_role` (owner protected); roles
+  matrix; plans CRUD (seeds Trial/Starter/Pro). Auth now respects stored `platform_role` (scoped staff perms).
+- Frontend: `PlatformApps.jsx` + `PlatformSettings.jsx` (General, Users & Access = staff + roles matrix,
+  Clients & Plans, Security = audit log). Routes added.
+- Verified E2E + curl: apps CRUD, staff create → staff login (role support) → 403 on client.create, plans,
+  settings, audit populated. Zero page errors.
+
 - P1: Wire real integration keys when available — Resend (email), VAPID (web push),
   S3 (file upload), WhatsApp. Currently mocked/bypassed.
 - P2: External DB capacity — user's Railway free-tier MongoDB is out of disk space

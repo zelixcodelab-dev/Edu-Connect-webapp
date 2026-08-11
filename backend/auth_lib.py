@@ -127,7 +127,7 @@ async def _resolve_user_from_token(token: str) -> dict:
         if not owner:
             raise HTTPException(status_code=401, detail="User not found")
         owner["scope"] = "platform"
-        owner["role"] = "platform_owner"
+        owner["role"] = owner.get("platform_role", "platform_owner")
         return owner
 
     # Tenant user — bind the tenant DB for this request BEFORE querying.
