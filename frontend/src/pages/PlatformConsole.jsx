@@ -18,6 +18,13 @@ import {
   Buildings, Plus, PencilSimple, Trash, Key, ArrowClockwise, SignOut, ArrowLeft,
   Sun, Moon, UsersThree, Student, CheckCircle, Prohibit, Link as LinkIcon, Sparkle,
 } from "@phosphor-icons/react";
+import PlatformShell from "@/components/platform/PlatformShell";
+import { StatCard, StatusBadge, EmptyState, LoadingState } from "@/components/platform/PlatformKit";
+import { MODULE_BY_KEY } from "@/lib/platformModules";
+import { Users as UsersIcon, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 
 const emptyForm = () => ({
   name: "",
@@ -38,19 +45,7 @@ const emptyForm = () => ({
   enabled_modules: [],
 });
 
-function StatCard({ icon: Icon, label, value, tint }) {
-  return (
-    <div className="card-premium p-5 flex items-center gap-4" data-testid={`stat-${label}`}>
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${tint}`}>
-        <Icon size={22} weight="duotone" />
-      </div>
-      <div>
-        <p className="text-2xl font-display font-semibold leading-none">{value}</p>
-        <p className="text-xs text-muted-foreground mt-1">{label}</p>
-      </div>
-    </div>
-  );
-}
+function StatCardLocalUnused() { return null; }
 
 export default function PlatformConsole() {
   const { user, logout } = useAuth();
@@ -223,112 +218,87 @@ export default function PlatformConsole() {
 
   const doLogout = async () => { await logout(); nav("/login"); };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Top bar */}
-      <header
-        className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border"
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
-      >
-        <div className="h-16 px-4 md:px-8 max-w-[1400px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => nav("/platform")} data-testid="clients-back-home" title="Platform home"
-              className="w-9 h-9 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center shrink-0">
-              <ArrowLeft size={17} />
-            </button>
-            <div className="w-10 h-10 rounded-xl bg-amber-gradient text-white flex items-center justify-center">
-              <Buildings size={22} weight="fill" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Platform Console</p>
-              <h1 className="font-display text-lg font-semibold leading-tight">Clients</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={copyLogin} title="Copy login URL" className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-muted/60 hover:bg-muted text-sm text-muted-foreground">
-              <LinkIcon size={15} /> Login link
-            </button>
-            <button onClick={toggle} className="w-10 h-10 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center" title="Toggle theme">
-              {theme === "dark" ? <Sun size={18} weight="fill" className="text-amber-400" /> : <Moon size={18} weight="fill" className="text-orange-600" />}
-            </button>
-            <div className="hidden md:block text-right mr-1">
-              <p className="text-xs font-medium leading-tight">{user?.name}</p>
-              <p className="text-[10px] text-muted-foreground">Platform owner</p>
-            </div>
-            <button onClick={doLogout} title="Sign out" data-testid="platform-logout" className="w-9 h-9 rounded-full bg-muted/60 hover:bg-rose-500/15 hover:text-rose-600 flex items-center justify-center">
-              <SignOut size={16} />
-            </button>
-          </div>
-        </div>
-      </header>
+  const fmtDate = (s) => (s ? new Date(s).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—");
 
-      <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 space-y-8">
-        {/* Summary */}
+  return (
+    <PlatformShell module={MODULE_BY_KEY.clients} title="Clients">
+      <div className="space-y-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Buildings} label="Companies" value={summary.companies || 0} tint="bg-orange-500/10 text-orange-600" />
-          <StatCard icon={CheckCircle} label="Active" value={summary.active || 0} tint="bg-emerald-500/10 text-emerald-600" />
-          <StatCard icon={Prohibit} label="Suspended" value={summary.suspended || 0} tint="bg-rose-500/10 text-rose-600" />
-          <StatCard icon={UsersThree} label="Total users" value={summary.total_users || 0} tint="bg-blue-500/10 text-blue-600" />
+          <StatCard icon={UsersIcon} label="Total clients" value={summary.companies || 0} tint="bg-rose-500/10 text-rose-600" />
+          <StatCard icon={CheckCircle2} label="Active" value={summary.active || 0} tint="bg-emerald-500/10 text-emerald-600" />
+          <StatCard icon={PauseCircle} label="Suspended" value={summary.suspended || 0} tint="bg-amber-500/10 text-amber-600" />
+          <StatCard icon={Sparkles} label="Trial" value={summary.trial || 0} tint="bg-sky-500/10 text-sky-600" />
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-xl font-semibold">Your companies</h2>
-            <p className="text-sm text-muted-foreground">Create and white-label a workspace for each customer.</p>
+            <h2 className="font-display text-xl font-semibold">All clients</h2>
+            <p className="text-sm text-muted-foreground">Companies and customer workspaces on your platform.</p>
           </div>
-          <Button onClick={openCreate} data-testid="new-company-btn" className="btn-amber border-0">
-            <Plus size={16} weight="bold" className="mr-1.5" /> New company
+          <Button onClick={openCreate} data-testid="new-company-btn" className="bg-primary hover:bg-primary/90 text-primary-foreground border-0">
+            <Plus size={16} weight="bold" className="mr-1.5" /> New client
           </Button>
         </div>
 
-        {/* Company grid */}
         {loading ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <LoadingState />
         ) : tenants.length === 0 ? (
-          <div className="card-premium p-10 text-center text-muted-foreground">No companies yet. Create your first one.</div>
+          <EmptyState icon={Buildings} title="No clients yet" desc="Create your first white-labeled client workspace."
+            action={<Button onClick={openCreate} className="bg-primary text-primary-foreground border-0"><Plus size={15} className="mr-1.5" /> New client</Button>} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" data-testid="company-grid">
-            {tenants.map((t) => (
-              <div key={t.id} className="card-premium p-5 flex flex-col gap-4" data-testid={`company-${t.slug}`}>
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-display font-bold text-lg overflow-hidden shrink-0"
-                       style={{ background: t.branding?.logo_url ? "#fff" : t.branding?.brand_color || "#C70000" }}>
-                    {t.branding?.logo_url
-                      ? <img src={t.branding.logo_url} alt={t.name} className="w-full h-full object-contain p-1" />
-                      : (t.name || "?").slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display font-semibold truncate">{t.name}</h3>
-                      {t.is_default && <Badge variant="secondary" className="text-[10px]">Default</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{t.admin_email}</p>
-                  </div>
-                  <Badge className={t.status === "active" ? "bg-emerald-500/15 text-emerald-600 border-0" : "bg-rose-500/15 text-rose-600 border-0"}>
-                    {t.status}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1"><UsersThree size={14} /> {t.stats?.users ?? 0} users</span>
-                  <span className="inline-flex items-center gap-1"><Student size={14} /> {t.stats?.students ?? 0} students</span>
-                  <span className="inline-flex items-center gap-1"><Sparkle size={14} /> {t.enabled_modules?.length ?? 0} modules</span>
-                  <span className="w-4 h-4 rounded-full border border-border" title={t.branding?.brand_color} style={{ background: t.branding?.brand_color }} />
-                </div>
-
-                <div className="flex items-center gap-1.5 pt-1 border-t border-border/60 mt-auto flex-wrap">
-                  <Button size="sm" variant="ghost" onClick={() => openEdit(t)} data-testid={`edit-${t.slug}`} className="h-8"><PencilSimple size={15} className="mr-1" /> Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => resetAdmin(t)} className="h-8"><Key size={15} className="mr-1" /> Reset</Button>
-                  <Button size="sm" variant="ghost" onClick={() => toggleStatus(t)} className="h-8">
-                    {t.status === "active" ? <><Prohibit size={15} className="mr-1" /> Suspend</> : <><ArrowClockwise size={15} className="mr-1" /> Activate</>}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(t)} className="h-8 text-rose-600 hover:text-rose-700"><Trash size={15} className="mr-1" /> Delete</Button>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-xl border border-border bg-card overflow-hidden" data-testid="company-grid">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead>Company</TableHead>
+                    <TableHead className="hidden md:table-cell">Plan</TableHead>
+                    <TableHead className="hidden lg:table-cell">Users</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tenants.map((t) => (
+                    <TableRow key={t.id} data-testid={`company-${t.slug}`} className="cursor-pointer" onClick={() => nav(`/platform/clients/${t.id}`)}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-display font-bold text-sm overflow-hidden shrink-0"
+                               style={{ background: t.branding?.logo_url ? "#fff" : t.branding?.brand_color || "#C70000" }}>
+                            {t.branding?.logo_url ? <img src={t.branding.logo_url} alt={t.name} className="w-full h-full object-contain p-0.5" /> : (t.name || "?").slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium truncate">{t.name}</span>
+                              {t.is_default && <Badge variant="secondary" className="text-[10px]">Default</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{t.admin_email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell capitalize text-sm text-muted-foreground">{t.plan || "trial"}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{t.stats?.users ?? 0}</TableCell>
+                      <TableCell><StatusBadge status={t.status} /></TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{fmtDate(t.created_at)}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(t)} data-testid={`edit-${t.slug}`} className="h-8 px-2"><PencilSimple size={15} /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => resetAdmin(t)} className="h-8 px-2" title="Reset admin password"><Key size={15} /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => toggleStatus(t)} className="h-8 px-2" title={t.status === "active" ? "Suspend" : "Activate"}>
+                            {t.status === "active" ? <Prohibit size={15} /> : <ArrowClockwise size={15} />}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => remove(t)} className="h-8 px-2 text-rose-600 hover:text-rose-700" title="Delete"><Trash size={15} /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Create / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -456,6 +426,6 @@ export default function PlatformConsole() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PlatformShell>
   );
 }

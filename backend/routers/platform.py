@@ -42,6 +42,7 @@ class TenantCreate(BaseModel):
     admin_email: EmailStr
     admin_password: str = Field(min_length=6, max_length=128)
     admin_name: Optional[str] = "Administrator"
+    plan: Optional[str] = "trial"
     branding: Optional[BrandingIn] = None
     enabled_modules: Optional[List[str]] = None
 
@@ -49,6 +50,7 @@ class TenantCreate(BaseModel):
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None  # active | suspended
+    plan: Optional[str] = None
     branding: Optional[BrandingIn] = None
     enabled_modules: Optional[List[str]] = None
 
@@ -197,6 +199,15 @@ async def attention(owner: dict = Depends(get_platform_owner)):
             "module": "clients", "link": "/platform/clients", "entity_id": None,
         })
 
+    async for tk in gdb.tickets.find(
+        {"priority": "urgent", "status": {"$nin": ["resolved", "closed"]}}, {"_id": 0}).limit(10):
+        items.append({
+            "id": f"tkt-{tk['id']}", "severity": "critical", "icon": "shield",
+            "title": f"Urgent ticket: {tk.get('subject', '')[:60]}",
+            "subtitle": f"{tk.get('client_name', 'Client')} · {tk.get('ticket_no', '')}",
+            "module": "connect", "link": f"/platform/connect/{tk['id']}", "entity_id": tk["id"],
+        })
+
     return {"items": items, "count": len(items)}
 
 
@@ -230,15 +241,19 @@ async def platform_summary(owner: dict = Depends(get_platform_owner)):
     total = await gdb.tenants.count_documents({})
     active = await gdb.tenants.count_documents({"status": "active"})
     suspended = await gdb.tenants.count_documents({"status": "suspended"})
+    trial = await gdb.tenants.count_documents({"$or": [{"plan": "trial"}, {"plan": {"$exists": False}}]})
     total_users = 0
     async for t in gdb.tenants.find({}, {"_id": 0, "id": 1}):
         s = await _tenant_stats(t["id"])
         total_users += s["users"]
+    open_tickets = await gdb.tickets.count_documents({"status": {"$nin": ["resolved", "closed"]}})
     return {
         "companies": total,
         "active": active,
         "suspended": suspended,
+        "trial": trial,
         "total_users": total_users,
+        "open_tickets": open_tickets,
     }
 
 
@@ -250,6 +265,8 @@ async def list_tenants(owner: dict = Depends(get_platform_owner)):
         pub = tenant_public(t)
         pub["stats"] = await _tenant_stats(t["id"])
         pub["is_default"] = t["id"] == default_id
+        pub["plan"] = t.get("plan", "trial")
+        pub["created_at"] = t.get("created_at")
         out.append(pub)
     return {"tenants": out}
 
@@ -271,8 +288,12 @@ async def create_tenant(payload: TenantCreate, request: Request, owner: dict = D
     # If this is the very first company, make it the default fallback tenant.
     if get_default_tenant_id() is None:
         set_default_tenant(doc["id"])
+    if payload.plan:
+        await gdb.tenants.update_one({"id": doc["id"]}, {"$set": {"plan": payload.plan}})
+        doc["plan"] = payload.plan
     result = tenant_public(doc)
     result["stats"] = {"users": 1, "students": 0, "leads": 0}
+    result["plan"] = doc.get("plan", "trial")
     result["is_default"] = doc["id"] == get_default_tenant_id()
     await record_audit(owner, "client.create", doc.get("name", "client"), request,
                        meta={"tenant_id": doc["id"], "admin_email": email})
@@ -287,7 +308,28 @@ async def get_tenant(tenant_id: str, owner: dict = Depends(get_platform_owner)):
     pub = tenant_public(t)
     pub["stats"] = await _tenant_stats(tenant_id)
     pub["is_default"] = tenant_id == get_default_tenant_id()
+    pub["plan"] = t.get("plan", "trial")
+    pub["created_at"] = t.get("created_at")
     return pub
+
+
+@router.get("/tenants/{tenant_id}/users")
+async def tenant_users(tenant_id: str, owner: dict = Depends(require_permission("client.view"))):
+    t = await gdb.tenants.find_one({"id": tenant_id})
+    if not t:
+        raise HTTPException(status_code=404, detail="Company not found")
+    tdb = tenant_database(tenant_id)
+    users = []
+    try:
+        async for u in tdb.users.find({"deleted_at": {"$exists": False}}, {"_id": 0, "password_hash": 0}).limit(200):
+            users.append({
+                "id": u.get("id"), "name": u.get("name"), "email": u.get("email"),
+                "role": u.get("role"), "office": u.get("office"),
+                "created_at": u.get("created_at"),
+            })
+    except Exception:
+        pass
+    return {"users": users}
 
 
 @router.patch("/tenants/{tenant_id}")
@@ -303,6 +345,8 @@ async def update_tenant(tenant_id: str, payload: TenantUpdate, request: Request,
         if payload.status not in ("active", "suspended"):
             raise HTTPException(status_code=400, detail="status must be 'active' or 'suspended'")
         patch["status"] = payload.status
+    if payload.plan is not None:
+        patch["plan"] = payload.plan
     if payload.enabled_modules is not None:
         patch["enabled_modules"] = normalize_modules(payload.enabled_modules)
     if payload.branding is not None:

@@ -40,6 +40,9 @@ import Branding from "@/pages/Branding";
 import PlatformConsole from "@/pages/PlatformConsole";
 import PlatformHome from "@/pages/PlatformHome";
 import PlatformModulePage from "@/pages/PlatformModulePage";
+import PlatformClientDetail from "@/pages/PlatformClientDetail";
+import PlatformConnect from "@/pages/PlatformConnect";
+import PlatformTicketDetail from "@/pages/PlatformTicketDetail";
 import PermGate from "@/components/PermGate";
 
 // Keeps the live theme in sync with the signed-in company. On logout it
@@ -147,7 +150,10 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/platform" element={<PlatformProtected><PlatformHome /></PlatformProtected>} />
-          <Route path="/platform/clients/*" element={<PlatformProtected><PlatformConsole /></PlatformProtected>} />
+          <Route path="/platform/clients" element={<PlatformProtected><PlatformConsole /></PlatformProtected>} />
+          <Route path="/platform/clients/:clientId" element={<PlatformProtected><PlatformClientDetail /></PlatformProtected>} />
+          <Route path="/platform/connect" element={<PlatformProtected><PlatformConnect /></PlatformProtected>} />
+          <Route path="/platform/connect/:ticketId" element={<PlatformProtected><PlatformTicketDetail /></PlatformProtected>} />
           <Route path="/platform/:moduleKey" element={<PlatformProtected><PlatformModulePage /></PlatformProtected>} />
           <Route element={<Protected><AppShell /></Protected>}>
             <Route path="/" element={<PermGate page="overview"><Dashboard /></PermGate>} />

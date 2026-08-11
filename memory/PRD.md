@@ -113,7 +113,21 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Verified: /me perms(24), /attention, /search, /audit + audit side-effect on create; UI launcher,
   palette, clients module, module shells — no page errors.
 
-### Roadmap (remaining phases)
+### Phase 2 — Clients + Connect (DONE, 2026-06, self-tested E2E)
+- Backend: Connect ticketing (`routers/connect.py`, `gdb.tickets`): list+counts, create, get, patch
+  (status/priority/assign), add message (client/staff/internal), resolve; SLA target from priority
+  (urgent 4h/high 8h/normal 24h/low 72h) with on_track/at_risk/breached state; permission-gated
+  (ticket.*) + audited. Platform: `GET /tenants/{id}/users`, `plan` field + Trial count in summary,
+  `open_tickets` in summary, urgent-ticket alerts in /attention.
+- Frontend: Clients redesign (`PlatformConsole.jsx` → shell + stat cards + data table + row→detail),
+  `PlatformClientDetail.jsx` (tabbed: Overview/Users/Applications/Database/Subscription/Activity/
+  SupportTickets/Security — real data on Overview/Users/Activity/Tickets), `PlatformConnect.jsx`
+  (dashboard + filters + create dialog + table), `PlatformTicketDetail.jsx` (conversation timeline,
+  reply + internal notes, status/priority/assign, SLA panel, resolve). Routes added.
+- Verified E2E (Playwright, no page errors): clients table → client detail tabs → connect dashboard
+  → create/open ticket → staff reply (auto → in_progress). Backend endpoints verified via curl.
+
+
 - Phase 2: Clients module full redesign (stat cards, data table, tabbed detail) + Connect (real support tickets: dashboard, list, conversation, assignment, SLA).
 - Phase 3: My Apps registry (generic app catalog) + Settings (users/roles/permissions, branding, plans).
 - Phase 4: Database + VPS Server modules (real data where safe + read-only infra connection when creds provided; danger actions gated by permission + confirmation + audit).
