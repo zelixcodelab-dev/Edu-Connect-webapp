@@ -84,10 +84,11 @@ export const getStoredToken = () => {
 const api = axios.create({
   baseURL: API,
   withCredentials: true,
-  // 25s is generous enough for slow mobile networks yet short enough that a
-  // truly-dropped request fails loud instead of hanging the login button
-  // forever. Android carriers occasionally stall TLS handshakes indefinitely.
-  timeout: 25_000,
+  // 45s tolerates a serverless/Railway "cold start" (a sleeping backend can
+  // take 20-40s to wake on the first request) so the first login/branding
+  // call doesn't fail with a false "can't reach server" while the container
+  // spins up. Warm requests still return in well under a second.
+  timeout: 45_000,
 });
 
 // Attach Authorization: Bearer <token> to every request when we have a
@@ -105,19 +106,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Retry-once on transient network / timeout failures. Common on Android
-// carrier networks where the first TLS handshake races the DNS resolver and
-// axios sees "Network Error" before the browser has actually completed the
-// connect. A single retry with 400ms backoff turns a scary "network error"
-// toast into a successful login for the vast majority of users.
+// Retry transient network / timeout failures. Common on (a) Android carrier
+// networks where the first TLS handshake races the DNS resolver, and (b) a
+// sleeping backend cold-starting — the first request times out, the next one
+// succeeds. We retry up to 3 times with increasing backoff so a cold start or
+// a flaky first connect turns into a successful load instead of a scary error.
+const _MAX_RETRIES = 3;
 function _shouldRetry(err) {
   if (!err) return false;
-  // Axios manufactures a fresh Error object on every attempt, so a flag on
-  // the error itself is invisible to the next call. The `config` object,
-  // however, is REUSED across retry attempts — that's where we mark the
-  // attempt and where we check it on subsequent failures.
-  if (err?.config?.__retried) return false;
-  // No response received → transport-layer failure.
+  // The `config` object is REUSED across retry attempts, so we track the
+  // attempt count there (a flag on the Error itself is recreated each attempt).
+  const count = err?.config?.__retryCount || 0;
+  if (count >= _MAX_RETRIES) return false;
+  // No response received → transport-layer failure (not an HTTP 4xx/5xx).
   if (!err.response && err.config) {
     const msg = String(err.message || "").toLowerCase();
     return (
@@ -133,11 +134,12 @@ api.interceptors.response.use(
   (resp) => resp,
   async (err) => {
     if (_shouldRetry(err)) {
-      await new Promise((r) => setTimeout(r, 400));
+      const count = (err.config.__retryCount || 0) + 1;
+      // Increasing backoff: 0.6s, 1.5s, 3s — gives a cold backend time to wake.
+      const backoff = [600, 1500, 3000][count - 1] || 3000;
+      await new Promise((r) => setTimeout(r, backoff));
       try {
-        // Mark on the config (which axios preserves across attempts) so the
-        // next failure trips the guard and doesn't loop indefinitely.
-        return await api.request({ ...err.config, __retried: true });
+        return await api.request({ ...err.config, __retryCount: count });
       } catch (retryErr) {
         return Promise.reject(retryErr);
       }

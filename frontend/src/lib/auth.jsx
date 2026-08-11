@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
         if (raw.includes("network error") || e?.code === "ERR_NETWORK") {
           setError("Can't reach the server. Check your internet connection and try again.");
         } else if (raw.includes("timeout") || e?.code === "ECONNABORTED") {
-          setError("The server took too long to respond. Please check your connection and retry.");
+          setError("The server is taking longer than usual (it may be waking up). Please wait a few seconds and try again.");
         } else {
           setError(e?.message || formatApiError(null));
         }
