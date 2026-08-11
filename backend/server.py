@@ -140,7 +140,9 @@ _ALLOW_ORIGIN_REGEX = (
     r"([a-z0-9-]+\.)*vercel\.app|"
     r"([a-z0-9-]+\.)*up\.railway\.app|"
     r"([a-z0-9-]+\.)*onrender\.com|"
-    r"([a-z0-9-]+\.)*netlify\.app"
+    r"([a-z0-9-]+\.)*netlify\.app|"
+    # This deployment's primary custom domain.
+    r"([a-z0-9-]+\.)*educonnectpro\.app"
     r")$"
 )
 app.add_middleware(
