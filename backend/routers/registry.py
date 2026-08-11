@@ -9,7 +9,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
-from db import gdb
+from db import gdb, client, tenant_db_name
 from auth_lib import gen_id, now_iso, hash_password, get_platform_owner
 from routers.platform import (
     require_permission, record_audit, ROLE_PERMISSIONS, ALL_PERMISSIONS,
@@ -303,3 +303,160 @@ async def delete_plan(plan_id: str, request: Request, owner: dict = Depends(requ
     await gdb.plans.delete_one({"id": plan_id})
     await record_audit(owner, "plan.delete", p.get("name", plan_id), request)
     return {"ok": True}
+
+
+# ═══════════════════════════ Database module ═══════════════════════════
+# Real stats from the MongoDB this platform is connected to. We only expose the
+# platform DB and each tenant's DB (never arbitrary databases), and never any
+# credentials. No destructive operations are exposed.
+def _mb(n):
+    try:
+        return round((n or 0) / (1024 * 1024), 2)
+    except Exception:
+        return 0
+
+
+async def _allowed_dbs():
+    """Map of db_name -> {client_name, environment} for platform + tenant DBs."""
+    allowed = {gdb.name: {"client": "Platform", "environment": "production"}}
+    async for t in gdb.tenants.find({}, {"_id": 0, "id": 1, "name": 1, "plan": 1}):
+        allowed[tenant_db_name(t["id"])] = {
+            "client": t.get("name", "Client"),
+            "environment": "production" if t.get("plan") != "trial" else "staging",
+        }
+    return allowed
+
+
+@router.get("/database/connections")
+async def db_connections(owner: dict = Depends(require_permission("database.view"))):
+    allowed = await _allowed_dbs()
+    conns = []
+    for name, meta in allowed.items():
+        entry = {"name": name, "client": meta["client"], "application": "EduConnect Pro",
+                 "environment": meta["environment"], "provider": "MongoDB",
+                 "status": "offline", "collections": 0, "size_mb": 0, "last_backup": None}
+        try:
+            db = client[name]
+            stats = await db.command("dbstats")
+            entry["status"] = "online"
+            entry["collections"] = stats.get("collections", 0)
+            entry["size_mb"] = _mb(stats.get("dataSize"))
+        except Exception:
+            entry["status"] = "unknown"
+        bk = await gdb.db_backups.find_one({"db_name": name}, sort=[("created_at", -1)])
+        if bk:
+            entry["last_backup"] = bk.get("created_at")
+        conns.append(entry)
+    counts = {
+        "total": len(conns),
+        "production": sum(1 for c in conns if c["environment"] == "production"),
+        "staging": sum(1 for c in conns if c["environment"] == "staging"),
+        "online": sum(1 for c in conns if c["status"] == "online"),
+    }
+    return {"connections": conns, "counts": counts}
+
+
+@router.get("/database/{db_name}/collections")
+async def db_collections(db_name: str, owner: dict = Depends(require_permission("database.view"))):
+    allowed = await _allowed_dbs()
+    if db_name not in allowed:
+        raise HTTPException(status_code=404, detail="Unknown database")
+    db = client[db_name]
+    cols = []
+    try:
+        for cname in sorted(await db.list_collection_names()):
+            try:
+                cnt = await db[cname].estimated_document_count()
+            except Exception:
+                cnt = 0
+            cols.append({"name": cname, "documents": cnt})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot read collections: {e}")
+    return {"database": db_name, "client": allowed[db_name]["client"], "collections": cols}
+
+
+@router.post("/database/{db_name}/backup")
+async def db_backup(db_name: str, request: Request, owner: dict = Depends(require_permission("database.backup"))):
+    """Record a backup checkpoint (metadata). A real dump requires a connected
+    backup agent — this logs an audited, timestamped snapshot marker."""
+    allowed = await _allowed_dbs()
+    if db_name not in allowed:
+        raise HTTPException(status_code=404, detail="Unknown database")
+    doc = {"id": gen_id(), "db_name": db_name, "created_at": now_iso(),
+           "by": owner.get("name"), "type": "checkpoint"}
+    await gdb.db_backups.insert_one(doc)
+    await record_audit(owner, "database.backup", db_name, request)
+    return {"ok": True, "last_backup": doc["created_at"]}
+
+
+# ═══════════════════════════ VPS Server module ═══════════════════════════
+class ServerIn(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    environment: Optional[str] = "production"
+    hostname: Optional[str] = ""
+    provider: Optional[str] = "Custom"
+    status: Optional[str] = "online"
+    notes: Optional[str] = ""
+
+
+class ServerAction(BaseModel):
+    action: str  # start | stop | restart
+
+
+@router.get("/servers")
+async def list_servers(owner: dict = Depends(require_permission("server.view"))):
+    servers = []
+    async for s in gdb.servers.find({}, {"_id": 0}).sort("created_at", 1):
+        servers.append(s)
+    counts = {
+        "total": len(servers),
+        "online": sum(1 for s in servers if s.get("status") == "online"),
+        "offline": sum(1 for s in servers if s.get("status") == "offline"),
+    }
+    return {"servers": servers, "counts": counts, "connected": False}
+
+
+@router.post("/servers", status_code=201)
+async def create_server(payload: ServerIn, request: Request, owner: dict = Depends(require_permission("server.deploy"))):
+    doc = {"id": gen_id(), **payload.model_dump(), "created_at": now_iso(), "containers": []}
+    await gdb.servers.insert_one(doc)
+    await record_audit(owner, "server.create", payload.name, request)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.patch("/servers/{server_id}")
+async def patch_server(server_id: str, payload: ServerIn, request: Request, owner: dict = Depends(require_permission("server.deploy"))):
+    if not await gdb.servers.find_one({"id": server_id}):
+        raise HTTPException(status_code=404, detail="Server not found")
+    await gdb.servers.update_one({"id": server_id}, {"$set": payload.model_dump()})
+    await record_audit(owner, "server.update", payload.name, request)
+    return await gdb.servers.find_one({"id": server_id}, {"_id": 0})
+
+
+@router.delete("/servers/{server_id}")
+async def delete_server(server_id: str, request: Request, owner: dict = Depends(require_permission("server.deploy"))):
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    await gdb.servers.delete_one({"id": server_id})
+    await record_audit(owner, "server.delete", s.get("name", server_id), request)
+    return {"ok": True}
+
+
+@router.post("/servers/{server_id}/action")
+async def server_action(server_id: str, payload: ServerAction, request: Request, owner: dict = Depends(require_permission("server.restart"))):
+    """Dangerous control action. Requires server.restart permission + a
+    confirmation on the client. Because no live agent is connected, this records
+    the intent + updates status and is fully audited; it does NOT touch a real
+    machine until a server agent/API is wired up."""
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    if payload.action not in ("start", "stop", "restart"):
+        raise HTTPException(status_code=400, detail="Invalid action")
+    new_status = "offline" if payload.action == "stop" else "online"
+    await gdb.servers.update_one({"id": server_id}, {"$set": {"status": new_status, "updated_at": now_iso()}})
+    await record_audit(owner, f"server.{payload.action}", s.get("name", server_id), request,
+                       meta={"note": "recorded — no live agent connected"})
+    return {"ok": True, "status": new_status, "note": "Recorded. Connect a server agent for live control."}

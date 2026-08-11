@@ -45,6 +45,8 @@ import PlatformConnect from "@/pages/PlatformConnect";
 import PlatformTicketDetail from "@/pages/PlatformTicketDetail";
 import PlatformApps from "@/pages/PlatformApps";
 import PlatformSettings from "@/pages/PlatformSettings";
+import PlatformDatabase from "@/pages/PlatformDatabase";
+import PlatformVps from "@/pages/PlatformVps";
 import PermGate from "@/components/PermGate";
 
 // Keeps the live theme in sync with the signed-in company. On logout it
@@ -158,6 +160,8 @@ export default function App() {
           <Route path="/platform/connect/:ticketId" element={<PlatformProtected><PlatformTicketDetail /></PlatformProtected>} />
           <Route path="/platform/my-apps" element={<PlatformProtected><PlatformApps /></PlatformProtected>} />
           <Route path="/platform/settings" element={<PlatformProtected><PlatformSettings /></PlatformProtected>} />
+          <Route path="/platform/database" element={<PlatformProtected><PlatformDatabase /></PlatformProtected>} />
+          <Route path="/platform/vps-server" element={<PlatformProtected><PlatformVps /></PlatformProtected>} />
           <Route path="/platform/:moduleKey" element={<PlatformProtected><PlatformModulePage /></PlatformProtected>} />
           <Route element={<Protected><AppShell /></Protected>}>
             <Route path="/" element={<PermGate page="overview"><Dashboard /></PermGate>} />

@@ -135,6 +135,20 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 
 ## Backlog / Remaining (P1/P2)
 
+### Phase 4 — Database + VPS (DONE, 2026-06, self-tested E2E)
+- Backend (`routers/registry.py`): Database — real MongoDB stats via the app's own `client` for the
+  platform DB + each tenant DB only (never arbitrary DBs, no creds): `GET /database/connections`
+  (dbstats: collections, size, status), `GET /database/{name}/collections` (real doc counts),
+  `POST /database/{name}/backup` (audited checkpoint marker; real dump needs a backup agent).
+  VPS — server registry (`gdb.servers`): CRUD + `POST /servers/{id}/action` (start/stop/restart) —
+  permission-gated (server.view/deploy/restart) + confirmation + audit; records intent (no live agent).
+- Frontend: `PlatformDatabase.jsx` (stat cards, connections table, collections dialog, backup) and
+  `PlatformVps.jsx` (stat cards, agent notice, server table + add dialog + confirmed danger actions).
+  Routes added; module launcher now fully wired (all 6 modules live).
+- Verified E2E + curl: real DB connections/collections, backup, server create + audited restart. Zero page errors.
+- NOTE: live VPS metrics/Docker/terminal + a read-only server/DB connection are pending real credentials from the user.
+
+
 ### Phase 3 — My Apps + Settings (DONE, 2026-06, self-tested E2E)
 - Backend (`routers/registry.py`): Apps registry (`gdb.apps`, seeds EduConnect Pro once) — list+counts,
   create/get/patch/delete, active-users from assigned clients; app.* gated + audited. Settings: platform
