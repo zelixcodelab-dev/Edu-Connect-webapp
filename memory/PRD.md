@@ -135,6 +135,22 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 
 ## Backlog / Remaining (P1/P2)
 
+### Phase 4.1 — Real infra wiring (DONE, 2026-06, self-tested)
+- Database: `READONLY_MONGO_URL` env (optional). If set, the Database module browses that external
+  cluster READ-ONLY (lists its databases + collection stats) via a cached motor client; if unset it
+  falls back to platform+tenant DBs. Credentials never sent to frontend.
+- VPS: server records gained `agent_url` + `agent_key` (key hidden from API responses). Backend proxy:
+  `GET /servers/{id}/metrics`, `GET /servers/{id}/containers`, `POST /servers/{id}/containers/{name}/{action}`
+  (server.restart-gated + audited) → call the agent with `X-Agent-Key`. Graceful 409/502 when no agent.
+  Agent scaffold at `/app/vps-agent/agent.py` (FastAPI+psutil+docker CLI; run on the VPS with AGENT_KEY).
+  Frontend: Add-Server dialog has Agent URL/key; live-metrics dialog (CPU/RAM/Disk) via the agent.
+- App Detail: `PlatformAppDetail.jsx` — tabbed (Overview/Deployments/Clients/Database/API/Server/Logs/
+  Versions/Settings); real Overview + assigned-Clients + inline Settings edit; honest empty states elsewhere.
+- Verified: app detail E2E (zero errors); RO fallback, has_agent flag, hidden key, metrics 409 via curl.
+- TO ACTIVATE: user sets `READONLY_MONGO_URL` on Railway backend, and runs the VPS agent then enters
+  Agent URL/key per server.
+
+
 ### Phase 4 — Database + VPS (DONE, 2026-06, self-tested E2E)
 - Backend (`routers/registry.py`): Database — real MongoDB stats via the app's own `client` for the
   platform DB + each tenant DB only (never arbitrary DBs, no creds): `GET /database/connections`

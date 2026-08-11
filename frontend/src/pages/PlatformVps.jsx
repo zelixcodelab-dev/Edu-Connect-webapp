@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
-const empty = { name: "", environment: "production", hostname: "", provider: "Custom", status: "online", notes: "" };
+const empty = { name: "", environment: "production", hostname: "", provider: "Custom", status: "online", notes: "", agent_url: "", agent_key: "" };
 
 export default function PlatformVps() {
   const [servers, setServers] = useState([]);
@@ -21,6 +21,13 @@ export default function PlatformVps() {
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [metrics, setMetrics] = useState(null);
+
+  const viewMetrics = async (s) => {
+    setMetrics({ loading: true, name: s.name });
+    try { const { data } = await api.get(`/platform/servers/${s.id}/metrics`); setMetrics({ ...data, name: s.name }); }
+    catch (e) { setMetrics(null); toast.error(e?.response?.data?.detail || "Agent unreachable"); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +90,7 @@ export default function PlatformVps() {
                     <TableCell><StatusBadge status={s.status} /></TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex gap-1">
+                        {s.has_agent && <Button size="sm" variant="ghost" className="h-8 px-2 text-sky-600" title="Live metrics" data-testid="server-metrics" onClick={() => viewMetrics(s)}><Info size={14} /></Button>}
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-emerald-600" title="Start" onClick={() => act(s, "start")}><Play size={14} /></Button>
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-amber-600" title="Restart" data-testid="server-restart" onClick={() => act(s, "restart")}><RotateCw size={14} /></Button>
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-rose-600" title="Stop" onClick={() => act(s, "stop")}><Square size={14} /></Button>
@@ -111,8 +119,26 @@ export default function PlatformVps() {
               </div>
               <div className="space-y-1.5"><Label>Provider</Label><Input value={form.provider} onChange={(e) => setForm((p) => ({ ...p, provider: e.target.value }))} placeholder="Railway, Hetzner…" /></div>
             </div>
+            <div className="pt-2 border-t border-border/60">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Live agent (optional — for real metrics & Docker control)</p>
+              <div className="space-y-1.5"><Label>Agent URL</Label><Input value={form.agent_url} onChange={(e) => setForm((p) => ({ ...p, agent_url: e.target.value }))} placeholder="https://your-vps:9101" data-testid="server-agent-url" /></div>
+              <div className="space-y-1.5 mt-2"><Label>Agent key</Label><Input type="password" value={form.agent_key} onChange={(e) => setForm((p) => ({ ...p, agent_key: e.target.value }))} placeholder="Shared secret set on the agent" data-testid="server-agent-key" /></div>
+            </div>
           </div>
           <DialogFooter><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving} className="bg-primary text-primary-foreground border-0" data-testid="save-server">{saving ? "Saving…" : editId ? "Save" : "Add server"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!metrics} onOpenChange={(o) => !o && setMetrics(null)}>
+        <DialogContent data-testid="metrics-dialog">
+          <DialogHeader><DialogTitle>Live metrics · {metrics?.name}</DialogTitle></DialogHeader>
+          {metrics?.loading ? <LoadingState /> : metrics ? (
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard label="CPU" value={`${metrics.cpu_percent ?? "—"}%`} tint="bg-sky-500/10 text-sky-600" />
+              <StatCard label="RAM" value={`${metrics.ram_percent ?? "—"}%`} tint="bg-violet-500/10 text-violet-600" />
+              <StatCard label="Disk" value={`${metrics.disk_percent ?? "—"}%`} tint="bg-amber-500/10 text-amber-600" />
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </PlatformShell>

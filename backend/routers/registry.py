@@ -4,6 +4,9 @@ Generic — applications are data, not hardcoded. EduConnect Pro is seeded once 
 the canonical product but any number of apps can be added.
 """
 import logging
+import os
+import httpx
+from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -306,9 +309,26 @@ async def delete_plan(plan_id: str, request: Request, owner: dict = Depends(requ
 
 
 # ═══════════════════════════ Database module ═══════════════════════════
-# Real stats from the MongoDB this platform is connected to. We only expose the
-# platform DB and each tenant's DB (never arbitrary databases), and never any
-# credentials. No destructive operations are exposed.
+# Real stats from MongoDB. Reads use READONLY_MONGO_URL when configured (a
+# read-only user on an external cluster), otherwise the app's own connection —
+# limited to the platform DB + tenant DBs. Credentials are never exposed.
+_RO_URI = os.environ.get("READONLY_MONGO_URL")
+_ro_cached = None
+
+
+def _ro_client():
+    global _ro_cached
+    if not _RO_URI:
+        return None
+    if _ro_cached is None:
+        _ro_cached = AsyncIOMotorClient(_RO_URI, serverSelectionTimeoutMS=4000)
+    return _ro_cached
+
+
+def _db_read_client():
+    return _ro_client() or client
+
+
 def _mb(n):
     try:
         return round((n or 0) / (1024 * 1024), 2)
@@ -317,7 +337,20 @@ def _mb(n):
 
 
 async def _allowed_dbs():
-    """Map of db_name -> {client_name, environment} for platform + tenant DBs."""
+    """Map of db_name -> {client_name, environment} for platform + tenant DBs.
+    If READONLY_MONGO_URL is set, enumerate that external cluster's databases
+    (read-only) instead — real infra browsing without touching the app DB."""
+    ro = _ro_client()
+    if ro is not None:
+        allowed = {}
+        try:
+            for name in await ro.list_database_names():
+                if name in ("admin", "local", "config"):
+                    continue
+                allowed[name] = {"client": "External cluster", "environment": "production"}
+        except Exception:
+            pass
+        return allowed
     allowed = {gdb.name: {"client": "Platform", "environment": "production"}}
     async for t in gdb.tenants.find({}, {"_id": 0, "id": 1, "name": 1, "plan": 1}):
         allowed[tenant_db_name(t["id"])] = {
@@ -336,7 +369,7 @@ async def db_connections(owner: dict = Depends(require_permission("database.view
                  "environment": meta["environment"], "provider": "MongoDB",
                  "status": "offline", "collections": 0, "size_mb": 0, "last_backup": None}
         try:
-            db = client[name]
+            db = _db_read_client()[name]
             stats = await db.command("dbstats")
             entry["status"] = "online"
             entry["collections"] = stats.get("collections", 0)
@@ -361,7 +394,7 @@ async def db_collections(db_name: str, owner: dict = Depends(require_permission(
     allowed = await _allowed_dbs()
     if db_name not in allowed:
         raise HTTPException(status_code=404, detail="Unknown database")
-    db = client[db_name]
+    db = _db_read_client()[db_name]
     cols = []
     try:
         for cname in sorted(await db.list_collection_names()):
@@ -397,6 +430,8 @@ class ServerIn(BaseModel):
     provider: Optional[str] = "Custom"
     status: Optional[str] = "online"
     notes: Optional[str] = ""
+    agent_url: Optional[str] = ""   # e.g. https://vps.example.com:9101
+    agent_key: Optional[str] = ""   # shared secret the agent validates
 
 
 class ServerAction(BaseModel):
@@ -406,14 +441,15 @@ class ServerAction(BaseModel):
 @router.get("/servers")
 async def list_servers(owner: dict = Depends(require_permission("server.view"))):
     servers = []
-    async for s in gdb.servers.find({}, {"_id": 0}).sort("created_at", 1):
+    async for s in gdb.servers.find({}, {"_id": 0, "agent_key": 0}).sort("created_at", 1):
+        s["has_agent"] = bool(s.get("agent_url"))
         servers.append(s)
     counts = {
         "total": len(servers),
         "online": sum(1 for s in servers if s.get("status") == "online"),
         "offline": sum(1 for s in servers if s.get("status") == "offline"),
     }
-    return {"servers": servers, "counts": counts, "connected": False}
+    return {"servers": servers, "counts": counts}
 
 
 @router.post("/servers", status_code=201)
@@ -460,3 +496,52 @@ async def server_action(server_id: str, payload: ServerAction, request: Request,
     await record_audit(owner, f"server.{payload.action}", s.get("name", server_id), request,
                        meta={"note": "recorded — no live agent connected"})
     return {"ok": True, "status": new_status, "note": "Recorded. Connect a server agent for live control."}
+
+
+# ─────────────── VPS agent proxy (live metrics + Docker control) ───────────────
+async def _agent_call(server: dict, method: str, path: str, json=None):
+    url = (server.get("agent_url") or "").rstrip("/")
+    if not url:
+        raise HTTPException(status_code=409, detail="No agent connected for this server")
+    headers = {"X-Agent-Key": server.get("agent_key", "")}
+    try:
+        async with httpx.AsyncClient(timeout=8) as hc:
+            r = await hc.request(method, f"{url}{path}", headers=headers, json=json)
+        if r.status_code == 401:
+            raise HTTPException(status_code=502, detail="Agent rejected the API key")
+        r.raise_for_status()
+        return r.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Agent unreachable: {e}")
+
+
+@router.get("/servers/{server_id}/metrics")
+async def server_metrics(server_id: str, owner: dict = Depends(require_permission("server.view"))):
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    return await _agent_call(s, "GET", "/metrics")
+
+
+@router.get("/servers/{server_id}/containers")
+async def server_containers(server_id: str, owner: dict = Depends(require_permission("server.view"))):
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    return await _agent_call(s, "GET", "/containers")
+
+
+@router.post("/servers/{server_id}/containers/{name}/{action}")
+async def container_action(server_id: str, name: str, action: str, request: Request,
+                           owner: dict = Depends(require_permission("server.restart"))):
+    if action not in ("start", "stop", "restart"):
+        raise HTTPException(status_code=400, detail="Invalid action")
+    s = await gdb.servers.find_one({"id": server_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Server not found")
+    res = await _agent_call(s, "POST", f"/containers/{name}/{action}")
+    await record_audit(owner, f"container.{action}", f"{name}@{s.get('name')}", request,
+                       meta={"server_id": server_id})
+    return res

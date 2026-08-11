@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, AppWindow, CheckCircle2, AlertTriangle, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, AppWindow, CheckCircle2, AlertTriangle, Pencil, Trash2, Users, ArrowUpRight } from "lucide-react";
 import api from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState } from "@/components/platform/PlatformKit";
 import { MODULE_BY_KEY } from "@/lib/platformModules";
@@ -15,6 +16,7 @@ const ENV_TONE = { production: "bg-emerald-500/10 text-emerald-600", staging: "b
 const empty = { name: "", description: "", version: "1.0.0", environment: "production", status: "online", category: "SaaS", logo_url: "" };
 
 export default function PlatformApps() {
+  const nav = useNavigate();
   const [apps, setApps] = useState([]);
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,7 @@ export default function PlatformApps() {
                   <span className="text-muted-foreground">· {a.assigned_clients} clients</span>
                 </div>
                 <div className="flex items-center gap-1.5 pt-2 border-t border-border/60 mt-auto">
+                  <Button size="sm" variant="ghost" onClick={() => nav(`/platform/my-apps/${a.id}`)} className="h-8" data-testid={`open-app-${a.slug}`}><ArrowUpRight size={14} className="mr-1" /> Open</Button>
                   <Button size="sm" variant="ghost" onClick={() => openEdit(a)} className="h-8"><Pencil size={14} className="mr-1" /> Edit</Button>
                   <Button size="sm" variant="ghost" onClick={() => remove(a)} className="h-8 text-rose-600 hover:text-rose-700"><Trash2 size={14} className="mr-1" /> Delete</Button>
                 </div>

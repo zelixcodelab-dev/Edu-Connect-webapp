@@ -47,6 +47,7 @@ import PlatformApps from "@/pages/PlatformApps";
 import PlatformSettings from "@/pages/PlatformSettings";
 import PlatformDatabase from "@/pages/PlatformDatabase";
 import PlatformVps from "@/pages/PlatformVps";
+import PlatformAppDetail from "@/pages/PlatformAppDetail";
 import PermGate from "@/components/PermGate";
 
 // Keeps the live theme in sync with the signed-in company. On logout it
@@ -159,6 +160,7 @@ export default function App() {
           <Route path="/platform/connect" element={<PlatformProtected><PlatformConnect /></PlatformProtected>} />
           <Route path="/platform/connect/:ticketId" element={<PlatformProtected><PlatformTicketDetail /></PlatformProtected>} />
           <Route path="/platform/my-apps" element={<PlatformProtected><PlatformApps /></PlatformProtected>} />
+          <Route path="/platform/my-apps/:appId" element={<PlatformProtected><PlatformAppDetail /></PlatformProtected>} />
           <Route path="/platform/settings" element={<PlatformProtected><PlatformSettings /></PlatformProtected>} />
           <Route path="/platform/database" element={<PlatformProtected><PlatformDatabase /></PlatformProtected>} />
           <Route path="/platform/vps-server" element={<PlatformProtected><PlatformVps /></PlatformProtected>} />
