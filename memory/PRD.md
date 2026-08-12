@@ -164,6 +164,19 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Verified E2E + curl: real DB connections/collections, backup, server create + audited restart. Zero page errors.
 - NOTE: live VPS metrics/Docker/terminal + a read-only server/DB connection are pending real credentials from the user.
 
+### Plans → INR + Company onboarding (DONE, 2026-08, self-tested)
+- Plans: `DEFAULT_PLANS` now INR (Trial ₹0 / Starter ₹999 / Pro ₹2999) with a `currency` field;
+  `PlanIn` gained `currency` (default "INR"); `_seed_plans` migrates legacy USD plans (no currency)
+  to INR by name. Frontend `PlatformSettings.jsx` Plans() shows ₹ with en-IN formatting, label
+  "Price (₹/mo)". Verified: /api/platform/plans returns INR; UI shows ₹0 / ₹999 / ₹2,999.
+- Onboarded company "KM Foundation" (plan Pro, brand "KM Connect", admin muneer@kmfoundation.co)
+  via existing `POST /platform/tenants` flow. Admin login + branded workspace verified (screenshot).
+  IMPORTANT: preview backend uses LOCAL Mongo (mongodb://localhost) — this tenant lives in the
+  PREVIEW DB only, NOT the live Railway production DB. To onboard on the live site, recreate via the
+  production Platform Console → Clients → New company (tenant data is in the DB, not the repo, so a
+  redeploy will not carry it over).
+
+
 ### Phase 4c — Live DB Browser (DONE, 2026-08, self-tested E2E)
 - Backend (`routers/registry.py`): read-only document browser + xlsx export.
   `GET /database/{db}/collections/{col}/documents?page&limit&field&value` — paginated (25/pg, cap 100),

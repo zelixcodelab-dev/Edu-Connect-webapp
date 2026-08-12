@@ -252,24 +252,32 @@ async def list_roles(owner: dict = Depends(require_permission("settings.view")))
 
 # ─────────────────────────── Settings: plans ───────────────────────────
 DEFAULT_PLANS = [
-    {"name": "Trial", "price": 0, "features": ["1 workspace", "Community support"], "limits": {"users": 5, "students": 100}},
-    {"name": "Starter", "price": 49, "features": ["All modules", "Email support"], "limits": {"users": 25, "students": 1000}},
-    {"name": "Pro", "price": 149, "features": ["Priority support", "Custom branding"], "limits": {"users": 100, "students": 10000}},
+    {"name": "Trial", "price": 0, "currency": "INR", "features": ["1 workspace", "Community support"], "limits": {"users": 5, "students": 100}},
+    {"name": "Starter", "price": 999, "currency": "INR", "features": ["All modules", "Email support"], "limits": {"users": 25, "students": 1000}},
+    {"name": "Pro", "price": 2999, "currency": "INR", "features": ["Priority support", "Custom branding"], "limits": {"users": 100, "students": 10000}},
 ]
 
 
 class PlanIn(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     price: float = 0
+    currency: Optional[str] = "INR"
     features: Optional[List[str]] = None
     limits: Optional[dict] = None
 
 
 async def _seed_plans():
-    if await gdb.plans.count_documents({}) > 0:
+    if await gdb.plans.count_documents({}) == 0:
+        for p in DEFAULT_PLANS:
+            await gdb.plans.insert_one({"id": gen_id(), **p, "created_at": now_iso()})
         return
-    for p in DEFAULT_PLANS:
-        await gdb.plans.insert_one({"id": gen_id(), **p, "created_at": now_iso()})
+    # Migrate legacy USD plans (no currency field) to INR defaults by name.
+    inr_by_name = {p["name"]: p["price"] for p in DEFAULT_PLANS}
+    async for p in gdb.plans.find({"currency": {"$exists": False}}):
+        await gdb.plans.update_one(
+            {"id": p["id"]},
+            {"$set": {"currency": "INR", "price": inr_by_name.get(p.get("name"), p.get("price", 0))}},
+        )
 
 
 @router.get("/plans")

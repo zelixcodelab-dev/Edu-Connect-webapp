@@ -170,20 +170,21 @@ function Plans() {
   useEffect(() => { load(); }, [load]);
   const save = async () => {
     if (!form.name.trim()) { toast.error("Name required"); return; }
-    const body = { name: form.name, price: Number(form.price) || 0, features: form.features.split(",").map((x) => x.trim()).filter(Boolean), limits: {} };
+    const body = { name: form.name, price: Number(form.price) || 0, currency: "INR", features: form.features.split(",").map((x) => x.trim()).filter(Boolean), limits: {} };
     try { if (form.editId) await api.patch(`/platform/plans/${form.editId}`, body); else await api.post("/platform/plans", body); toast.success("Saved"); setOpen(false); await load(); }
     catch { toast.error("Save failed"); }
   };
   const remove = async (p) => { if (!window.confirm(`Delete plan ${p.name}?`)) return; try { await api.delete(`/platform/plans/${p.id}`); toast.success("Deleted"); await load(); } catch { toast.error("Failed"); } };
+  const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
   if (loading) return <LoadingState />;
   return (
-    <Card title="Plans" desc="Subscription tiers offered to clients.">
+    <Card title="Plans" desc="Subscription tiers offered to clients (INR).">
       <div className="flex justify-end mb-3"><Button size="sm" onClick={() => { setForm({ name: "", price: 0, features: "", editId: null }); setOpen(true); }} data-testid="add-plan-btn" className="bg-primary text-primary-foreground border-0"><Plus size={15} className="mr-1" /> Add plan</Button></div>
       <div className="grid sm:grid-cols-3 gap-3" data-testid="plans-grid">
         {plans.map((p) => (
           <div key={p.id} className="rounded-xl border border-border p-4">
             <div className="flex items-center justify-between"><p className="font-display font-semibold">{p.name}</p><Button size="sm" variant="ghost" onClick={() => remove(p)} className="h-7 w-7 p-0 text-rose-600"><Trash2 size={14} /></Button></div>
-            <p className="text-2xl font-display font-bold mt-1">${p.price}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
+            <p className="text-2xl font-display font-bold mt-1" data-testid="plan-price">{inr(p.price)}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
             <ul className="mt-2 space-y-1">{(p.features || []).map((f) => <li key={f} className="text-xs text-muted-foreground">• {f}</li>)}</ul>
             <Button size="sm" variant="ghost" className="mt-2 h-7 px-2" onClick={() => { setForm({ name: p.name, price: p.price, features: (p.features || []).join(", "), editId: p.id }); setOpen(true); }}>Edit</Button>
           </div>
@@ -194,7 +195,7 @@ function Plans() {
           <DialogHeader><DialogTitle>{form.editId ? "Edit plan" : "New plan"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} data-testid="plan-name" /></div>
-            <div className="space-y-1.5"><Label>Price (USD/mo)</Label><Input type="number" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} /></div>
+            <div className="space-y-1.5"><Label>Price (₹/mo)</Label><Input type="number" min="0" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} data-testid="plan-price-input" /></div>
             <div className="space-y-1.5"><Label>Features (comma-separated)</Label><Input value={form.features} onChange={(e) => setForm((p) => ({ ...p, features: e.target.value }))} /></div>
           </div>
           <DialogFooter><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-primary text-primary-foreground border-0" data-testid="save-plan">Save</Button></DialogFooter>
