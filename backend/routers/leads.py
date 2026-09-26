@@ -409,6 +409,7 @@ async def list_leads(
     q: Optional[str] = None,
     view: Optional[str] = None,  # "missed" | "today" | None
     office: Optional[str] = None,  # super_admin only — narrow to one office
+    year: Optional[int] = None,
 ):
     if user.get("role") not in ("super_admin", "office_admin", "staff"):
         raise HTTPException(403, "Not allowed")
@@ -430,6 +431,9 @@ async def list_leads(
             query["$and"].append({"$or": or_clause})
         else:
             query["$or"] = or_clause
+    if year is not None:
+        from lib.academic_year import date_filter
+        query.update(date_filter("created_at", year))
     docs = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
 
     now = datetime.now(timezone.utc)

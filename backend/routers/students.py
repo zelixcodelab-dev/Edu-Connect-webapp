@@ -675,10 +675,11 @@ async def my_sc_earned(user: dict = Depends(get_current_user)):
 
 
 @router.get("")
-async def list_students(user: dict = Depends(get_current_user)):
+async def list_students(user: dict = Depends(get_current_user), year: Optional[int] = None):
     """Office admin sees own students. Super admin sees students from ALL users
     so admissions enrolled by office admins surface on the central Students page.
     Linked `user` accounts only see students that reference their client."""
+    from lib.academic_year import with_year, in_year
     # Linked user (sub-agent / associate consultant logging in) — show students
     # whose `reference` matches the linked client's name (case-insensitive) OR
     # students this user themselves entered (created via the Add-student flow).
@@ -695,10 +696,11 @@ async def list_students(user: dict = Depends(get_current_user)):
             },
             {"_id": 0},
         ).sort("created_at", -1).to_list(2000)
+        items = [s for s in items if in_year(s.get("created_at"), year)]
         return [_summarize(s, user) for s in items]
 
     if user.get("role") == "super_admin":
-        items = await db.students.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+        items = await db.students.find(with_year({}, "created_at", year), {"_id": 0}).sort("created_at", -1).to_list(2000)
         if items:
             user_ids = list({s.get("user_id") for s in items if s.get("user_id")})
             referrer_ids = list({s.get("referrer_user_id") for s in items if s.get("referrer_user_id")})
@@ -724,7 +726,7 @@ async def list_students(user: dict = Depends(get_current_user)):
             return out
         return []
     items = await db.students.find(
-        _office_visibility_clause(user), {"_id": 0}
+        with_year(_office_visibility_clause(user), "created_at", year), {"_id": 0}
     ).sort("created_at", -1).to_list(1000)
     # Populate referrer_name for legacy rows so the "Referred by" chip renders.
     referrer_ids = list({s.get("referrer_user_id") for s in items if s.get("referrer_user_id") and not s.get("referrer_name")})

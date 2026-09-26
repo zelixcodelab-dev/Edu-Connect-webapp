@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { BrandingProvider, useBranding } from "@/lib/branding";
+import { AcademicYearProvider } from "@/lib/academicYear";
 import { Toaster } from "@/components/ui/sonner";
 
 import AuthPage from "@/pages/AuthPage";
@@ -166,7 +167,7 @@ export default function App() {
           <Route path="/platform/database" element={<PlatformProtected><PlatformDatabase /></PlatformProtected>} />
           <Route path="/platform/vps-server" element={<PlatformProtected><PlatformVps /></PlatformProtected>} />
           <Route path="/platform/:moduleKey" element={<PlatformProtected><PlatformModulePage /></PlatformProtected>} />
-          <Route element={<Protected><AppShell /></Protected>}>
+          <Route element={<Protected><AcademicYearProvider><AppShell /></AcademicYearProvider></Protected>}>
             <Route path="/" element={<PermGate page="overview"><Dashboard /></PermGate>} />
             <Route path="/quick-entry" element={<PermGate page="quick_entry"><QuickEntry /></PermGate>} />
             <Route path="/transactions" element={<PermGate page="transactions"><Transactions /></PermGate>} />

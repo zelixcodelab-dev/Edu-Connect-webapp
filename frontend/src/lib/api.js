@@ -81,6 +81,22 @@ export const getStoredToken = () => {
   return inMemoryToken;
 };
 
+// ── Academic (calendar) year — globally injected into GET requests ──
+// A single selected year scopes list/aggregation endpoints across the whole
+// app. "all" (or null) means no filtering. Persisted in localStorage.
+const YEAR_KEY = "educonnect_academic_year";
+let selectedYear = (() => {
+  const ls = safeLocalStorage();
+  try { return (ls && ls.getItem(YEAR_KEY)) || "all"; } catch { return "all"; }
+})();
+
+export const getApiYear = () => selectedYear;
+export const setApiYear = (y) => {
+  selectedYear = y || "all";
+  const ls = safeLocalStorage();
+  try { if (ls) ls.setItem(YEAR_KEY, selectedYear); } catch { /* ignore */ }
+};
+
 const api = axios.create({
   baseURL: API,
   withCredentials: true,
@@ -102,6 +118,17 @@ api.interceptors.request.use((config) => {
     if (!config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${t}`;
     }
+  }
+  // Inject the globally-selected academic year into GET requests so every
+  // page's data is scoped consistently. Endpoints that don't declare `year`
+  // simply ignore the extra query param (FastAPI drops unknown params).
+  // Clients / Employees (/clients) and Messages (/messages) are exempt.
+  const method = (config.method || "get").toLowerCase();
+  const url = config.url || "";
+  const yearExempt = /(^|\/)(clients|messages|academic-years|platform)(\/|$|\?)/.test(url);
+  if (method === "get" && !yearExempt && selectedYear && selectedYear !== "all") {
+    if (config.params == null) config.params = {};
+    if (config.params.year == null) config.params.year = selectedYear;
   }
   return config;
 });

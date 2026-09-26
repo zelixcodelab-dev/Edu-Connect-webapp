@@ -8,6 +8,7 @@ import { canView } from "@/lib/perm";
 import { buildApplyUrl } from "@/lib/applyUrl";
 import { photoSrc } from "@/pages/Clients";
 import NotificationsBell from "@/components/NotificationsBell";
+import AcademicYearSelect from "@/components/AcademicYearSelect";
 import BottomNav from "@/components/BottomNav";
 import InstallPrompt from "@/components/InstallPrompt";
 import {
@@ -364,6 +365,7 @@ export default function AppShell() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+            <AcademicYearSelect />
             <div className="hidden lg:flex relative w-64 xl:w-80">
               <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input

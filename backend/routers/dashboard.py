@@ -15,17 +15,25 @@ async def summary(
     user: dict = Depends(get_current_user),
     start: Optional[str] = None,
     end: Optional[str] = None,
+    year: Optional[int] = None,
 ):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
-    period_start = start or now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).date().isoformat()
-    period_end = end
+    if year is not None:
+        period_start = f"{int(year):04d}-01-01"
+        period_end = f"{int(year):04d}-12-31"
+    else:
+        period_start = start or now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).date().isoformat()
+        period_end = end
 
     accounts = await db.accounts.find({"user_id": user_id}, {"_id": 0}).to_list(500)
     total_opening = sum(a.get("opening_balance", 0) for a in accounts)
 
+    all_match = {"user_id": user_id}
+    if year is not None:
+        all_match["date"] = {"$gte": period_start, "$lt": f"{int(year) + 1:04d}-01-01"}
     agg_all = await db.transactions.aggregate([
-        {"$match": {"user_id": user_id}},
+        {"$match": all_match},
         {"$group": {"_id": "$type", "total": {"$sum": "$amount"}}},
     ]).to_list(10)
     all_income = sum(x["total"] for x in agg_all if x["_id"] == "income")
@@ -42,8 +50,11 @@ async def summary(
     month_income = round(sum(x["total"] for x in agg_month if x["_id"] == "income"), 2)
     month_expense = round(sum(x["total"] for x in agg_month if x["_id"] == "expense"), 2)
 
+    outstanding_match = {"user_id": user_id, "status": {"$in": ["sent", "overdue"]}}
+    if year is not None:
+        outstanding_match["issue_date"] = {"$gte": period_start, "$lt": f"{int(year) + 1:04d}-01-01"}
     outstanding_agg = await db.invoices.aggregate([
-        {"$match": {"user_id": user_id, "status": {"$in": ["sent", "overdue"]}}},
+        {"$match": outstanding_match},
         {"$group": {"_id": None, "total": {"$sum": "$total"}}},
     ]).to_list(1)
     outstanding = round(outstanding_agg[0]["total"], 2) if outstanding_agg else 0.0

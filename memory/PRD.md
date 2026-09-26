@@ -13,6 +13,67 @@ customise the app per company: access/permissions, logo, app name, enabled modul
 - Platform Owner super-dashboard to manage companies, branding, modules, access. (DONE)
 - Mock/bypass integrations (email, push, S3, WhatsApp) — keys missing. (DONE, MOCKED)
 
+## KMConnect feature-merge (2026-06) — porting new CRM features into the multi-tenant app
+Source: user-uploaded `kmconnect-bykm-updated-main.zip` (a NEWER single-tenant KMConnect CRM).
+Approach: cherry-pick each NEW feature feature-by-feature (NOT a blind overwrite — the two
+codebases diverged: the zip added CRM features; this app added the multi-tenant platform + rebrand
++ Railway/Vercel/CORS infra in the SAME files). NEVER overwrite db.py / auth.py / App.js / AppShell.jsx /
+lib/api.js / lib/auth.jsx wholesale.
+Features to port (user confirmed all 4, in order): 1) Attendance+Payroll, 2) Academic-Year selector,
+3) Google Sheets sync (needs Google OAuth creds), 4) WebAuthn passkey login (needs lib + domain config).
+
+### Feature 1 — Staff Attendance + Payroll (DONE, 2026-06, tested 100% BE+FE)
+- Backend: copied `routers/attendance.py` (GPS check-in/out, breaks, monthly payroll, salary,
+  regularization, payslip PDF). Uses tenant-aware `db` proxy → works per-company automatically.
+  Registered in `server.py`. Prefix `/api/attendance`. Late-alert background sweep intentionally
+  DEFERRED (only half-works across tenants without per-tenant context).
+- Permissions: added "attendance" to `models.py` PERMISSION_PAGES; STAFF_DEFAULT_PERMISSIONS
+  attendance="edit", USER="none". Upgraded `auth_lib.require_edit()` to consult role-default maps
+  (so staff can check in by default). Added "attendance" to `whitelabel.MODULE_CATALOG` + a startup
+  backfill in server.py that $addToSet's "attendance" into existing tenants' enabled_modules.
+- Frontend: copied `pages/Attendance.jsx`, `components/attendance/*`, `components/AuthedImage.jsx`,
+  `lib/payslipPdf.js`. Wired route in App.js (/attendance, roles super/office/staff, page=attendance),
+  nav in AppShell (GROUP_ROUTES.office += /attendance; ALL_NAV nav-attendance) + BottomNav (staff bar).
+- Test: /app/backend/tests/test_attendance.py (9 pass). Staff test acct: TEST_att_staff_1@educonnect.app / Staff@12345.
+
+### Feature 2 — Academic-Year selector (DONE, 2026-06, verified BE curl + FE render)
+- Backend: added `lib/academic_year.py` (calendar-year = academic year; helpers date_filter/with_year/
+  in_year/available_years) + `routers/academic.py` (GET /api/academic-years → {years, current}).
+  Registered in server.py. Threaded `year: Optional[int]` into list/aggregation endpoints (ignore-safe):
+  transactions (date), students (created_at), leads (created_at), invoices (issue_date),
+  dashboard/summary (year window overrides period + scopes all-time totals & outstanding).
+  Other endpoints simply ignore the extra `year` param (FastAPI drops unknowns) — safe to extend later.
+- Frontend: added `lib/academicYear.jsx` (AcademicYearProvider + useAcademicYear), `components/
+  AcademicYearSelect.jsx` (header dropdown). Wired provider around AppShell in App.js; selector in the
+  topbar. KEY MECHANISM: `lib/api.js` request interceptor injects `?year=<selected>` into all GET
+  requests (exempt: clients, messages, academic-years, platform). Year persisted in localStorage
+  (educonnect_academic_year). "All years" = no filter.
+- Verified: /api/academic-years → [2026]; dashboard summary?year=2026 → period 2026-01-01..12-31;
+  transactions?year filter applied; selector renders in header as "All years".
+- PENDING (Feature 4): WebAuthn passkeys (needs webauthn lib + domain/RP config + careful merge into multi-tenant auth.py).
+
+### Feature 3 — Google Sheets sync (BUILT, 2026-06, awaiting user's Google OAuth keys to activate)
+- Backend: copied `routers/google_sheets.py` (OAuth 2.0 Auth-Code flow; tokens Fernet-encrypted in
+  db.google_connections). Two routers registered in server.py: `router` (prefix /api/google) +
+  `oauth_router` (prefix /api/oauth/sheets). Endpoints: /google/status, /google/connect,
+  /google/disconnect, /google/spreadsheets(+/worksheets/values), /google/template, /google/import,
+  /google/sync, /google/syncs. Admin-only. Redirect URI auto-derives from the browser origin
+  (works on preview + prod). Gated by `_configured()` → returns 503 + {configured:false} until keys set.
+- Deps (appended to requirements.txt, NOT via pip freeze): google-auth==2.56.2,
+  google-auth-oauthlib==1.4.1, google-auth-httplib2==0.4.0, google-api-python-client==2.198.0.
+- Env (backend/.env): GOOGLE_CLIENT_ID="" and GOOGLE_CLIENT_SECRET="" (USER MUST FILL from Google
+  Cloud OAuth Web client), GOOGLE_REDIRECT_URI + FRONTEND_URL default to the preview URL,
+  GOOGLE_TOKEN_ENCRYPTION_KEY = a generated Fernet key (set). User must add
+  `<backend>/api/oauth/sheets/callback` to the Google Console Authorized redirect URIs.
+- Frontend: copied `components/settings/GoogleSheetsSettings.jsx`, wired into Settings.jsx for
+  super_admin + office_admin. Shows a clear "not configured" notice until keys are added.
+- Scheduled auto-sync loop intentionally NOT wired (cross-tenant limitation) — manual Connect + Import
+  + "Sync now" work per-company. Verified: /api/google/status → configured:false; /connect → 503;
+  Settings card renders the not-configured state.
+
+
+
+
 ## Architecture
 - Backend: FastAPI + Motor (async MongoDB). `/app/backend`
   - `db.py` — multi-tenant router. `gdb` = shared platform DB; `db` = context-scoped proxy to the current tenant DB. `ensure_tenant_indexes()` builds per-tenant indexes (best-effort/hardened).

@@ -19,6 +19,7 @@ async def list_transactions(
     category_id: Optional[str] = None,
     start: Optional[str] = None,
     end: Optional[str] = None,
+    year: Optional[int] = None,
     limit: int = 200,
 ):
     q: dict = {"user_id": user["id"]}
@@ -34,6 +35,9 @@ async def list_transactions(
             q["date"]["$gte"] = start
         if end:
             q["date"]["$lte"] = end
+    elif year is not None:
+        from lib.academic_year import date_filter
+        q.update(date_filter("date", year))
     return await db.transactions.find(q, {"_id": 0}).sort("date", -1).limit(limit).to_list(limit)
 
 
