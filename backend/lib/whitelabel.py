@@ -63,6 +63,7 @@ MODULE_CATALOG = [
     {"key": "students", "label": "Students & Fees"},
     {"key": "leads", "label": "CRM / Leads"},
     {"key": "leave", "label": "Leave Management"},
+    {"key": "attendance", "label": "Attendance & Payroll"},
     {"key": "expense_requests", "label": "Expense Approvals"},
     {"key": "colleges", "label": "Colleges"},
     {"key": "admission_revenue", "label": "Admission Revenue"},

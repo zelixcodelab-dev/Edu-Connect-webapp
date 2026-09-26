@@ -15,7 +15,7 @@ ApprovalStatus = Literal["pending", "approved", "rejected"]
 # Page-level permission keys controllable by super_admin (office_admin only).
 PERMISSION_PAGES = (
     "overview", "quick_entry", "transactions", "accounts", "clients",
-    "students", "expense_requests", "settings", "leads", "leave",
+    "students", "expense_requests", "settings", "leads", "leave", "attendance",
 )
 PermissionLevel = Literal["edit", "view", "none"]
 DEFAULT_PERMISSIONS = {p: "edit" for p in PERMISSION_PAGES}
@@ -34,6 +34,7 @@ USER_DEFAULT_PERMISSIONS = {
     "students": "none",
     "leads": "none",
     "leave": "none",
+    "attendance": "none",
 }
 
 # "staff" role is a field/telecaller login: CRM Leads + their own Leave
@@ -49,6 +50,7 @@ STAFF_DEFAULT_PERMISSIONS = {
     "settings": "edit",
     "leads": "edit",
     "leave": "edit",
+    "attendance": "edit",
 }
 
 

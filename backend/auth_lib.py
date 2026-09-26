@@ -186,9 +186,20 @@ def require_edit(page: str):
     async def _checker(user: dict = Depends(get_current_user)) -> dict:
         if user.get("role") == "super_admin":
             return user
+        from models import DEFAULT_PERMISSIONS, USER_DEFAULT_PERMISSIONS, STAFF_DEFAULT_PERMISSIONS
+        role = user.get("role")
         perms = user.get("permissions") or {}
-        default_level = "none" if user.get("role") in ("user", "staff") else "edit"
-        level = perms.get(page) or default_level
+        # Fall back to the role's default-permissions map for keys that predate
+        # a newly-added PERMISSION_PAGES entry (so old accounts aren't locked out
+        # of new pages). Office admins default to full edit; user/staff to 'none'.
+        if role == "staff":
+            role_defaults = STAFF_DEFAULT_PERMISSIONS
+        elif role == "user":
+            role_defaults = USER_DEFAULT_PERMISSIONS
+        else:
+            role_defaults = DEFAULT_PERMISSIONS
+        fallback = role_defaults.get(page, "none" if role in ("user", "staff") else "edit")
+        level = perms.get(page) or fallback
         if level != "edit":
             raise HTTPException(
                 status_code=403,

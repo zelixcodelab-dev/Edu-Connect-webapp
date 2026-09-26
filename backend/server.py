@@ -18,7 +18,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from db import client, db, gdb, set_default_tenant
 from seed import seed_platform_and_default_tenant
-from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity
+from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity, attendance
 from routers import platform as platform_router
 from routers import branding as branding_router
 from routers import connect as connect_router
@@ -56,6 +56,7 @@ app.include_router(staff.router)
 app.include_router(campaigns.router)
 app.include_router(admission_revenue.router)
 app.include_router(activity.router)
+app.include_router(attendance.router)
 app.include_router(platform_router.router)
 app.include_router(branding_router.router)
 app.include_router(connect_router.router)
@@ -212,6 +213,16 @@ async def startup() -> None:
     # Seed platform owner + default company (also binds the default tenant so
     # context-less requests resolve to a real database).
     await seed_platform_and_default_tenant()
+
+    # Backfill: ensure every existing company has the Attendance module enabled
+    # (added after some companies were provisioned). Idempotent + cheap.
+    try:
+        await gdb.tenants.update_many(
+            {"enabled_modules": {"$nin": ["attendance"]}},
+            {"$addToSet": {"enabled_modules": "attendance"}},
+        )
+    except Exception:
+        logger.exception("[startup] attendance module backfill failed")
 
     # Per-tenant helper indexes (rate-limit + activity) resolve against the
     # default tenant DB now that it's bound. Non-fatal.
