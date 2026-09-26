@@ -15,7 +15,7 @@ import {
   House, Receipt, Wallet, FileText, UsersThree, Tag, Gear, SignOut, PlusCircle,
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
-  Target, IdentificationBadge, CalendarCheck, Handshake, UserCircle, CaretRight, FolderSimplePlus,
+  Target, IdentificationBadge, Handshake, UserCircle, CaretRight, FolderSimplePlus,
   ClockCounterClockwise, Palette, Clock,
 } from "@phosphor-icons/react";
 
@@ -40,7 +40,6 @@ const ALL_NAV = [
   { to: "/leads", label: "CRM", icon: Target, tid: "nav-leads", roles: ["super_admin", "office_admin", "staff"], perm: "leads", module: "leads", userRoleAllowed: false },
   { to: "/office-overview", label: "Overview", icon: House, tid: "nav-office-overview", roles: ["super_admin"], module: "office_overview" },
   { to: "/staff", label: "Staff", icon: IdentificationBadge, tid: "nav-staff", roles: ["super_admin"], module: "staff" },
-  { to: "/leave", label: "Leave", icon: CalendarCheck, tid: "nav-leave", roles: ["super_admin", "office_admin", "staff"], perm: "leave", module: "leave" },
   { to: "/attendance", label: "Attendance", icon: Clock, tid: "nav-attendance", roles: ["super_admin", "office_admin", "staff"], perm: "attendance", module: "attendance" },
   { to: "/colleges", label: "Colleges", icon: Buildings, tid: "nav-colleges", roles: ["super_admin"], module: "colleges" },
   { to: "/admission-revenue", label: "Admission Revenue", icon: Coins, tid: "nav-admission-revenue", roles: ["super_admin"], module: "admission_revenue" },
@@ -116,7 +115,7 @@ function initialsOf(name) {
 // Office / Add details). Every other role keeps a single flat list.
 const GROUP_ROUTES = {
   accounts: ["/accounts", "/transactions", "/agents", "/invoices"],
-  office: ["/office-overview", "/employees", "/leads", "/staff", "/leave", "/attendance"],
+  office: ["/office-overview", "/employees", "/leads", "/staff", "/attendance"],
   details: ["/colleges", "/categories"],
 };
 

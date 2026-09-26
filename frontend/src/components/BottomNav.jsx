@@ -18,7 +18,6 @@ import {
   Coins,
   ChatCircleDots,
   Target,
-  CalendarCheck,
   Clock,
 } from "@phosphor-icons/react";
 
