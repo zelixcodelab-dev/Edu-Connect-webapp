@@ -100,6 +100,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const loginWithPasskey = useCallback(async (token) => {
+    if (token) setStoredToken(token);
+    try {
+      const { data } = await api.get("/auth/me");
+      setUser(data);
+      return true;
+    } catch {
+      setStoredToken(null);
+      setUser(false);
+      return false;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
@@ -122,8 +135,8 @@ export function AuthProvider({ children }) {
   // AuthProvider re-renders for unrelated reasons. New reference is only
   // produced when one of the actual deps changes.
   const ctxValue = useMemo(
-    () => ({ user, error, setError, login, register, logout, updateProfile, refresh: fetchMe }),
-    [user, error, login, register, logout, updateProfile, fetchMe],
+    () => ({ user, error, setError, login, loginWithPasskey, register, logout, updateProfile, refresh: fetchMe }),
+    [user, error, login, loginWithPasskey, register, logout, updateProfile, fetchMe],
   );
 
   return (

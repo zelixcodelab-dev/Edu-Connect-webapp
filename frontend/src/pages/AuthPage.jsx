@@ -7,11 +7,11 @@ import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Sun, Moon, Sparkle, ShieldCheck, ChartBar, GraduationCap } from "@phosphor-icons/react";
+import { ArrowRight, Sun, Moon, Sparkle, ShieldCheck, ChartBar, GraduationCap, Fingerprint } from "@phosphor-icons/react";
 
 export default function AuthPage({ mode }) {
   const isLogin = mode === "login";
-  const { login, error, setError } = useAuth();
+  const { login, loginWithPasskey, error, setError } = useAuth();
   const { theme, toggle } = useTheme();
   const { branding } = useBranding();
   const nav = useNavigate();
@@ -27,6 +27,22 @@ export default function AuthPage({ mode }) {
     const ok = await login(form.email, form.password);
     setSubmitting(false);
     if (ok) nav("/");
+  };
+
+  const passkeySubmit = async () => {
+    if (!form.email) { setError("Enter your email first, then use your passkey."); return; }
+    setError("");
+    setSubmitting(true);
+    try {
+      const { passkeyLogin } = await import("@/lib/webauthn");
+      const token = await passkeyLogin(form.email.trim());
+      const ok = await loginWithPasskey(token);
+      if (ok) nav("/");
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Passkey sign-in failed. Use your password instead.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const appName = branding?.app_name || "EduConnect Pro";
@@ -153,6 +169,16 @@ export default function AuthPage({ mode }) {
               {submitting ? "Please wait…" : "Sign in"}
               <ArrowRight size={16} className="ml-2" />
             </Button>
+
+            <button
+              type="button"
+              onClick={passkeySubmit}
+              disabled={submitting}
+              data-testid="passkey-login-btn"
+              className="w-full h-11 rounded-lg border border-border bg-card hover:bg-muted/60 text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+            >
+              <Fingerprint size={18} /> Sign in with a passkey
+            </button>
           </form>
           )}
         </div>

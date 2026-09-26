@@ -33,3 +33,4 @@ google-auth==2.56.2
 google-auth-oauthlib==1.4.1
 google-auth-httplib2==0.4.0
 google-api-python-client==2.198.0
+webauthn==3.0.0

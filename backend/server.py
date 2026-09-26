@@ -16,9 +16,9 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, APIRouter
 from starlette.middleware.cors import CORSMiddleware
 
-from db import client, db, gdb, set_default_tenant
+from db import client, db, gdb, set_default_tenant, set_current_tenant, reset_current_tenant
 from seed import seed_platform_and_default_tenant
-from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity, attendance, academic, google_sheets
+from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity, attendance, academic, google_sheets, webauthn
 from routers import platform as platform_router
 from routers import branding as branding_router
 from routers import connect as connect_router
@@ -60,6 +60,7 @@ app.include_router(attendance.router)
 app.include_router(academic.router)
 app.include_router(google_sheets.router)
 app.include_router(google_sheets.oauth_router)
+app.include_router(webauthn.router)
 app.include_router(platform_router.router)
 app.include_router(branding_router.router)
 app.include_router(connect_router.router)
@@ -249,6 +250,28 @@ async def startup() -> None:
         logger.exception("[storage] init failed — uploads will retry on first use")
     # Background sweep: remind assignees of due lead follow-ups every 10 min.
     asyncio.create_task(_followup_sweep_loop())
+    # Background sweep: ping admins about staff not checked in by 10:30 IST
+    # (runs across ALL companies/tenants).
+    asyncio.create_task(_late_alert_loop())
+
+
+async def _late_alert_loop() -> None:
+    from routers import attendance
+    await asyncio.sleep(60)
+    while True:
+        try:
+            tenant_ids = [t["id"] async for t in gdb.tenants.find({}, {"_id": 0, "id": 1})]
+            for tid in tenant_ids:
+                token = set_current_tenant(tid)
+                try:
+                    await attendance.sweep_late_checkins()
+                except Exception:
+                    logger.exception("[attendance] late-alert sweep failed for tenant %s", tid)
+                finally:
+                    reset_current_tenant(token)
+        except Exception:
+            logger.exception("[attendance] late-alert loop failed")
+        await asyncio.sleep(900)
 
 
 async def _followup_sweep_loop() -> None:

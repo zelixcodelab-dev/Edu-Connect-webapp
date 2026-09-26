@@ -52,6 +52,19 @@ Features to port (user confirmed all 4, in order): 1) Attendance+Payroll, 2) Aca
   transactions?year filter applied; selector renders in header as "All years".
 - PENDING (Feature 4): WebAuthn passkeys (needs webauthn lib + domain/RP config + careful merge into multi-tenant auth.py).
 
+### Feature 4 — WebAuthn passkeys (BUILT, 2026-06, verified BE + FE render; device ceremony needs real hardware)
+- Backend: copied `routers/webauthn.py` (webauthn==3.0.0). Multi-tenant: token issuance uses
+  create_access_token(..., tenant_id, scope); removed PIN prerequisite; RP_NAME → "EduConnect Pro".
+  Added PASSWORDLESS `/api/webauthn/login/begin` + `/login/finish` (email-first: find_tenant_for_email →
+  bind context → verify → issue tenant JWT). Registered in server.py. RP auto-derives from origin.
+- Env (PREVIEW set): WEBAUTHN_RP_ID=saas-customizer.preview.emergentagent.com, WEBAUTHN_ORIGIN=preview URL.
+  PRODUCTION (user sets on Railway): WEBAUTHN_RP_ID=educonnectpro.app, WEBAUTHN_ORIGIN=https://educonnectpro.app,
+  WEBAUTHN_RP_NAME="EduConnect Pro". Passkeys are domain-bound (preview creds won't work on prod).
+- Frontend: copied `lib/webauthn.js` (+passkeyLogin); new `components/settings/PasskeySettings.jsx` in
+  Settings; "Sign in with a passkey" button on AuthPage; auth.jsx gained loginWithPasskey(token).
+- Verified: /webauthn/status→configured:true; /login/begin unknown email→400; Settings card + login button
+  render. NOTE: the OS biometric prompt can only be tested on a real device.
+
 ### Feature 3 — Google Sheets sync (BUILT, 2026-06, awaiting user's Google OAuth keys to activate)
 - Backend: copied `routers/google_sheets.py` (OAuth 2.0 Auth-Code flow; tokens Fernet-encrypted in
   db.google_connections). Two routers registered in server.py: `router` (prefix /api/google) +

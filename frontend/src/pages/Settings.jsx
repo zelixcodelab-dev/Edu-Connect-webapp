@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import StaffProfile from "@/pages/StaffProfile";
 import AdmissionRevenuePinSettings from "@/components/settings/AdmissionRevenuePinSettings";
 import GoogleSheetsSettings from "@/components/settings/GoogleSheetsSettings";
+import PasskeySettings from "@/components/settings/PasskeySettings";
 
 export default function Settings() {
   const { user, updateProfile } = useAuth();
@@ -74,6 +75,8 @@ function WorkspaceSettings({ user, updateProfile }) {
           </Button>
         </form>
       </Card>
+
+      <PasskeySettings />
 
       {(user?.role === "super_admin" || user?.role === "office_admin") && (
         <GoogleSheetsSettings />
