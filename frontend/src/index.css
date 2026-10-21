@@ -700,3 +700,26 @@ html.theme-mono header[data-testid="topbar"] { background: hsl(var(--background)
 .rail-cell-active::before { top: -22px; border-bottom-right-radius: 22px; box-shadow: 8px 8px 0 8px hsl(var(--background)); }
 .rail-cell-active::after { bottom: -22px; border-top-right-radius: 22px; box-shadow: 8px -8px 0 8px hsl(var(--background)); }
 .desktop-rail { overflow: visible; }
+
+/* Mono theme: neutralise legacy accent utilities (brand-a is a dark fill colour here). */
+html.theme-mono .text-orange-600, html.theme-mono .text-orange-500, html.theme-mono .text-orange-700,
+html.theme-mono .text-orange-400, html.theme-mono .text-orange-300,
+html.theme-mono .text-amber-600, html.theme-mono .text-amber-500, html.theme-mono .text-amber-400,
+html.theme-mono .hover\:text-orange-600:hover, html.theme-mono .hover\:text-orange-700:hover,
+html.theme-mono .hover\:text-orange-400:hover, html.theme-mono .hover\:text-orange-300:hover {
+    color: hsl(var(--foreground)) !important;
+    filter: none;
+}
+html.theme-mono .border-orange-500, html.theme-mono .border-orange-600 { border-color: hsl(var(--foreground)) !important; }
+html.theme-mono [class*="border-orange-500/"] { border-color: hsl(var(--foreground) / 0.3) !important; }
+html.theme-mono .bg-orange-500, html.theme-mono .bg-orange-600 { background-color: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; }
+html.theme-mono .tile-highlight { box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.45); }
+html.theme-mono [data-testid="trial-banner"] { background: hsl(var(--card)); border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
+html.theme-mono [data-testid="trial-banner"][data-days-left^="-"],
+html.theme-mono [data-testid="trial-banner"][data-days-left="0"],
+html.theme-mono [data-testid="trial-banner"][data-days-left="1"],
+html.theme-mono [data-testid="trial-banner"][data-days-left="2"],
+html.theme-mono [data-testid="trial-banner"][data-days-left="3"] { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: transparent; }
+html.theme-mono [data-testid="sidebar-logout-btn"], html.theme-mono [data-testid="drawer-logout-btn"], html.theme-mono [data-testid="flyout-logout-btn"] { color: hsl(var(--foreground)); }
+html.theme-mono .desktop-rail [data-testid="sidebar-logout-btn"] { color: hsl(var(--rail-fg) / 0.7); }
+html.theme-mono [data-testid="rail-logo"] > * { background: #fff !important; }

@@ -358,3 +358,11 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
   AppShell has a "Pinned" section (pinned-section, pinned-{tid}), hover pin/unpin buttons (nav-pin-/unpin-{tid}), HTML5 drag reorder (pinned-row-{i}) and a mobile up-arrow (pin-up-{tid}).
   Only visible pins count toward the limit; pins hidden by permissions or modules are pruned on the next save. On mobile the pin buttons are always visible.
 - Removed the top-bar desktop-sidebar-toggle (collapse is only via sidebar-collapse-btn). Approvals and Activity moved into the Office group.
+
+## 2026-06 — Monochrome "Dashboard design 2020" client UI (tested: iteration_8.json; dark-mode contrast and leftover-red fixes applied and visually verified)
+- html.theme-mono is added by useMonoTheme() (AppShell + AuthPage) and removed on unmount, so the Platform Console keeps its own look.
+  index.css overrides all tokens with !important to beat inline brand vars: B/W light theme, inverted dark, Poppins, black/white pill btn-amber, greyscale charts. Legacy orange/amber utilities map to foreground.
+- Desktop nav is now DesktopRail: an 84px black rounded rail with a .rail-cell-active white notch (concave corners via box-shadow pseudo-elements) and tooltips.
+  It shows the user's pins (or the defaults Overview/Students/CRM/Messages/Attendance), then a menu button, Settings and Sign out.
+  rail-menu-btn opens the rail-flyout (full SidebarContent, variant "flyout", testids prefixed "flyout-").
+- Dashboard hero (dashboard-hero): "Hi <name>." with an illustration at /illustrations/dashboard-hero.png and right-column hero-stat-* cards. PALETTES in dashboardUtils are monochrome.

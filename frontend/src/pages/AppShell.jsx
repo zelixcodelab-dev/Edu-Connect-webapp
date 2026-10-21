@@ -223,8 +223,8 @@ function DesktopRail({ user, alerts, onLogout }) {
               </button>
             ))}
             {settings && cell("settings", isActive(settings.to) && !open, settings.label, (
-              <NavLink to={settings.to} data-testid={settings.tid} aria-label={settings.label} className={iconCls(isActive(settings.to))}>
-                <settings.icon size={20} weight={isActive(settings.to) ? "fill" : "regular"} />
+              <NavLink to={settings.to} data-testid={settings.tid} aria-label={settings.label} className={iconCls(isActive(settings.to) && !open)}>
+                <settings.icon size={20} weight={isActive(settings.to) && !open ? "fill" : "regular"} />
               </NavLink>
             ))}
           </nav>
@@ -249,7 +249,7 @@ function DesktopRail({ user, alerts, onLogout }) {
 
 function Avatar({ user, size = 40 }) {
   return (
-    <div className="rounded-full bg-[hsl(var(--primary))] text-white text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-[hsl(var(--primary))]/20" style={{ width: size, height: size }}>
+    <div className="rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-[hsl(var(--primary))]/20" style={{ width: size, height: size }}>
       {user?.photo_url ? (
         <AuthedImage url={user.photo_url} alt={user?.name || "profile"} className="w-full h-full object-cover" fallback={initialsOf(user?.name).toUpperCase()} />
       ) : initialsOf(user?.name).toUpperCase()}
@@ -354,7 +354,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.to); }}
-          data-testid={`${inPinned ? "unpin" : "nav-pin"}-${item.tid}`}
+          data-testid={`${tidPrefix}${inPinned ? "unpin" : "nav-pin"}-${item.tid}`}
           aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label}`}
           title={isPinned ? "Unpin" : "Pin to top"}
           className={`absolute right-2 top-1/2 -translate-y-1/2 z-[2] w-6 h-6 rounded-md flex items-center justify-center transition-[opacity,color,background-color] duration-150 hover:bg-[hsl(var(--sidebar-fg))]/10 ${isPinned ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))]"} ${isMobile || (isPinned && !inPinned) ? "opacity-100" : "opacity-0 group-hover/pin:opacity-100 focus:opacity-100"} ${count > 0 ? "hidden group-hover/pin:flex" : ""}`}
@@ -430,7 +430,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             <Avatar user={user} size={38} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[hsl(var(--sidebar-fg))] truncate" data-testid={isMobile ? "drawer-user-name" : "sidebar-user-name"}>{user?.name}</p>
-              <p className="text-[11px] font-medium capitalize text-[hsl(var(--primary))] truncate">{(user?.role || "").replace("_", " ")}</p>
+              <p className="text-[11px] font-medium capitalize text-[hsl(var(--sidebar-muted))] truncate">{(user?.role || "").replace("_", " ")}</p>
             </div>
           </div>
         )}
@@ -519,7 +519,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
           {!rail && <span className="flex-1 text-left">{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
           {!rail && (
             <span className={`relative w-9 h-5 rounded-full transition-colors ${theme === "dark" ? "bg-[hsl(var(--primary))]" : "bg-[hsl(var(--sidebar-fg))]/20"}`} aria-hidden>
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${theme === "dark" ? "translate-x-4" : ""}`} />
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[hsl(var(--primary-foreground))] shadow transition-transform duration-200 ${theme === "dark" ? "translate-x-4" : ""}`} />
             </span>
           )}
         </button>

@@ -1,0 +1,52 @@
+{
+  "summary": "Frontend-only test of the monochrome 'Dashboard design 2020' client UI. I used Playwright at 1920x1080 and 390x844 with the tenant admin, staff and owner accounts. Working: login page is mono (black Sign in button, Poppins, html.theme-mono); the desktop rail (84px, black #0a0a0a, 28px radius, rail-logo, defaults Overview/Students/CRM/Messages/Attendance + rail-menu-btn + nav-settings + sidebar-logout-btn); the white notch follows the active route for all rail items; hover tooltips (e.g. 'CRM'); flyout open, search, link navigation that closes the flyout, overlay click and Esc close; pinning Students makes the rail show only the pinned page, and unpinning restores the defaults; hero card ('Hi Workspace.', Quick entry black pill, View details -> /students, transparent illustration not cropped by the card); hero-stat income/expense -> /transactions and outstanding -> /invoices; btn-amber is black/white in light mode and white/black in dark mode on Students, Transactions, Invoices, Messages and Settings; dark mode canvas #0d0d0d, cards #1a1a1a, rail #212121, notch in canvas colour. Mobile: illustration hidden, stats stack in one column, scrollWidth is 390 on /, /students and /leads, and the drawer navigates and closes. Platform Console keeps its DM Sans and red look, and html has no theme-mono after owner login (directly, and after a tenant rail logout). A tenant SPA-navigating to /platform is redirected to /. Found 1 high-priority dark-mode contrast bug (legacy orange/amber accent text becomes #2a2a2a in dark), 2 dark-mode white-on-white bugs, and several leftover brand-red elements.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dark mono theme: legacy orange/amber accent text (index.css lines 223-230)", "issue": ".text-orange-600/500, .dark .text-orange-400/300, .text-amber-600 and .dark .text-amber-400 are forced to var(--brand-a) !important. html.theme-mono.dark sets --brand-a to #2a2a2a, so these texts render rgb(42,42,42) on #1a1a1a cards and cannot be read. Seen on CRM KPI cards ('Total leads' and 'Pending follow-ups' values and icons) and on the Sun icon of the flyout 'Light mode' toggle (text-amber-400). This likely affects every page that uses these classes.", "selector": "[data-testid=crm-analytics] Kpi, [data-testid=sidebar-theme-toggle] svg", "priority": "HIGH"},
+      {"component": "Flyout/drawer Avatar (AppShell Avatar())", "issue": "Uses bg-[hsl(var(--primary))] with text-white. In mono dark, primary is white (98%), so the 'WA' initials are white on white. The profile role text (text-primary) is also pure white instead of muted.", "selector": "[data-testid=rail-flyout] [data-testid=sidebar-profile]", "priority": "MEDIUM"},
+      {"component": "Flyout theme toggle switch (dark)", "issue": "Track is bg-[hsl(var(--primary))], which is white in dark, and the knob is bg-white, so the knob is invisible.", "selector": "[data-testid=sidebar-theme-toggle] span[aria-hidden]", "priority": "LOW"},
+      {"component": "Rail / flyout BrandMark in dark mode", "issue": "BrandMark uses bg-card (charcoal) inside the white rail-logo circle. The dark tenant logo (ZELIX) on charcoal is barely visible, so the rail shows a white ring with a near-black centre. The same happens in the flyout header.", "selector": "[data-testid=rail-logo]", "priority": "LOW"},
+      {"component": "DesktopRail settings cell", "issue": "iconCls(isActive(settings.to)) ignores `open`, while the notch uses `isActive && !open`. On /settings with the flyout open, the icon keeps the 'active' text-foreground (near black) on the black rail without the white notch, so it is invisible. Use iconCls(isActive(settings.to) && !open).", "selector": "[data-testid=nav-settings]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Flyout pin testids", "issue": "The review request expects 'flyout-nav-pin-nav-students', but pin/unpin buttons ignore tidPrefix and render as 'nav-pin-nav-students' / 'unpin-nav-students'. Pinning itself works. Either prefix them or update the test contract.", "affected_selectors": ["[data-testid=rail-flyout] [data-testid=nav-pin-nav-students]"]}
+    ],
+    "design_issues": [
+      {"screen": "Remaining brand red / colour in the mono client app", "issues": [
+        "tailwind.config.js still remaps the amber/orange palettes to crimson #C70000. As a result: the CRM tab underline (crm-tab-overview border-orange-500) is rgb(199,0,0); the dashboard tile-highlight and the mobile bottom-nav FAB have an orange/red glow shadow rgba(234,88,12,0.5); the 'Expenses this month' stat card on Overview has a red border; and the mobile PIN-setup lock icon is pink.",
+        "The trial banner (TrialBanner.jsx) uses rose-500 bg/border/text and is red on every page in light and dark mode.",
+        "Flyout and drawer 'Sign out' and the profile-menu Sign out are rose-600.",
+        "CRM KPI and staff 'desk' KPI icons are still pastel (emerald, sky, rose, violet). The CRM funnel bars and the Attendance 'Absent' card are coloured (rose card bg). These may be fine as semantic data colours, but they don't match 'pure B/W'.",
+        "In dark mode the active Overview tile (tile-highlight bg-amber-gradient = #2a2a2a to #0d0d0d) barely stands out from the dark canvas."
+      ]},
+      {"screen": "Mobile topbar 390px", "issues": ["Page title is cut down to one letter ('O…', 'C…') because the year pill, bell, messages and avatar take the row. The 'WORKSPACE' eyebrow also runs under the year pill."]},
+      {"screen": "Hero illustration", "issues": ["The PNG (451x640 RGBA, transparent) is cropped tightly: the top of the head touches the top edge, and a stray white shape at the right of the cube top is cut off at the right edge. Minor."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH: In html.theme-mono.dark, stop the legacy accent text classes from resolving to #2a2a2a. For example, add html.theme-mono .text-orange-*/.text-amber-* (incl. .dark variants) { color: hsl(var(--foreground)) !important }, or use a separate light accent var for text. Then recheck the CRM KPIs and the flyout Sun icon in dark mode.",
+    "Fix Avatar in mono dark: use bg-[hsl(var(--primary))] with text-[hsl(var(--primary-foreground))] instead of text-white. Make the sidebar role label muted.",
+    "Fix the flyout theme switch knob/track contrast in dark mode (knob should be primary-foreground or the track a grey).",
+    "Remove the remaining brand red in the mono client app: CRM tab underline (border-orange-500), tile-highlight and FAB orange shadow, the red border on the Expenses stat card, the TrialBanner rose styling, the rose Sign out text, and the PIN dialog lock tint. For example, override them under html.theme-mono or swap the classes for neutral ones.",
+    "DesktopRail: pass `isActive(settings.to) && !open` to iconCls for the Settings cell.",
+    "Optional: prefix the pin/unpin testids with tidPrefix in the flyout to match the documented contract.",
+    "Optional: improve the mobile topbar title (hide the year pill or the eyebrow below sm)."
+  ],
+  "critical_code_review_comments": [
+    "index.css: html.theme-mono.dark sets --brand-a: #2a2a2a, but the global rules at lines 223-241 use --brand-a as a text colour, so every legacy accent text is unreadable in dark mono. This is the root cause of the HIGH bug.",
+    "tailwind.config.js amber/orange remap to crimson is still active under theme-mono. Classes not covered by the !important var overrides (border-orange-500, shadow-orange-*, bg-amber-50/100, text-amber-700 etc.) still show red.",
+    "AppShell.jsx is 765 lines (over the 700-line guideline). Consider extracting DesktopRail and SidebarContent into components/.",
+    "renderLink: pin button testids ignore tidPrefix. Today that avoids duplicates only because the drawer and flyout are never mounted together.",
+    "useMonoTheme add/remove on both AuthPage and AppShell works with React's effect ordering (verified). If a shared parent is ever added, a ref-counted helper would be more robust."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped as requested)", "frontend": "~85% (all requested flows work; failures are dark-mode contrast and leftover red)"},
+  "test_credentials": "Used /app/memory/test_credentials.md: admin@educonnect.app/Admin@12345, TEST_att_staff_1@educonnect.app/Staff@12345, owner@educonnect.app/Owner@12345. All valid.",
+  "seed_data_creation": "None. Temporarily pinned /students for the admin and unpinned it again, so admin nav_pins are back to empty.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The desktop rail is [data-testid=desktop-sidebar] > [data-testid=rail-nav]. The active cell is .rail-cell-active. Flyout links are flyout-nav-*, and pin buttons in the flyout are unprefixed (nav-pin-nav-*, unpin-nav-*). Groups (Accounts/Office/Add details) start collapsed; click nav-group-office before flyout-nav-leads. On mobile, a 'Set a 4-digit PIN' dialog appears after login; click the 'Skip for now' button. The product tour did not appear for admin or staff in these runs. Theme persists in localStorage. To retest dark mode, toggle via profile-menu-btn -> profile-theme-toggle.",
+  "rca of the issue": "Dark-mode unreadable accent text: index.css lines 223-230 force .text-orange-*/.text-amber-* to var(--brand-a) !important. html.theme-mono.dark overrides --brand-a to #2a2a2a (meant for the dark bg-amber-gradient fill). The same variable is used for both text and fill, so in dark mono the text becomes dark grey on a dark card. Reproduce: log in as admin, toggle dark mode, open /leads, and look at the 'Total leads' KPI value. Fix: use a separate variable for accent text, or override text colours under html.theme-mono."
+}
