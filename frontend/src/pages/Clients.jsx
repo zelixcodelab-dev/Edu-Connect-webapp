@@ -1,15 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api, { API, getStoredToken } from "@/lib/api";
+import api, { API } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canEdit } from "@/lib/perm";
+import AuthedImage from "@/components/AuthedImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, PencilSimple, Trash, EnvelopeSimple, Phone, Buildings, Cake, CurrencyInr, IdentificationBadge, MapPin, Camera, UserCircle } from "@phosphor-icons/react";
+import { Plus, PencilSimple, Trash, EnvelopeSimple, Phone, Buildings, Cake, CurrencyInr, IdentificationBadge, MapPin, Camera, UserCircle, LinkSimple, Key, ShieldWarning, Prohibit, ArrowCounterClockwise, Pause, Play } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import OfficeStaff from "@/pages/OfficeStaff";
 
@@ -38,7 +39,10 @@ export function clientTypeLabel(v) {
 }
 
 export function photoSrc(u) {
-  return u ? `${API}${u.replace(/^\/api/, "")}?auth=${getStoredToken() || ""}` : null;
+  // Kept for back-compat callers. Returns the plain (tokenless) API URL; the
+  // token is no longer appended to the query string (SEC-001). Prefer the
+  // <AuthedImage> component which fetches via an authenticated request.
+  return u ? `${API}${u.replace(/^\/api/, "")}` : null;
 }
 
 const TYPE_BADGE = {
@@ -55,6 +59,8 @@ const empty = {
   office: "", eligible_incentive: "", date_of_birth: "",
   employee_id: "", address: "", place: "", photo_url: "",
   home_office: "",
+  designation: "", department: "", date_of_joining: "", leave_balance: "",
+  tax_regime: "", bank_account_no: "", ifsc_code: "",
 };
 
 const HOME_OFFICE_OPTIONS = [
@@ -144,6 +150,13 @@ function SuperAdminPeople({ pageScope }) {
       place: c.place || "",
       photo_url: c.photo_url || "",
       home_office: c.home_office || "",
+      designation: c.designation || "",
+      department: c.department || "",
+      date_of_joining: c.date_of_joining || "",
+      leave_balance: c.leave_balance ?? "",
+      tax_regime: c.tax_regime || "",
+      bank_account_no: c.bank_account_no || "",
+      ifsc_code: c.ifsc_code || "",
     });
     setOpen(true);
   };
@@ -157,6 +170,8 @@ function SuperAdminPeople({ pageScope }) {
       eligible_incentive: form.eligible_incentive === "" ? null : Number(form.eligible_incentive),
       date_of_birth: form.date_of_birth || null,
       home_office: form.home_office || null,
+      date_of_joining: form.date_of_joining || null,
+      leave_balance: form.leave_balance === "" ? null : Number(form.leave_balance),
     };
     try {
       if (editing) await api.patch(`/clients/${editing.id}`, payload);
@@ -170,6 +185,59 @@ function SuperAdminPeople({ pageScope }) {
     if (!window.confirm("Delete this entry?")) return;
     await api.delete(`/clients/${id}`);
     toast.success("Deleted"); load();
+  };
+
+  // ---- Employees-only: create / reset login dialogs ----
+  const [loginFor, setLoginFor] = useState(null);   // client row we're creating a login for
+  const [resetFor, setResetFor] = useState(null);   // client row we're resetting the pwd for
+  const [loginPw, setLoginPw] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const openCreateLogin = (c) => { setLoginFor(c); setLoginPw(""); };
+  const openResetLogin = (c) => { setResetFor(c); setLoginPw(""); };
+  const closeLoginDialogs = () => { setLoginFor(null); setResetFor(null); setLoginPw(""); };
+
+  const submitCreateLogin = async () => {
+    if (!loginFor) return;
+    if (!loginPw || loginPw.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    setLoginBusy(true);
+    try {
+      await api.post(`/staff/members/${loginFor.id}/login`, { email: loginFor.email, password: loginPw });
+      toast.success(`Login created for ${loginFor.name}`);
+      closeLoginDialogs();
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not create login");
+    } finally { setLoginBusy(false); }
+  };
+  const submitResetLogin = async () => {
+    if (!resetFor) return;
+    if (!loginPw || loginPw.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    setLoginBusy(true);
+    try {
+      await api.post(`/staff/members/${resetFor.id}/login/reset`, { password: loginPw });
+      toast.success(`Password updated for ${resetFor.name}`);
+      closeLoginDialogs();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not reset password");
+    } finally { setLoginBusy(false); }
+  };
+
+  const toggleSuspend = async (c) => {
+    const next = !c.suspended;
+    if (next && !window.confirm(`Suspend ${c.name}'s login? They won't be able to sign in, and their salary will be put on hold. You can reactivate anytime.`)) return;
+    try {
+      await api.post(`/staff/members/${c.id}/suspend`, { suspended: next });
+      toast.success(next ? `${c.name} suspended` : `${c.name} reactivated`);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Could not update login"); }
+  };
+  const toggleHold = async (c) => {
+    const next = !c.salary_hold;
+    try {
+      await api.post(`/staff/members/${c.id}/salary-hold`, { hold: next });
+      toast.success(next ? `Salary put on hold for ${c.name}` : `Salary released for ${c.name}`);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Could not update salary hold"); }
   };
 
   const isStaff = form.client_type === "staff";
@@ -206,7 +274,7 @@ function SuperAdminPeople({ pageScope }) {
               </Button>
             </DialogTrigger>
             )}
-            <DialogContent className="bg-card">
+            <DialogContent className="bg-card max-h-[88vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">{editing ? "Edit" : "Add"} {isStaff ? "staff" : "entry"}</DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
@@ -235,7 +303,7 @@ function SuperAdminPeople({ pageScope }) {
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border">
                         {form.photo_url ? (
-                          <img src={photoSrc(form.photo_url)} alt="staff" className="w-full h-full object-cover" data-testid="cli-photo-preview" />
+                          <AuthedImage url={form.photo_url} alt="staff" className="w-full h-full object-cover" testid="cli-photo-preview" />
                         ) : (
                           <UserCircle size={38} className="text-muted-foreground" weight="thin" />
                         )}
@@ -285,6 +353,28 @@ function SuperAdminPeople({ pageScope }) {
                       <Input type="number" min="0" step="50" value={form.eligible_incentive} onChange={(e) => setForm({ ...form, eligible_incentive: e.target.value })} placeholder="e.g. 500" data-testid="cli-incentive" />
                       <p className="text-[11px] text-muted-foreground mt-1">Paid out once the staff hits 3+ admissions in a month.</p>
                     </div>
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Payslip details (optional)</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div><Label>Designation</Label><Input value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} placeholder="e.g. Telecaller" data-testid="cli-designation" /></div>
+                        <div><Label>Department</Label><Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="e.g. Admissions" data-testid="cli-department" /></div>
+                        <div><Label>Date of joining</Label><Input type="date" value={form.date_of_joining} onChange={(e) => setForm({ ...form, date_of_joining: e.target.value })} data-testid="cli-doj" /></div>
+                        <div><Label>Leave balance</Label><Input type="number" step="0.5" value={form.leave_balance} onChange={(e) => setForm({ ...form, leave_balance: e.target.value })} placeholder="e.g. 12" data-testid="cli-leave-balance" /></div>
+                        <div><Label>Bank account no.</Label><Input value={form.bank_account_no} onChange={(e) => setForm({ ...form, bank_account_no: e.target.value })} data-testid="cli-bank-acct" /></div>
+                        <div><Label>IFSC code</Label><Input value={form.ifsc_code} onChange={(e) => setForm({ ...form, ifsc_code: e.target.value })} data-testid="cli-ifsc" /></div>
+                        <div>
+                          <Label>Tax regime</Label>
+                          <Select value={form.tax_regime || "_none"} onValueChange={(v) => setForm({ ...form, tax_regime: v === "_none" ? "" : v })}>
+                            <SelectTrigger data-testid="cli-tax-regime"><SelectValue placeholder="Not set" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">Not set</SelectItem>
+                              <SelectItem value="New Regime">New Regime</SelectItem>
+                              <SelectItem value="Old Regime">Old Regime</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div><Label>Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} data-testid="cli-company" /></div>
@@ -330,8 +420,76 @@ function SuperAdminPeople({ pageScope }) {
             : "No entries match this filter."}
         </Card>
       ) : (
-        <GroupedClients filter={filter} scopeTypes={scopeTypes} clients={filtered} allowEdit={allowEdit} openEdit={openEdit} remove={remove} />
+        <GroupedClients
+          filter={filter} scopeTypes={scopeTypes} clients={filtered}
+          allowEdit={allowEdit} openEdit={openEdit} remove={remove}
+          isEmployees={isEmployees}
+          onCreateLogin={openCreateLogin}
+          onResetLogin={openResetLogin}
+          onToggleSuspend={toggleSuspend}
+          onToggleHold={toggleHold}
+        />
       )}
+
+      {/* Create-login dialog (Employees only) */}
+      <Dialog open={!!loginFor} onOpenChange={(v) => { if (!v) closeLoginDialogs(); }}>
+        <DialogContent className="bg-card max-w-sm" data-testid="employee-create-login-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display">Create login</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Grant <span className="font-medium text-foreground">{loginFor?.name}</span> access to the CRM using their email <span className="font-medium text-foreground">{loginFor?.email || "—"}</span>.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-login-pw">Temporary password</Label>
+            <Input
+              id="new-login-pw"
+              type="password"
+              autoComplete="new-password"
+              value={loginPw}
+              onChange={(e) => setLoginPw(e.target.value)}
+              placeholder="Minimum 8 characters"
+              data-testid="employee-create-login-pw"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeLoginDialogs} disabled={loginBusy}>Cancel</Button>
+            <Button onClick={submitCreateLogin} disabled={loginBusy || !loginPw} className="btn-amber border-0" data-testid="employee-create-login-submit">
+              {loginBusy ? "Creating…" : "Create login"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset-password dialog (Employees only) */}
+      <Dialog open={!!resetFor} onOpenChange={(v) => { if (!v) closeLoginDialogs(); }}>
+        <DialogContent className="bg-card max-w-sm" data-testid="employee-reset-login-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display">Reset password</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Set a new login password for <span className="font-medium text-foreground">{resetFor?.name}</span>.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-login-pw">New password</Label>
+            <Input
+              id="reset-login-pw"
+              type="password"
+              autoComplete="new-password"
+              value={loginPw}
+              onChange={(e) => setLoginPw(e.target.value)}
+              placeholder="Minimum 8 characters"
+              data-testid="employee-reset-login-pw"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeLoginDialogs} disabled={loginBusy}>Cancel</Button>
+            <Button onClick={submitResetLogin} disabled={loginBusy || !loginPw} className="btn-amber border-0" data-testid="employee-reset-login-submit">
+              {loginBusy ? "Saving…" : "Update password"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -345,7 +503,7 @@ const OFFICE_OPTIONS = [
   { value: "_none", label: "No office set" },
 ];
 
-function ClientCard({ c, allowEdit, openEdit, remove }) {
+function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
   const nav = useNavigate();
   const goDetail = () => nav(`/clients/${c.id}`);
   const onKey = (e) => {
@@ -367,7 +525,7 @@ function ClientCard({ c, allowEdit, openEdit, remove }) {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-md bg-muted text-foreground flex items-center justify-center font-medium overflow-hidden shrink-0">
-            {c.photo_url ? <img src={photoSrc(c.photo_url)} alt={c.name} className="w-full h-full object-cover" /> : c.name.slice(0, 2).toUpperCase()}
+            {c.photo_url ? <AuthedImage url={c.photo_url} alt={c.name} className="w-full h-full object-cover" fallback={c.name.slice(0, 2).toUpperCase()} /> : c.name.slice(0, 2).toUpperCase()}
           </div>
           <div>
             <p className="font-medium">{c.name}</p>
@@ -406,15 +564,124 @@ function ClientCard({ c, allowEdit, openEdit, remove }) {
           <p className="flex items-center gap-2"><CurrencyInr size={14} /> ₹{c.eligible_incentive}/admission</p>
         )}
       </div>
+      {/* Login access controls — Employees view only, only for staff-type rows */}
+      {isEmployees && c.client_type === "staff" && allowEdit && (
+        <div
+          className="mt-4 pt-3 border-t border-border space-y-2.5"
+          onClick={(e) => e.stopPropagation()}
+          data-testid={`cli-login-block-${c.id}`}
+        >
+          {c.has_login ? (
+            <>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {c.suspended ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
+                      data-testid={`cli-login-status-${c.id}`}
+                    >
+                      <Prohibit size={11} weight="duotone" /> Suspended
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                      data-testid={`cli-login-status-${c.id}`}
+                    >
+                      <LinkSimple size={11} weight="duotone" /> Login active
+                    </span>
+                  )}
+                  {c.salary_hold && (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                      data-testid={`cli-salary-status-${c.id}`}
+                    >
+                      <Pause size={11} weight="duotone" /> Salary on hold
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onResetLogin?.(c); }}
+                  data-testid={`cli-reset-login-${c.id}`}
+                >
+                  <Key size={13} className="mr-1" /> Reset password
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {c.suspended ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); onToggleSuspend?.(c); }}
+                    className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                    data-testid={`cli-reactivate-${c.id}`}
+                  >
+                    <ArrowCounterClockwise size={13} className="mr-1" /> Reactivate login
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); onToggleSuspend?.(c); }}
+                    className="border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+                    data-testid={`cli-suspend-${c.id}`}
+                  >
+                    <Prohibit size={13} className="mr-1" /> Suspend login
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); onToggleHold?.(c); }}
+                  className={c.salary_hold ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10" : ""}
+                  data-testid={`cli-salary-hold-${c.id}`}
+                >
+                  {c.salary_hold
+                    ? (<><Play size={13} className="mr-1" /> Release salary</>)
+                    : (<><Pause size={13} className="mr-1" /> Hold salary</>)}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                data-testid={`cli-login-status-${c.id}`}
+              >
+                <ShieldWarning size={11} weight="duotone" /> No login
+              </span>
+              <Button
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onCreateLogin?.(c); }}
+                disabled={!c.email}
+                className="btn-amber border-0"
+                data-testid={`cli-create-login-${c.id}`}
+                title={!c.email ? "Add an email to this employee first" : undefined}
+              >
+                <Key size={13} className="mr-1" /> Create login
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
 
-function ClientGrid({ clients, allowEdit, openEdit, remove }) {
+function ClientGrid({ clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {clients.map((c) => (
-        <ClientCard key={c.id} c={c} allowEdit={allowEdit} openEdit={openEdit} remove={remove} />
+        <ClientCard
+          key={c.id} c={c}
+          allowEdit={allowEdit} openEdit={openEdit} remove={remove}
+          isEmployees={isEmployees}
+          onCreateLogin={onCreateLogin}
+          onResetLogin={onResetLogin}
+          onToggleSuspend={onToggleSuspend}
+          onToggleHold={onToggleHold}
+        />
       ))}
     </div>
   );
@@ -430,7 +697,7 @@ function CategoryHeader({ label, count }) {
   );
 }
 
-function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remove }) {
+function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
   // When a specific type filter is selected, just show that category (with Staff sub-grouping)
   const groups = CLIENT_TYPES
     .filter((t) => scopeTypes.includes(t.value))
@@ -457,13 +724,29 @@ function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remo
                       <span className="text-xs uppercase tracking-[0.16em] font-semibold text-muted-foreground">{o.label}</span>
                       <span className="text-[10px] text-muted-foreground/70">· {sub.length}</span>
                     </div>
-                    <ClientGrid clients={sub} allowEdit={allowEdit} openEdit={openEdit} remove={remove} />
+                    <ClientGrid
+                      clients={sub}
+                      allowEdit={allowEdit} openEdit={openEdit} remove={remove}
+                      isEmployees={isEmployees}
+                      onCreateLogin={onCreateLogin}
+                      onResetLogin={onResetLogin}
+                      onToggleSuspend={onToggleSuspend}
+                      onToggleHold={onToggleHold}
+                    />
                   </div>
                 );
               })}
             </div>
           ) : (
-            <ClientGrid clients={g.items} allowEdit={allowEdit} openEdit={openEdit} remove={remove} />
+            <ClientGrid
+              clients={g.items}
+              allowEdit={allowEdit} openEdit={openEdit} remove={remove}
+              isEmployees={isEmployees}
+              onCreateLogin={onCreateLogin}
+              onResetLogin={onResetLogin}
+              onToggleSuspend={onToggleSuspend}
+              onToggleHold={onToggleHold}
+            />
           )}
         </section>
       ))}

@@ -485,7 +485,7 @@ def _draw_footer(c: Canvas) -> None:
     c.setFont(_FONT_FAMILY_PRIMARY, 6.5)
     c.drawCentredString(
         PAGE_WIDTH / 2, contact_y - 10,
-        f"Generated {datetime.now().strftime('%d/%m/%Y, %H:%M:%S')}.  FinFlow by KM Foundation",
+        f"Generated {datetime.now().strftime('%d/%m/%Y, %H:%M:%S')}.  EduConnect Pro",
     )
 
     # Decorative strip — black→red, mirrors the header

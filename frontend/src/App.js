@@ -2,10 +2,12 @@ import React, { useEffect } from "react";
 import "@/index.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { AcademicYearProvider } from "@/lib/academicYear";
 import { ThemeProvider } from "@/lib/theme";
 import { BrandingProvider, useBranding } from "@/lib/branding";
-import { AcademicYearProvider } from "@/lib/academicYear";
 import { Toaster } from "@/components/ui/sonner";
+import CelebrationOverlay from "@/components/CelebrationOverlay";
+import { hasModule } from "@/lib/perm";
 
 import AuthPage from "@/pages/AuthPage";
 import ForgotPassword from "@/pages/ForgotPassword";
@@ -29,8 +31,8 @@ import ExpenseRequests from "@/pages/ExpenseRequests";
 import PublicApplication from "@/pages/PublicApplication";
 import Colleges from "@/pages/Colleges";
 import AdmissionRevenue from "@/pages/AdmissionRevenue";
+import SCReport from "@/pages/SCReport";
 import Leads from "@/pages/Leads";
-import StaffMembers from "@/pages/StaffMembers";
 import StaffStudents from "@/pages/StaffStudents";
 import Attendance from "@/pages/Attendance";
 import LinkedUserLedger from "@/pages/LinkedUserLedger";
@@ -50,6 +52,45 @@ import PlatformDatabase from "@/pages/PlatformDatabase";
 import PlatformVps from "@/pages/PlatformVps";
 import PlatformAppDetail from "@/pages/PlatformAppDetail";
 import PermGate from "@/components/PermGate";
+import PinLockScreen from "@/components/auth/PinLockScreen";
+import PinSetupDialog from "@/components/auth/PinSetupDialog";
+
+/**
+ * When the auth context reports the mobile session is "locked" (fresh open
+ * with PIN enabled, or 5-min inactivity), swap the entire app for the PIN
+ * pad. We keep the user object in context so the lock screen can render
+ * their name + avatar without a network round-trip.
+ */
+function CelebrationGate() {
+  const { user } = useAuth();
+  if (user && user !== false && !hasModule(user, "celebrations")) return null;
+  return <CelebrationOverlay />;
+}
+
+function PinLockGate({ children }) {
+  const { user, locked, unlockWithUser, bailToPasswordLogin, refresh, setupPinPromptOpen, setSetupPinPromptOpen } = useAuth();
+  const pinOn = user && user !== false && user.scope !== "platform" && hasModule(user, "pin_lock");
+  if (!pinOn) return <>{children}</>;
+  if (locked) {
+    return (
+      <PinLockScreen
+        user={user}
+        onUnlocked={unlockWithUser}
+        onBailToLogin={bailToPasswordLogin}
+      />
+    );
+  }
+  return (
+    <>
+      {children}
+      <PinSetupDialog
+        open={setupPinPromptOpen}
+        onOpenChange={setSetupPinPromptOpen}
+        onDone={refresh}
+      />
+    </>
+  );
+}
 
 // Keeps the live theme in sync with the signed-in company. On logout it
 // falls back to the public default branding.
@@ -107,6 +148,7 @@ function PublicOnly({ children }) {
 const SUPER_ADMIN_ONLY = Object.freeze(["super_admin"]);
 const USER_ONLY = Object.freeze(["user"]);
 const LEADS_ROLES = Object.freeze(["super_admin", "office_admin", "staff"]);
+const ATTENDANCE_ROLES = Object.freeze(["super_admin", "office_admin", "staff"]);
 const STAFF_ONLY = Object.freeze(["staff"]);
 const ADMIN_ROLES = Object.freeze(["super_admin", "office_admin"]);
 
@@ -148,6 +190,7 @@ export default function App() {
       <BrandingProvider>
       <AuthProvider>
         <BrandingSync />
+        <PinLockGate>
         <BrowserRouter>
         <Routes>
           <Route path="/apply" element={<PublicApplication />} />
@@ -180,10 +223,11 @@ export default function App() {
             <Route path="/students/:id" element={<PermGate page="students"><StudentDetail /></PermGate>} />
             <Route path="/colleges" element={<PermGate roles={SUPER_ADMIN_ONLY}><Colleges /></PermGate>} />
             <Route path="/admission-revenue" element={<PermGate roles={SUPER_ADMIN_ONLY}><AdmissionRevenue /></PermGate>} />
+            <Route path="/sc-report" element={<PermGate roles={ADMIN_ROLES}><SCReport /></PermGate>} />
             <Route path="/leads" element={<PermGate roles={LEADS_ROLES} page="leads"><Leads /></PermGate>} />
-            <Route path="/staff" element={<PermGate roles={SUPER_ADMIN_ONLY}><StaffMembers /></PermGate>} />
             <Route path="/office-overview" element={<PermGate roles={SUPER_ADMIN_ONLY}><OfficeOverview /></PermGate>} />
-            <Route path="/attendance" element={<PermGate roles={LEADS_ROLES} page="attendance"><Attendance /></PermGate>} />
+            <Route path="/leave" element={<Navigate to="/attendance?tab=leave" replace />} />
+            <Route path="/attendance" element={<PermGate roles={ATTENDANCE_ROLES} page="attendance"><Attendance /></PermGate>} />
             <Route path="/agents" element={<Agents />} />
             <Route path="/agents/detail" element={<AgentDetail />} />
             <Route path="/categories" element={<Categories />} />
@@ -199,7 +243,9 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </BrowserRouter>
+        </PinLockGate>
         <Toaster position="top-right" richColors />
+        <CelebrationGate />
       </AuthProvider>
       </BrandingProvider>
     </ThemeProvider>

@@ -22,7 +22,6 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -350,7 +349,7 @@ async def login_begin(body: LoginBeginBody, request: Request):
     await _ensure_indexes()
     email = (body.email or "").lower().strip()
     tenant, user = await find_tenant_for_email(email)
-    if not tenant or not user:
+    if not tenant or not user or "passkeys" not in (tenant.get("enabled_modules") or ["passkeys"]):
         raise HTTPException(400, "Passkey login unavailable")
     set_current_tenant(tenant["id"])
     creds = await db.webauthn_credentials.find(
@@ -382,7 +381,7 @@ async def login_finish(body: LoginFinishBody, request: Request, response: Respon
     _guard_config(rp_id, origins)
     email = (body.email or "").lower().strip()
     tenant, user = await find_tenant_for_email(email)
-    if not tenant or not user:
+    if not tenant or not user or "passkeys" not in (tenant.get("enabled_modules") or ["passkeys"]):
         raise HTTPException(400, "Passkey login unavailable")
     set_current_tenant(tenant["id"])
     pending = await db.webauthn_challenges.find_one_and_update(

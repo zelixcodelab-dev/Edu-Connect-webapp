@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
+from lib.academic_year import in_year
 from routers.notifications import notify_super_admins
 
 
@@ -116,6 +117,7 @@ class Adjustment(BaseModel):
     sub_agent_name: Optional[str] = None
     account_id: Optional[str] = None  # only when kind=internal_credit
     client_id: Optional[str] = None   # references clients._id when picked from list
+    sc_given: bool = False            # SC already handed to the sub-agent/associate
     remarks: Optional[str] = ""
 
     @model_validator(mode="after")
@@ -469,13 +471,44 @@ async def _auto_log_payment_transaction(user_id: str, student: dict, payment: di
             "date": adj.get("payment_date") or payment.get("date"),
             "description": " · ".join(filter(None, [
                 f"Student fee — {student.get('name')}",
-                "KM Foundation (adjustment)",
+                "Company account (adjustment)",
                 adj.get("remarks") or "",
             ])),
             "linked_student_id": student.get("id"),
             "linked_student_payment_id": payment["id"],
             "linked_adjustment_idx": idx,
         })
+
+    # Paid-to-College adjustments create an EXPENSE (debit) on the SAME account
+    # the fee was received into, so the account balance nets correctly
+    # (received − paid-to-college) and both lines show on the Transactions page.
+    # Only when there's a real received account (College-Acc. collections carry
+    # no account_id, so nothing lands on the books either way).
+    if account_id:
+        exp_cat = await db.categories.find_one(
+            {"user_id": user_id, "type": "expense", "name": "Paid to College"},
+            {"_id": 0, "id": 1},
+        )
+        for idx, adj in enumerate(payment.get("adjustments") or []):
+            if adj.get("kind") != "paid_to_college":
+                continue
+            await db.transactions.insert_one({
+                "id": gen_id(),
+                "user_id": user_id,
+                "created_at": now_iso(),
+                "type": "expense",
+                "amount": round(float(adj.get("amount") or 0), 2),
+                "account_id": account_id,
+                "category_id": exp_cat["id"] if exp_cat else None,
+                "date": adj.get("payment_date") or payment.get("date"),
+                "description": " · ".join(filter(None, [
+                    f"Paid to College — {student.get('name')}",
+                    adj.get("remarks") or "",
+                ])),
+                "linked_student_id": student.get("id"),
+                "linked_student_payment_id": payment["id"],
+                "linked_adjustment_idx": idx,
+            })
 
 
 async def _delete_payment_transaction(user_id: str, payment_id: str) -> None:
@@ -678,8 +711,15 @@ async def my_sc_earned(user: dict = Depends(get_current_user)):
 async def list_students(user: dict = Depends(get_current_user), year: Optional[int] = None):
     """Office admin sees own students. Super admin sees students from ALL users
     so admissions enrolled by office admins surface on the central Students page.
-    Linked `user` accounts only see students that reference their client."""
-    from lib.academic_year import with_year, in_year
+    Linked `user` accounts only see students that reference their client.
+
+    An optional ``year`` narrows to admissions whose enrollment (or creation)
+    date falls in that calendar year."""
+    def _yr(items):
+        if year is None:
+            return items
+        return [s for s in items if in_year(s.get("enrollment_date") or s.get("created_at"), year)]
+
     # Linked user (sub-agent / associate consultant logging in) — show students
     # whose `reference` matches the linked client's name (case-insensitive) OR
     # students this user themselves entered (created via the Add-student flow).
@@ -696,11 +736,10 @@ async def list_students(user: dict = Depends(get_current_user), year: Optional[i
             },
             {"_id": 0},
         ).sort("created_at", -1).to_list(2000)
-        items = [s for s in items if in_year(s.get("created_at"), year)]
-        return [_summarize(s, user) for s in items]
+        return [_summarize(s, user) for s in _yr(items)]
 
     if user.get("role") == "super_admin":
-        items = await db.students.find(with_year({}, "created_at", year), {"_id": 0}).sort("created_at", -1).to_list(2000)
+        items = _yr(await db.students.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000))
         if items:
             user_ids = list({s.get("user_id") for s in items if s.get("user_id")})
             referrer_ids = list({s.get("referrer_user_id") for s in items if s.get("referrer_user_id")})
@@ -728,6 +767,7 @@ async def list_students(user: dict = Depends(get_current_user), year: Optional[i
     items = await db.students.find(
         with_year(_office_visibility_clause(user), "created_at", year), {"_id": 0}
     ).sort("created_at", -1).to_list(1000)
+    items = _yr(items)
     # Populate referrer_name for legacy rows so the "Referred by" chip renders.
     referrer_ids = list({s.get("referrer_user_id") for s in items if s.get("referrer_user_id") and not s.get("referrer_name")})
     umap: dict = {}
@@ -796,14 +836,325 @@ async def create_student(payload: StudentIn, user: dict = Depends(require_edit("
     return _summarize(doc, user)
 
 
+_STUDENT_STATUS_ALIASES = {
+    "inquiry": "inquiry", "enquiry": "inquiry", "lead": "inquiry", "new": "inquiry",
+    "enrolled": "enrolled", "admitted": "enrolled", "admission": "enrolled",
+    "joined": "enrolled", "active": "enrolled",
+    "cancelled": "cancelled", "canceled": "cancelled", "dropped": "cancelled", "withdrawn": "cancelled",
+    "completed": "completed", "complete": "completed", "passed": "completed", "passed out": "completed",
+}
+
+_STUDENT_DATE_FORMATS = (
+    "%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y",
+    "%d/%m/%y", "%d-%m-%y", "%d-%b-%Y", "%d %b %Y", "%d %B %Y", "%b %d, %Y", "%B %d, %Y",
+)
+
+
+def _norm_student_date(v: Optional[str]) -> tuple[Optional[str], bool]:
+    """Return (iso_date_or_None, ok). ok=False only when a non-empty value
+    could not be parsed."""
+    v = (v or "").strip()
+    if not v:
+        return None, True
+    for fmt in _STUDENT_DATE_FORMATS:
+        try:
+            return datetime.strptime(v, fmt).strftime("%Y-%m-%d"), True
+        except ValueError:
+            continue
+    return None, False
+
+
+_STUDENT_OFFICE_ALIASES = {
+    "km_blr": "KM_BLR", "blr": "KM_BLR", "bangalore": "KM_BLR", "bengaluru": "KM_BLR", "km bangalore": "KM_BLR",
+    "km_tcr": "KM_TCR", "tcr": "KM_TCR", "thrissur": "KM_TCR", "trichur": "KM_TCR", "km thrissur": "KM_TCR",
+    "km_kmly": "KM_KMLY", "kmly": "KM_KMLY", "kollam": "KM_KMLY", "km kollam": "KM_KMLY",
+    "all": "ALL", "everyone": "ALL", "shared": "ALL", "all offices": "ALL",
+}
+
+
+class StudentBulkIn(BaseModel):
+    csv: str
+    preview: bool = False
+
+
+@router.post("/bulk")
+async def bulk_students(payload: StudentBulkIn, user: dict = Depends(require_edit("students"))):
+    """Bulk-create admissions from a CSV (Enrollment Date, Name, Course,
+    College, Reference, Status). Super/Office admins only. Supports a dry-run
+    preview (preview=true) that validates rows without inserting."""
+    if user.get("role") not in ("super_admin", "office_admin"):
+        raise HTTPException(403, "Only Super Admin and Office Admin can bulk upload admissions")
+
+    import csv as _csv
+    import io
+
+    text = (payload.csv or "").lstrip("\ufeff")
+    if not text.strip():
+        raise HTTPException(400, "CSV is empty")
+    reader = _csv.DictReader(io.StringIO(text))
+
+    def col(row: dict, *keys) -> str:
+        for k in keys:
+            if k in row and (row[k] or "").strip():
+                return row[k].strip()
+        return ""
+
+    rows_out: List[dict] = []
+    created = updated = errors = 0
+    to_insert: List[dict] = []
+    office_admin = user.get("role") == "office_admin"
+
+    # Duplicate guard: match by (name + college) within the caller's scope.
+    # A re-upload UPDATES the existing admission instead of creating a copy.
+    scope_q = {} if user.get("role") == "super_admin" else _office_visibility_clause(user)
+    existing = await db.students.find(
+        scope_q, {"_id": 0, "id": 1, "name": 1, "college": 1}
+    ).to_list(100000)
+
+    def dkey(n: Optional[str], c: Optional[str]) -> tuple:
+        return ((n or "").strip().lower(), (c or "").strip().lower())
+
+    existing_map: dict = {}
+    for s in existing:
+        existing_map.setdefault(dkey(s.get("name"), s.get("college")), s["id"])
+    batch_keys: dict = {}  # keys created earlier in THIS file → their id
+
+    for i, raw in enumerate(reader, start=2):
+        row = {(k or "").strip().lstrip("\ufeff").lower(): (v or "") for k, v in raw.items()}
+        name = col(row, "name", "student name", "student")
+        if not name:
+            errors += 1
+            rows_out.append({"line": i, "action": "error", "message": "name is required"})
+            continue
+        status_raw = col(row, "status")
+        status = _STUDENT_STATUS_ALIASES.get(status_raw.lower()) if status_raw else "inquiry"
+        if status is None:
+            errors += 1
+            rows_out.append({"line": i, "name": name, "action": "error", "message": f"invalid status '{status_raw}'"})
+            continue
+        ed_raw = col(row, "enrollment date", "enrollment_date", "enroll date", "date")
+        ed, ok = _norm_student_date(ed_raw)
+        if not ok:
+            errors += 1
+            rows_out.append({"line": i, "name": name, "action": "error", "message": f"invalid date '{ed_raw}'"})
+            continue
+        course = col(row, "course") or None
+        college = col(row, "college") or None
+        reference = col(row, "reference", "ref") or None
+        vis_raw = col(row, "visible to office", "visible_to_office", "home_office", "office", "visibility")
+        home_office = None
+        if vis_raw:
+            home_office = _STUDENT_OFFICE_ALIASES.get(vis_raw.lower())
+            if home_office is None:
+                errors += 1
+                rows_out.append({"line": i, "name": name, "action": "error",
+                                 "message": f"invalid office '{vis_raw}' (use KM_BLR / KM_TCR / KM_KMLY / ALL)"})
+                continue
+        effective_office = user.get("office") if office_admin else home_office
+        k = dkey(name, college)
+        match_id = existing_map.get(k) or batch_keys.get(k)
+        action = "update" if match_id else "create"
+        rows_out.append({
+            "line": i, "name": name, "action": action, "message": "duplicate → updated" if match_id else "",
+            "date": ed, "status": status,
+            "course": course, "college": college, "reference": reference,
+            "office": effective_office,
+        })
+        if match_id:
+            updated += 1
+        else:
+            created += 1
+        if not payload.preview:
+            ru = await _resolve_referrer_by_name(reference)
+            if match_id:
+                set_fields = {
+                    "course": course, "college": college, "reference": reference,
+                    "status": status, "enrollment_date": ed,
+                    "referrer_user_id": ru["id"] if ru else None,
+                    "referrer_name": ru["name"] if ru else None,
+                }
+                if office_admin:
+                    set_fields["home_office"] = user.get("office")
+                elif home_office is not None:
+                    set_fields["home_office"] = home_office
+                await db.students.update_one({"id": match_id}, {"$set": set_fields})
+                continue
+            si = StudentIn(name=name, course=course, college=college, reference=reference,
+                           status=status, enrollment_date=ed,
+                           home_office=None if office_admin else home_office)
+            data = si.model_dump()
+            if office_admin:
+                data["home_office"] = user.get("office")
+            data.pop("sc_from_college_override", None)
+            new_id = gen_id()
+            batch_keys[k] = new_id
+            to_insert.append({
+                "id": new_id, "user_id": user["id"], "created_at": now_iso(),
+                "schedules": [], "payments": [],
+                "referrer_user_id": ru["id"] if ru else None,
+                "referrer_name": ru["name"] if ru else None,
+                **data,
+            })
+        elif match_id:
+            # preview: remember this key so a later same-key row shows as update
+            pass
+        else:
+            batch_keys[k] = f"_preview_{i}"
+
+    if not payload.preview and to_insert:
+        await db.students.insert_many(to_insert)
+        if office_admin:
+            office_label = (user.get("office") or "").replace("KM_", "KM ")
+            await notify_super_admins(
+                type="student_enrolled",
+                title=f"Bulk admissions · {user.get('name', 'Office admin')}",
+                message=f"{len(to_insert)} admissions uploaded{' · ' + office_label if office_label else ''}",
+                link="/students",
+                actor_user_id=user["id"],
+                metadata={"count": len(to_insert)},
+            )
+
+    return {"created": created, "updated": updated, "error_count": errors, "rows": rows_out}
+
+
 _AGENT_TYPES = {"sub_agent", "associate", "km"}
+
+# Map a client_type to the ledger agent-type so SC payouts (which reference a
+# client) can be attributed to the matching sub-agent ledger row.
+_CLIENT_TYPE_TO_LEDGER = {
+    "sub_agent_associate": "sub_agent",
+    "associate_consultant": "associate",
+    "km_blr_office": "km",
+    "km_tcr_office": "km",
+    "km_kmly_office": "km",
+}
+
+
+async def _sc_payouts_by_agent(user: dict, year: Optional[int]) -> dict[tuple, float]:
+    """Sum money-out lines that reduce an agent's holding, grouped by
+    (ledger_type, name): Service Charge payouts (is_sc_payout) + Campus-Visit
+    expenses (expense_of == campus_visit).
+
+    Super admin aggregates across all users (mirrors the all-students ledger);
+    office admins see only their own."""
+    q: dict = {"$or": [{"is_sc_payout": True}, {"expense_of": "campus_visit"}]}
+    if user.get("role") != "super_admin":
+        q["user_id"] = user["id"]
+    payouts = await db.transactions.find(q, {"_id": 0}).to_list(5000)
+    client_ids = list({p.get("client_id") for p in payouts if p.get("client_id")})
+    cmap: dict = {}
+    if client_ids:
+        clients = await db.clients.find(
+            {"id": {"$in": client_ids}}, {"_id": 0, "id": 1, "name": 1, "client_type": 1}
+        ).to_list(2000)
+        cmap = {c["id"]: c for c in clients}
+    out: dict[tuple, float] = {}
+    for p in payouts:
+        if not in_year(p.get("date"), year):
+            continue
+        c = cmap.get(p.get("client_id"))
+        if not c:
+            continue
+        lt = _CLIENT_TYPE_TO_LEDGER.get(c.get("client_type"))
+        if not lt:
+            continue
+        name = (c.get("name") or "—").strip() or "—"
+        out[(lt, name)] = out.get((lt, name), 0.0) + float(p.get("amount") or 0)
+    return out
+
+
+class StudentBulkActionIn(BaseModel):
+    ids: List[str]
+    action: Literal["delete", "status", "visibility"]
+    value: Optional[str] = None
+
+
+@router.post("/bulk-action")
+async def bulk_action_students(payload: StudentBulkActionIn, user: dict = Depends(require_edit("students"))):
+    """Apply a bulk action (delete / change status / change visibility) to
+    many students at once. Super Admin acts on any record; Office Admin only
+    on records in their own office scope. Snapshots the affected records so the
+    action can be undone via /bulk-undo."""
+    if user.get("role") not in ("super_admin", "office_admin"):
+        raise HTTPException(403, "Only Super Admin and Office Admin can run bulk actions")
+    ids = [i for i in (payload.ids or []) if i]
+    if not ids:
+        raise HTTPException(400, "No students selected")
+    office_admin = user.get("role") == "office_admin"
+    scope = _office_visibility_clause(user) if office_admin else {}
+    q = {"id": {"$in": ids}, **scope}
+
+    async def _save_undo(kind: str, field: Optional[str], docs=None, changes=None) -> str:
+        token = gen_id()
+        await db.student_bulk_undo.insert_one({
+            "id": token, "user_id": user["id"], "created_at": now_iso(),
+            "kind": kind, "field": field, "docs": docs or [], "changes": changes or [],
+        })
+        return token
+
+    if payload.action == "delete":
+        docs = await db.students.find(q, {"_id": 0}).to_list(100000)
+        if not docs:
+            return {"deleted": 0}
+        res = await db.students.delete_many(q)
+        token = await _save_undo("delete", None, docs=docs)
+        return {"deleted": res.deleted_count, "undo_token": token}
+
+    if payload.action == "status":
+        status = _STUDENT_STATUS_ALIASES.get((payload.value or "").strip().lower(), (payload.value or "").strip().lower())
+        if status not in ("inquiry", "enrolled", "cancelled", "completed"):
+            raise HTTPException(400, f"invalid status '{payload.value}'")
+        prev = await db.students.find(q, {"_id": 0, "id": 1, "status": 1}).to_list(100000)
+        res = await db.students.update_many(q, {"$set": {"status": status}})
+        token = await _save_undo("update", "status", changes=[{"id": d["id"], "value": d.get("status")} for d in prev])
+        return {"updated": res.modified_count, "undo_token": token}
+
+    if payload.action == "visibility":
+        vv = _STUDENT_OFFICE_ALIASES.get((payload.value or "").strip().lower(), (payload.value or "").strip())
+        if vv not in ("KM_BLR", "KM_TCR", "KM_KMLY", "ALL"):
+            raise HTTPException(400, f"invalid office '{payload.value}' (use KM_BLR / KM_TCR / KM_KMLY / ALL)")
+        if office_admin and vv not in (user.get("office"), "ALL"):
+            vv = user.get("office")
+        prev = await db.students.find(q, {"_id": 0, "id": 1, "home_office": 1}).to_list(100000)
+        res = await db.students.update_many(q, {"$set": {"home_office": vv}})
+        token = await _save_undo("update", "home_office", changes=[{"id": d["id"], "value": d.get("home_office")} for d in prev])
+        return {"updated": res.modified_count, "undo_token": token}
+    raise HTTPException(400, "Unknown action")
+
+
+class BulkUndoIn(BaseModel):
+    token: str
+
+
+@router.post("/bulk-undo")
+async def bulk_undo_students(payload: BulkUndoIn, user: dict = Depends(require_edit("students"))):
+    """Restore the state captured by the most recent bulk action."""
+    snap = await db.student_bulk_undo.find_one({"id": payload.token, "user_id": user["id"]}, {"_id": 0})
+    if not snap:
+        raise HTTPException(404, "Nothing to undo (or it already expired)")
+    restored = 0
+    if snap["kind"] == "delete":
+        docs = snap.get("docs") or []
+        existing = {d["id"] async for d in db.students.find(
+            {"id": {"$in": [d["id"] for d in docs]}}, {"_id": 0, "id": 1})}
+        fresh = [d for d in docs if d["id"] not in existing]
+        if fresh:
+            await db.students.insert_many(fresh)
+            restored = len(fresh)
+    elif snap["kind"] == "update":
+        field = snap.get("field")
+        for ch in snap.get("changes") or []:
+            await db.students.update_one({"id": ch["id"]}, {"$set": {field: ch.get("value")}})
+            restored += 1
+    await db.student_bulk_undo.delete_one({"id": payload.token})
+    return {"restored": restored}
 
 
 def _new_ledger_bucket(kind: str, name: str) -> dict:
     return {
         "type": kind, "name": name,
         "total_received": 0.0, "paid_to_college": 0.0, "sc_adjusted": 0.0,
-        "holding": 0.0, "payments_count": 0, "students": set(),
+        "sc_paid_out": 0.0, "holding": 0.0, "payments_count": 0, "students": set(),
     }
 
 
@@ -811,18 +1162,19 @@ def _finalise_ledger_row(row: dict) -> dict:
     """Round monetary totals, derive holding + students_count, expand the
     students set to a list so the row is JSON-serialisable."""
     row["holding"] = round(
-        row["total_received"] - row["paid_to_college"] - row["sc_adjusted"], 2
+        row["total_received"] - row["paid_to_college"] - row["sc_adjusted"] - row.get("sc_paid_out", 0.0), 2
     )
     row["total_received"] = round(row["total_received"], 2)
     row["paid_to_college"] = round(row["paid_to_college"], 2)
     row["sc_adjusted"] = round(row["sc_adjusted"], 2)
+    row["sc_paid_out"] = round(row.get("sc_paid_out", 0.0), 2)
     row["students_count"] = len(row["students"])
     row["students"] = list(row["students"])
     return row
 
 
 @router.get("/agent-ledger")
-async def agent_ledger(user: dict = Depends(get_current_user)):
+async def agent_ledger(user: dict = Depends(get_current_user), year: Optional[int] = None):
     """Aggregate payments routed through sub-agents / associates / KMs.
 
     Returns a row per (received_in.type, received_in.name) combo with totals."""
@@ -833,6 +1185,8 @@ async def agent_ledger(user: dict = Depends(get_current_user)):
     for st in students:
         payments = [_normalize_legacy_payment(p) for p in (st.get("payments") or [])]
         for p in payments:
+            if not in_year(p.get("date"), year):
+                continue
             received = p.get("received_in") or {}
             r_type = received.get("type")
             if r_type in _AGENT_TYPES:
@@ -862,6 +1216,11 @@ async def agent_ledger(user: dict = Depends(get_current_user)):
                 row = ledger.setdefault(key, _new_ledger_bucket(adj_type, adj_name))
                 row["sc_adjusted"] += float(adj.get("amount") or 0)
                 row["students"].add(st["id"])
+
+    # Fold in Service Charge payouts so they reduce each agent's holding.
+    for (lt, name), amt in (await _sc_payouts_by_agent(user, year)).items():
+        row = ledger.setdefault((lt, name), _new_ledger_bucket(lt, name))
+        row["sc_paid_out"] = row.get("sc_paid_out", 0.0) + amt
 
     out = [_finalise_ledger_row(row) for row in ledger.values()]
     out.sort(key=lambda r: r["total_received"], reverse=True)
@@ -925,6 +1284,7 @@ async def agent_payments(
     type: str,
     name: str,
     user: dict = Depends(get_current_user),
+    year: Optional[int] = None,
 ):
     """Flat list of every payment routed through a specific (type, name) agent.
 
@@ -945,6 +1305,8 @@ async def agent_payments(
         for p in payments:
             if not _payment_matches_agent(p, type, target):
                 continue
+            if not in_year(p.get("date"), year):
+                continue
             paid, sc = _split_adjustments(p)
             total_received += float(p.get("amount") or 0)
             paid_to_college_total += paid
@@ -952,16 +1314,101 @@ async def agent_payments(
             student_ids.add(st["id"])
             rows.append(_agent_payment_row(st, p, paid, sc))
 
+    # Service Charge payouts attributed to this exact agent (type + name).
+    sc_paid_out = 0.0
+    payout_rows: list[dict] = []
+    payout_map = await _sc_payouts_by_agent(user, year)
+    if (type, target) in payout_map:
+        sc_paid_out = payout_map[(type, target)]
+        # Fetch the individual money-out transactions for the detail list.
+        tq: dict = {"$or": [{"is_sc_payout": True}, {"expense_of": "campus_visit"}]}
+        if user.get("role") != "super_admin":
+            tq["user_id"] = user["id"]
+        payout_txs = await db.transactions.find(tq, {"_id": 0}).to_list(5000)
+        client_ids = list({t.get("client_id") for t in payout_txs if t.get("client_id")})
+        cmap: dict = {}
+        if client_ids:
+            clients = await db.clients.find(
+                {"id": {"$in": client_ids}}, {"_id": 0, "id": 1, "name": 1, "client_type": 1}
+            ).to_list(2000)
+            cmap = {c["id"]: c for c in clients}
+        for t in payout_txs:
+            if not in_year(t.get("date"), year):
+                continue
+            c = cmap.get(t.get("client_id"))
+            if not c:
+                continue
+            lt = _CLIENT_TYPE_TO_LEDGER.get(c.get("client_type"))
+            nm = (c.get("name") or "—").strip() or "—"
+            if lt == type and nm == target:
+                payout_rows.append({
+                    "id": t["id"], "date": t.get("date"),
+                    "amount": round(float(t.get("amount") or 0), 2),
+                    "payment_mode": t.get("payment_mode"),
+                    "description": t.get("description") or "",
+                    "account_id": t.get("account_id"),
+                    "kind": "payout" if t.get("is_sc_payout") else "campus_visit",
+                    "student_name": t.get("student_name"),
+                })
+        payout_rows.sort(key=lambda r: r["date"] or "", reverse=True)
+
     totals = {
         "total_received": round(total_received, 2),
         "paid_to_college": round(paid_to_college_total, 2),
         "sc_adjusted": round(sc_adjusted_total, 2),
-        "holding": round(total_received - paid_to_college_total - sc_adjusted_total, 2),
+        "sc_paid_out": round(sc_paid_out, 2),
+        "holding": round(total_received - paid_to_college_total - sc_adjusted_total - sc_paid_out, 2),
         "payments_count": len(rows),
         "students_count": len(student_ids),
     }
     rows.sort(key=lambda r: r["date"] or "", reverse=True)
-    return {"type": type, "name": target, "totals": totals, "payments": rows}
+    return {"type": type, "name": target, "totals": totals, "payments": rows, "payouts": payout_rows}
+
+
+@router.get("/sc-by-college")
+async def sc_by_college(user: dict = Depends(get_current_user), year: Optional[int] = None):
+    """Per-college breakdown of Service Charge earned vs still pending for the
+    selected academic year. Cancelled admissions are counted separately (SC not
+    earned). Scope: super_admin = all; office_admin = office-visible records."""
+    from lib.student_math import compute_summary
+    scope = {} if user.get("role") == "super_admin" else _office_visibility_clause(user)
+    students = await db.students.find(scope, {"_id": 0}).to_list(5000)
+    buckets: dict[str, dict] = {}
+    for st in students:
+        if not in_year(st.get("enrollment_date") or st.get("created_at"), year):
+            continue
+        college = (st.get("college") or "—").strip() or "—"
+        b = buckets.setdefault(college, {
+            "college": college, "students": 0, "cancelled": 0,
+            "earned": 0.0, "cleared": 0.0, "pending": 0.0,
+        })
+        b["students"] += 1
+        if (st.get("status") or "").lower() == "cancelled":
+            b["cancelled"] += 1
+            continue
+        st["payments"] = [_normalize_legacy_payment(p) for p in (st.get("payments") or [])]
+        summ = compute_summary(st)
+        earned = summ["sc_earned_effective"]
+        pending = max(0.0, summ["balance_vs_sc"])
+        b["earned"] += earned
+        b["pending"] += pending
+        b["cleared"] += max(0.0, earned - pending)
+
+    out = []
+    for b in buckets.values():
+        for k in ("earned", "cleared", "pending"):
+            b[k] = round(b[k], 2)
+        out.append(b)
+    out.sort(key=lambda r: r["earned"], reverse=True)
+    totals = {
+        "earned": round(sum(r["earned"] for r in out), 2),
+        "cleared": round(sum(r["cleared"] for r in out), 2),
+        "pending": round(sum(r["pending"] for r in out), 2),
+        "students": sum(r["students"] for r in out),
+        "cancelled": sum(r["cancelled"] for r in out),
+        "colleges": len(out),
+    }
+    return {"rows": out, "totals": totals}
 
 
 @router.get("/{student_id}")

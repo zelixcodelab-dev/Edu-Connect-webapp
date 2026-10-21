@@ -129,6 +129,7 @@ export default function StudentDetail() {
       payment_mode: a.payment_mode || "bank_transfer",
       account_id: a.account_id || "",
       client_id: a.client_id || "",
+      sc_given: !!a.sc_given,
       sub_agent_type: a.sub_agent_type || "sub_agent",
       sub_agent_name: a.sub_agent_name || "",
       remarks: a.remarks || "",
@@ -140,8 +141,7 @@ export default function StudentDetail() {
         kind: a.sub_agent_type === "associate" ? "associate_consultant" : "sub_agent",
       };
     }
-    // legacy paid_to_college rows — surface as KM Foundation (user can re-pick)
-    if (a.kind === "paid_to_college") return { ...base, kind: "km_foundation" };
+    // legacy paid_to_college is a first-class option again — keep it as-is
     return { ...base, kind: a.kind };
   };
 
@@ -171,7 +171,7 @@ export default function StudentDetail() {
       if (!a.payment_date) return `${rowLabel}: pick a payment date.`;
       if (!(parseFloat(a.amount) > 0)) return `${rowLabel}: enter an amount greater than zero.`;
       if (a.kind === "km_foundation" && !a.account_id) {
-        return `${rowLabel}: pick a KM Foundation internal account.`;
+        return `${rowLabel}: pick a company internal account.`;
       }
       if ((a.kind === "sub_agent" || a.kind === "associate_consultant") && !a.client_id) {
         return `${rowLabel}: pick a ${a.kind === "sub_agent" ? "sub-agent" : "associate consultant"}.`;
@@ -202,6 +202,7 @@ export default function StudentDetail() {
         sub_agent_type: a.kind === "sub_agent" ? "sub_agent" : "associate",
         sub_agent_name: a.sub_agent_name || null,
         client_id: a.client_id || null,
+        sc_given: !!a.sc_given,
       };
     }
     // legacy paid_to_college / sc_adjusted rows — pass through unchanged
@@ -414,19 +415,43 @@ export default function StudentDetail() {
                         <td colSpan={7} className="px-6 py-3">
                           <p className="label-eyebrow mb-2">Adjustments</p>
                           <div className="space-y-1.5">
-                            {p.adjustments.map((a, idx) => (
-                              <div key={a.id || idx} className="flex items-center gap-2 text-xs text-foreground">
-                                <span className={`px-1.5 py-0.5 rounded ${a.kind === "paid_to_college" ? "bg-sky-100 text-sky-700 dark:text-sky-400" : "bg-emerald-100 text-emerald-700 dark:text-emerald-400"}`}>
-                                  {a.kind === "paid_to_college" ? "Paid to College" : "Payment adjusted towards SC"}
+                            {p.adjustments.map((a, idx) => {
+                              const isCollege = a.kind === "paid_to_college";
+                              const isKm = a.kind === "internal_credit";
+                              const isSc = a.kind === "sc_adjusted";
+                              const kindLabel = isCollege ? "Paid to College" : isKm ? "SC to Company" : "SC to Client";
+                              const kindCls = isCollege
+                                ? "bg-sky-100 text-sky-700 dark:text-sky-400"
+                                : isKm
+                                ? "bg-amber-100 text-amber-700 dark:text-amber-400"
+                                : "bg-emerald-100 text-emerald-700 dark:text-emerald-400";
+                              const kmAccount = isKm ? (accounts.find((x) => x.id === a.account_id)?.name) : null;
+                              const recvAccount = isCollege ? (accounts.find((x) => x.id === p.received_in?.account_id)?.name) : null;
+                              return (
+                              <div key={a.id || idx} className="flex items-center gap-2 text-xs text-foreground flex-wrap" data-testid={`adj-detail-${p.id}-${idx}`}>
+                                <span className={`px-1.5 py-0.5 rounded ${kindCls}`}>
+                                  {kindLabel}
                                 </span>
                                 <span className="tabular-nums font-medium">{formatMoney(a.amount, currency)}</span>
                                 <span className="text-muted-foreground">on {formatDate(a.payment_date)} · {PAYMENT_MODES.find((m) => m.value === a.payment_mode)?.label}</span>
-                                {a.kind === "sc_adjusted" && a.sub_agent_name && (
+                                {isCollege && recvAccount && (
+                                  <span className="text-muted-foreground" data-testid={`adj-college-account-${p.id}-${idx}`}>· debited from {recvAccount}</span>
+                                )}
+                                {isKm && (
+                                  <span className="text-muted-foreground" data-testid={`adj-km-account-${p.id}-${idx}`}>· credited to {kmAccount || "an account"}</span>
+                                )}
+                                {isSc && a.sub_agent_name && (
                                   <span className="text-muted-foreground">· with {SUB_AGENT_TYPES.find((t) => t.value === a.sub_agent_type)?.label} {a.sub_agent_name}</span>
+                                )}
+                                {isSc && (
+                                  <span className={`px-1.5 py-0.5 rounded ${a.sc_given ? "bg-emerald-100 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:text-amber-400"}`} data-testid={`adj-sc-given-${p.id}-${idx}`}>
+                                    {a.sc_given ? "SC given" : "SC pending"}
+                                  </span>
                                 )}
                                 {a.remarks && <span className="text-muted-foreground">· {a.remarks}</span>}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>

@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { formatMoney, formatDate } from "@/lib/format";
 import {
-  ArrowLeft, ArrowDown, ArrowUp, FileText, Receipt,
+  ArrowLeft, ArrowDown, ArrowUp, FileText,
 } from "@phosphor-icons/react";
 
 // ============================================================================

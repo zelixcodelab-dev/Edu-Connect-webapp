@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, CalendarCheck, Check, X, Trash, CalendarBlank, SlidersHorizontal } from "@phosphor-icons/react";

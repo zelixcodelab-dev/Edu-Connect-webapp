@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaretUp, CaretDown, ArrowsDownUp, ArrowSquareOut } from "@phosphor-icons/react";
 import { formatMoney } from "@/lib/format";
@@ -59,7 +60,7 @@ function SortIcon({ active, dir }) {
     : <CaretDown size={11} weight="bold" className="text-primary" />;
 }
 
-export default function StudentsTable({ students, currency, cityOfStudent, hometownOf }) {
+export default function StudentsTable({ students, currency, cityOfStudent, hometownOf, selectable, selectedIds, onToggle, onToggleMany }) {
   const [sort, setSort] = useState({ key: "date", dir: "desc" });
   const [colFilters, setColFilters] = useState({
     date: "", name: "", course: "", college: "",
@@ -113,6 +114,10 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
     return arr;
   }, [students, sort, colFilters, cityOfStudent, hometownOf]);
 
+  const visibleIds = visible.map((s) => s.id);
+  const allVisibleSelected = selectable && visibleIds.length > 0 && visibleIds.every((id) => selectedIds?.has(id));
+  const emptyColSpan = COLUMNS.length + (selectable ? 1 : 0);
+
   return (
     <div
       className="rounded-xl border border-border bg-card overflow-hidden"
@@ -123,6 +128,11 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
           <thead className="bg-muted/50 border-b border-border">
             {/* Title row — click to sort */}
             <tr>
+              {selectable && (
+                <th className="px-3 py-2.5 w-10">
+                  <Checkbox checked={allVisibleSelected} onCheckedChange={(v) => onToggleMany?.(visibleIds, !!v)} data-testid="students-select-all" aria-label="Select all" />
+                </th>
+              )}
               {COLUMNS.map((c) => (
                 <th
                   key={c.key}
@@ -139,6 +149,7 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
             </tr>
             {/* Filter row — per-column input directly under the header */}
             <tr className="bg-card border-b border-border">
+              {selectable && <th className="px-2 py-1.5 w-10" />}
               {COLUMNS.map((c) => (
                 <th key={c.key} className="px-2 py-1.5">
                   {c.filter === "text" && (
@@ -182,7 +193,7 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="px-3 py-12 text-center text-sm text-muted-foreground" data-testid="students-table-empty">
+                <td colSpan={emptyColSpan} className="px-3 py-12 text-center text-sm text-muted-foreground" data-testid="students-table-empty">
                   No students match these column filters.
                 </td>
               </tr>
@@ -196,8 +207,15 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
                   <tr
                     key={s.id}
                     data-testid={`student-row-${s.id}`}
-                    className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors"
+                    className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${selectable && selectedIds?.has(s.id) ? "bg-primary/5" : ""}`}
                   >
+                    {selectable && (
+                      <td className="px-3 py-2">
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selectedIds?.has(s.id)} onCheckedChange={() => onToggle?.(s.id)} data-testid={`student-row-select-${s.id}`} aria-label={`Select ${s.name}`} />
+                        </span>
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{date || "—"}</td>
                     <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>

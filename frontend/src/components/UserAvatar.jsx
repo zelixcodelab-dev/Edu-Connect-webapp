@@ -1,5 +1,5 @@
 import React from "react";
-import { photoSrc } from "@/pages/Clients";
+import AuthedImage from "@/components/AuthedImage";
 
 /** Small avatar circle with photo fallback → initials. Sized presets:
  *  - xs: 16px (chips)
@@ -40,10 +40,11 @@ export default function UserAvatar({
       title={name || undefined}
     >
       {hasPhoto ? (
-        <img
-          src={photoSrc(photoUrl)}
+        <AuthedImage
+          url={photoUrl}
           alt={name || "user"}
           className="w-full h-full object-cover"
+          fallback={initialsOf(name)}
         />
       ) : (
         initialsOf(name)

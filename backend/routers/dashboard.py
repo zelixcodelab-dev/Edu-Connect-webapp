@@ -19,6 +19,7 @@ async def summary(
 ):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
+    # A selected academic (calendar) year overrides the ad-hoc period window.
     if year is not None:
         period_start = f"{int(year):04d}-01-01"
         period_end = f"{int(year):04d}-12-31"
@@ -29,7 +30,8 @@ async def summary(
     accounts = await db.accounts.find({"user_id": user_id}, {"_id": 0}).to_list(500)
     total_opening = sum(a.get("opening_balance", 0) for a in accounts)
 
-    all_match = {"user_id": user_id}
+    # All-time totals — scoped to the selected year when one is chosen.
+    all_match: dict = {"user_id": user_id}
     if year is not None:
         all_match["date"] = {"$gte": period_start, "$lt": f"{int(year) + 1:04d}-01-01"}
     agg_all = await db.transactions.aggregate([
@@ -50,7 +52,7 @@ async def summary(
     month_income = round(sum(x["total"] for x in agg_month if x["_id"] == "income"), 2)
     month_expense = round(sum(x["total"] for x in agg_month if x["_id"] == "expense"), 2)
 
-    outstanding_match = {"user_id": user_id, "status": {"$in": ["sent", "overdue"]}}
+    outstanding_match: dict = {"user_id": user_id, "status": {"$in": ["sent", "overdue"]}}
     if year is not None:
         outstanding_match["issue_date"] = {"$gte": period_start, "$lt": f"{int(year) + 1:04d}-01-01"}
     outstanding_agg = await db.invoices.aggregate([
@@ -72,18 +74,23 @@ async def summary(
 
 
 @router.get("/cashflow")
-async def cashflow(user: dict = Depends(get_current_user), months: int = 6):
+async def cashflow(user: dict = Depends(get_current_user), months: int = 6, year: Optional[int] = None):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
     buckets = []
-    year, month = now.year, now.month
-    for _ in range(months):
-        buckets.append((year, month))
-        month -= 1
-        if month == 0:
-            month = 12
-            year -= 1
-    buckets.reverse()
+    if year is not None:
+        # Show every month of the selected calendar year (Jan → Dec).
+        for m in range(1, 13):
+            buckets.append((int(year), m))
+    else:
+        y, month = now.year, now.month
+        for _ in range(months):
+            buckets.append((y, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                y -= 1
+        buckets.reverse()
 
     result = []
     for y, m in buckets:
@@ -106,13 +113,17 @@ async def expense_by_category(
     user: dict = Depends(get_current_user),
     start: Optional[str] = None,
     end: Optional[str] = None,
+    year: Optional[int] = None,
 ):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
-    period_start = start or now.replace(day=1).date().isoformat()
-    date_match = {"$gte": period_start}
-    if end:
-        date_match["$lte"] = end
+    if year is not None:
+        date_match = {"$gte": f"{int(year):04d}-01-01", "$lt": f"{int(year) + 1:04d}-01-01"}
+    else:
+        period_start = start or now.replace(day=1).date().isoformat()
+        date_match = {"$gte": period_start}
+        if end:
+            date_match["$lte"] = end
     agg = await db.transactions.aggregate([
         {"$match": {"user_id": user_id, "type": "expense", "date": date_match}},
         {"$group": {"_id": "$category_id", "total": {"$sum": "$amount"}}},

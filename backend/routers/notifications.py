@@ -8,7 +8,6 @@ Events that currently fire notifications (in-app bell + push):
   - new student application submitted (/apply) → super_admins
   - new user registration awaiting approval    → super_admins
 """
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from db import db

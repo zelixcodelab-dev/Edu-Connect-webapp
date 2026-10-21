@@ -19,15 +19,16 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
 from lib.followup_slots import compute_next_slot, SLOT_MINUTES, WORK_START_HOUR, WORK_END_HOUR
 from lib.whatsapp import send_visit_scheduled, send_application_link, fmt_dt_ist
-from lib.activity_log import log_event
+from lib.activity_log import log_event, log_lead_event
 from lib.user_photo import resolve_photos_for_users
+from lib.academic_year import date_filter
 from routers.notifications import notify_users, notify_super_admins
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
@@ -60,6 +61,7 @@ class LeadIn(BaseModel):
     source: str = "other"
     status: str = "new"
     assigned_to_user_id: Optional[str] = None
+    campaign_id: Optional[str] = None
     next_follow_up: Optional[str] = None  # ISO datetime (UTC) or null
     notes: Optional[str] = ""
 
@@ -76,6 +78,7 @@ class LeadUpdate(BaseModel):
     next_follow_up: Optional[str] = None
     notes: Optional[str] = None
     lost_reason: Optional[str] = None
+    status_note: Optional[str] = None  # conversation note for this stage change / journey
 
 
 class BulkLeadActionIn(BaseModel):
@@ -174,6 +177,42 @@ async def _validate_assignee(assignee_id: str, office: Optional[str], require_of
     if require_office and assignee.get("office") != office:
         raise HTTPException(400, "Assignee must belong to your office")
     return assignee
+
+
+async def _user_name(uid: Optional[str]) -> Optional[str]:
+    if not uid:
+        return None
+    u = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1})
+    return u.get("name") if u else None
+
+
+def _assignment_event(from_id, from_name, to_id, to_name, actor: dict, note: Optional[str] = None) -> dict:
+    """One entry in a lead's ``assignment_history`` journey log."""
+    return {
+        "id": gen_id(),
+        "at": now_iso(),
+        "from_user_id": from_id,
+        "from_name": from_name,
+        "to_user_id": to_id,
+        "to_name": to_name,
+        "by_user_id": actor.get("id"),
+        "by_name": actor.get("name"),
+        "note": (note or "").strip() or None,
+    }
+
+
+async def _enrich_assignee(lead: dict) -> dict:
+    """Attach assigned_to_name + photo so the UI reflects the change instantly."""
+    uid = lead.get("assigned_to_user_id")
+    if uid:
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1})
+        lead["assigned_to_name"] = u.get("name") if u else None
+        photo_map = await resolve_photos_for_users([uid])
+        lead["assigned_to_photo_url"] = photo_map.get(uid) or ""
+    else:
+        lead["assigned_to_name"] = None
+        lead["assigned_to_photo_url"] = ""
+    return lead
 
 
 def _normalize_phone(raw: Optional[str]) -> str:
@@ -366,7 +405,7 @@ async def _schedule_visit(lead: dict, visit_in: VisitIn, user: dict) -> tuple[di
     wa = await send_visit_scheduled(
         name=lead.get("name") or "",
         phone=lead.get("phone") or "",
-        institution=doc["institution"] or "KM Foundation partner campus",
+        institution=doc["institution"] or "Partner campus",
         departure_at=visit_in.departure_at,
         arrival_at=visit_in.arrival_at,
         travel_mode=doc["travel_mode"],
@@ -431,10 +470,9 @@ async def list_leads(
             query["$and"].append({"$or": or_clause})
         else:
             query["$or"] = or_clause
-    if year is not None:
-        from lib.academic_year import date_filter
-        query.update(date_filter("created_at", year))
-    docs = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    dfilt = date_filter("created_at", year)
+    find_query = {"$and": [query, dfilt]} if dfilt else query
+    docs = await db.leads.find(find_query, {"_id": 0}).sort("created_at", -1).to_list(2000)
 
     now = datetime.now(timezone.utc)
     for d in docs:
@@ -452,7 +490,161 @@ async def list_leads(
             uid = d.get("assigned_to_user_id")
             d["assigned_to_name"] = umap.get(uid)
             d["assigned_to_photo_url"] = photo_map.get(uid) or ""
+    # Enrich campaign names so every client (incl. staff, who can't list
+    # campaigns) can render a "which campaign" badge on each lead card.
+    cids = list({d.get("campaign_id") for d in docs if d.get("campaign_id")})
+    if cids:
+        cs = await db.campaigns.find({"id": {"$in": cids}}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+        cmap = {c["id"]: c.get("name") for c in cs}
+        for d in docs:
+            d["campaign_name"] = cmap.get(d.get("campaign_id"))
     return docs
+
+
+@router.get("/my-campaigns")
+async def my_campaigns(user: dict = Depends(get_current_user)):
+    """Distinct campaigns present among the caller's visible leads, with a
+    lead count each. Available to staff too (unlike /api/campaigns), so the
+    'My Leads' view can offer a campaign filter."""
+    if user.get("role") not in ("super_admin", "office_admin", "staff"):
+        raise HTTPException(403, "Not allowed")
+    scope = {**_scope_filter(user), "campaign_id": {"$nin": [None, ""]}}
+    docs = await db.leads.find(scope, {"_id": 0, "campaign_id": 1}).to_list(200_000)
+    counts: dict = {}
+    for d in docs:
+        cid = d.get("campaign_id")
+        if cid:
+            counts[cid] = counts.get(cid, 0) + 1
+    if not counts:
+        return []
+    cs = await db.campaigns.find(
+        {"id": {"$in": list(counts)}}, {"_id": 0, "id": 1, "name": 1}
+    ).to_list(1000)
+    cmap = {c["id"]: c.get("name") for c in cs}
+    out = [{"id": cid, "name": cmap.get(cid) or "Campaign", "count": n} for cid, n in counts.items()]
+    out.sort(key=lambda x: (-x["count"], x["name"].lower()))
+    return out
+
+
+@router.get("/assigned-campaigns")
+async def assigned_campaigns(user: dict = Depends(get_current_user)):
+    """Campaigns the caller can tag a new lead to.
+
+    - staff: campaigns in their office where they're in the distribution plan
+      OR already own at least one lead ("assigned campaigns").
+    - office_admin: every campaign in their office.
+    - super_admin: every campaign.
+    Returns [{id, name}] sorted by name.
+    """
+    role = user.get("role")
+    if role not in ("super_admin", "office_admin", "staff"):
+        raise HTTPException(403, "Not allowed")
+
+    if role == "super_admin":
+        q: dict = {}
+    else:
+        q = {"office": user.get("office")}
+    cs = await db.campaigns.find(q, {"_id": 0, "id": 1, "name": 1, "distribute_employee_ids": 1}).to_list(2000)
+
+    if role == "staff":
+        uid = user["id"]
+        # Campaigns where this staff already owns leads.
+        lead_docs = await db.leads.find(
+            {"assigned_to_user_id": uid, "campaign_id": {"$nin": [None, ""]}},
+            {"_id": 0, "campaign_id": 1},
+        ).to_list(200_000)
+        owned = {d.get("campaign_id") for d in lead_docs if d.get("campaign_id")}
+        cs = [
+            c for c in cs
+            if uid in (c.get("distribute_employee_ids") or []) or c["id"] in owned
+        ]
+
+    out = [{"id": c["id"], "name": c.get("name") or "Campaign"} for c in cs]
+    out.sort(key=lambda x: x["name"].lower())
+    return out
+
+
+@router.get("/export")
+async def export_leads(
+    user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    source: Optional[str] = None,
+    campaign_id: Optional[str] = None,
+    uncategorized: Optional[bool] = None,
+    q: Optional[str] = None,
+    view: Optional[str] = None,  # "missed"
+    office: Optional[str] = None,
+):
+    """Download leads as CSV, honouring the same filters as the list view —
+    most importantly ``status`` so an admin can export just one pipeline stage."""
+    if user.get("role") not in ("super_admin", "office_admin", "staff"):
+        raise HTTPException(403, "Not allowed")
+    query = _apply_office_override(user, _scope_filter(user), office)
+    if status and status in LEAD_STATUSES:
+        query["status"] = status
+    if assigned_to:
+        query["assigned_to_user_id"] = assigned_to
+    if source and source in LEAD_SOURCES:
+        query["source"] = source
+    if campaign_id:
+        query["campaign_id"] = campaign_id
+    if uncategorized:
+        query["$and"] = [{"$or": [{"campaign_id": None}, {"campaign_id": {"$exists": False}}]}]
+    if q:
+        rx = {"$regex": q.strip(), "$options": "i"}
+        or_clause = [{"name": rx}, {"phone": rx}, {"email": rx}, {"course": rx}, {"place": rx}]
+        if uncategorized:
+            query["$and"].append({"$or": or_clause})
+        else:
+            query["$or"] = or_clause
+    docs = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(20000)
+    now = datetime.now(timezone.utc)
+    if view == "missed":
+        docs = [d for d in docs if _is_missed(d, now)]
+
+    # Resolve assignee + campaign names for human-readable columns.
+    uids = list({d.get("assigned_to_user_id") for d in docs if d.get("assigned_to_user_id")})
+    umap: dict = {}
+    if uids:
+        us = await db.users.find({"id": {"$in": uids}}, {"_id": 0, "id": 1, "name": 1}).to_list(500)
+        umap = {u["id"]: u.get("name") for u in us}
+    cids = list({d.get("campaign_id") for d in docs if d.get("campaign_id")})
+    cmap: dict = {}
+    if cids:
+        cs = await db.campaigns.find({"id": {"$in": cids}}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+        cmap = {c["id"]: c.get("name") for c in cs}
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "Name", "Phone", "Email", "Course", "Place", "Status", "Source",
+        "Assigned To", "Campaign", "Next Follow-up", "Notes", "Created At",
+    ])
+    label = {s: s.replace("_", " ").title() for s in LEAD_STATUSES}
+    for d in docs:
+        w.writerow([
+            d.get("name", ""),
+            d.get("phone", ""),
+            d.get("email", ""),
+            d.get("course", ""),
+            d.get("place", ""),
+            label.get(d.get("status"), d.get("status", "")),
+            (d.get("source") or "").replace("_", " ").title(),
+            umap.get(d.get("assigned_to_user_id"), "") or "",
+            cmap.get(d.get("campaign_id"), "") or "",
+            d.get("next_follow_up", "") or "",
+            (d.get("notes", "") or "").replace("\n", " ").strip(),
+            d.get("created_at", "") or "",
+        ])
+    fname_status = (status if status in LEAD_STATUSES else ("missed" if view == "missed" else "all"))
+    filename = f"leads-{fname_status}-{now.strftime('%Y%m%d')}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 
 
 class AssignCampaignIn(BaseModel):
@@ -762,7 +954,6 @@ async def lead_analytics(user: dict = Depends(get_current_user), office: Optiona
     total_leads = len(leads)
     converted = sum(by_status[s] for s in CONVERTED_STATUSES)
     lost = by_status["lost"]
-    positive = by_status["not_connected"] + by_status["interested"] + by_status["follow_up"]
 
     students = await db.students.find(
         student_scope,
@@ -844,6 +1035,18 @@ async def create_lead(payload: LeadIn, user: dict = Depends(require_edit("leads"
         raise HTTPException(400, "Invalid status")
     src = payload.source if payload.source in LEAD_SOURCES else "other"
 
+    campaign_id: Optional[str] = None
+    if payload.campaign_id:
+        cq: dict = {"id": payload.campaign_id}
+        if role != "super_admin":
+            cq["office"] = user.get("office")
+        camp = await db.campaigns.find_one(cq, {"_id": 0, "id": 1, "office": 1})
+        if not camp:
+            raise HTTPException(400, "Campaign not found")
+        campaign_id = camp["id"]
+        if office is None:
+            office = camp.get("office")
+
     doc = {
         "id": gen_id(),
         "name": payload.name.strip(),
@@ -854,6 +1057,7 @@ async def create_lead(payload: LeadIn, user: dict = Depends(require_edit("leads"
         "source": src,
         "status": payload.status,
         "assigned_to_user_id": assigned_to,
+        "campaign_id": campaign_id,
         "office": office,
         "next_follow_up": payload.next_follow_up or None,
         "notes": (payload.notes or "").strip(),
@@ -892,9 +1096,15 @@ async def update_lead(lead_id: str, payload: LeadUpdate, user: dict = Depends(re
         patch["next_follow_up"] = data["next_follow_up"] or None
         patch["follow_up_reminded_for"] = None  # re-arm the reminder
     new_assignee = None
-    if "assigned_to_user_id" in data and data["assigned_to_user_id"] != lead.get("assigned_to_user_id"):
+    assign_changed = (
+        "assigned_to_user_id" in data
+        and data["assigned_to_user_id"] != lead.get("assigned_to_user_id")
+    )
+    assignee = None
+    if assign_changed:
         if user.get("role") == "staff":
-            raise HTTPException(403, "Staff cannot reassign leads")
+            # Staff reassign leads through the dedicated /reassign endpoint.
+            raise HTTPException(403, "Staff reassign via the Reassign action")
         if data["assigned_to_user_id"]:
             require_office = user.get("role") == "office_admin"
             assignee = await _validate_assignee(
@@ -908,12 +1118,79 @@ async def update_lead(lead_id: str, payload: LeadUpdate, user: dict = Depends(re
             patch["assigned_to_user_id"] = None
     patch["updated_at"] = now_iso()
     ops: dict = {"$set": patch}
+    pushes: dict = {}
+    note = (data.get("status_note") or "").strip()
     if patch.get("status") and patch["status"] != lead.get("status"):
-        ops["$push"] = {"status_history": _status_event(lead.get("status"), patch["status"], user)}
+        meta = None
+        if patch["status"] == "lost" and patch.get("lost_reason"):
+            meta = {"lost_reason": patch["lost_reason"]}
+        pushes["status_history"] = _status_event(
+            lead.get("status"), patch["status"], user, note=note, metadata=meta)
+    elif note:
+        # Note-only entry (no stage change) — a standalone conversation note.
+        cur = lead.get("status")
+        pushes["status_history"] = _status_event(cur, cur, user, note=note)
+
+    assign_ev = None
+    if assign_changed:
+        from_name = await _user_name(lead.get("assigned_to_user_id"))
+        to_name = assignee["name"] if assignee else None
+        assign_ev = _assignment_event(
+            lead.get("assigned_to_user_id"), from_name,
+            (assignee or {}).get("id"), to_name, user)
+        pushes["assignment_history"] = assign_ev
+    if pushes:
+        ops["$push"] = pushes
     await db.leads.update_one({"id": lead_id}, ops)
     fresh = await db.leads.find_one({"id": lead_id}, {"_id": 0})
     if new_assignee:
         await _notify_assignment(fresh, actor=user)
+    if assign_ev:
+        await log_lead_event(
+            actor=user, event_type="lead.assigned", lead=fresh,
+            note=f"Reassigned {fresh.get('name')} from {assign_ev['from_name'] or 'Unassigned'} "
+                 f"to {assign_ev['to_name'] or 'Unassigned'}")
+    return fresh
+
+
+class ReassignIn(BaseModel):
+    assigned_to_user_id: str
+    note: Optional[str] = None
+
+
+@router.post("/{lead_id}/reassign")
+async def reassign_lead(lead_id: str, payload: ReassignIn, user: dict = Depends(require_edit("leads"))):
+    """Hand a lead over to a colleague. Staff may reassign only leads assigned
+    to them (enforced by ``_scope_filter``) and only to a colleague in their
+    own office. Records an ``assignment_history`` journey entry, logs the move
+    to the Activity page, and notifies the new owner."""
+    lead = await db.leads.find_one({**_scope_filter(user), "id": lead_id})
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+    new_id = (payload.assigned_to_user_id or "").strip()
+    if not new_id:
+        raise HTTPException(400, "Pick a colleague to reassign this lead to")
+    if new_id == lead.get("assigned_to_user_id"):
+        fresh = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+        return await _enrich_assignee(fresh)
+    # Staff & office admins can only reassign within their own office.
+    require_office = user.get("role") in ("office_admin", "staff")
+    assignee = await _validate_assignee(new_id, user.get("office"), require_office)
+
+    from_id = lead.get("assigned_to_user_id")
+    from_name = await _user_name(from_id)
+    patch = {"assigned_to_user_id": assignee["id"], "updated_at": now_iso()}
+    if user.get("role") == "super_admin":
+        patch["office"] = assignee.get("office")
+    ev = _assignment_event(from_id, from_name, assignee["id"], assignee["name"], user, payload.note)
+    await db.leads.update_one({"id": lead_id}, {"$set": patch, "$push": {"assignment_history": ev}})
+    fresh = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    await _enrich_assignee(fresh)
+    await _notify_assignment(fresh, actor=user)
+    note_suffix = f" — {payload.note.strip()}" if (payload.note or "").strip() else ""
+    await log_lead_event(
+        actor=user, event_type="lead.assigned", lead=fresh,
+        note=f"Reassigned {fresh.get('name')} from {from_name or 'Unassigned'} to {assignee['name']}{note_suffix}")
     return fresh
 
 
@@ -1527,7 +1804,7 @@ async def update_followup(
         after={"at": new_at if new_at is not None else old_at,
                "note": new_note if new_note is not None else entry.get("note", "")},
         office=fresh.get("office"),
-        note=f"Follow-up rescheduled" if new_at is not None else "Follow-up note edited",
+        note="Follow-up rescheduled" if new_at is not None else "Follow-up note edited",
         reversible=True,
     )
 
@@ -1797,15 +2074,78 @@ async def bulk_upload(
         h = norm.get(key)
         return str(row.get(h) or "").strip() if h else ""
 
+    def _phone_key(raw: str) -> str:
+        """Normalise a phone into a dedup key — digits only, last 10 chars.
+        Strips country codes, spaces, dashes, parentheses. Empty → ``""``."""
+        digits = "".join(ch for ch in (raw or "") if ch.isdigit())
+        return digits[-10:] if len(digits) >= 10 else digits
+
+    def _name_place_key(name: str, place: str) -> str:
+        n = " ".join((name or "").lower().split())
+        p = " ".join((place or "").lower().split())
+        return f"{n}|{p}" if n else ""
+
+    # Pre-fetch every existing lead in the caller's visibility scope + build
+    # ``existing_phone_keys`` / ``existing_name_keys`` sets so each CSV row is
+    # deduped in O(1). ``_scope_filter`` already handles staff / office_admin
+    # scoping; super_admin sees the whole database.
+    # Duplicate detection scope: when uploading INTO a campaign, only skip rows
+    # that already exist in THAT SAME campaign (the same person may legitimately
+    # belong to multiple campaigns). Non-campaign uploads keep the broader
+    # visibility scope so global/uncategorised duplicates are still caught.
+    dedup_scope = {"campaign_id": campaign_id} if campaign_id else _scope_filter(user)
+    existing_docs = await db.leads.find(
+        dedup_scope, {"_id": 0, "phone": 1, "name": 1, "place": 1}
+    ).to_list(200_000)
+    existing_phone_keys: set[str] = set()
+    existing_name_keys: set[str] = set()
+    for d in existing_docs:
+        pk = _phone_key(d.get("phone", ""))
+        if pk:
+            existing_phone_keys.add(pk)
+        else:
+            nk = _name_place_key(d.get("name", ""), d.get("place", ""))
+            if nk:
+                existing_name_keys.add(nk)
+
     created: list[dict] = []
     skipped_rows: list[int] = []
+    skipped_duplicates: list[dict] = []
     unmatched_employees: list[str] = []
+    # Within-CSV dedup so a file containing "Ravi 9999999999" twice only
+    # creates one lead even when nothing similar exists in the DB yet.
+    seen_phone_keys: set[str] = set()
+    seen_name_keys: set[str] = set()
     now = now_iso()
     for idx, row in enumerate(reader, start=2):
         name = str(row.get(name_h) or "").strip()
         if not name:
             skipped_rows.append(idx)
             continue
+        phone = cell(row, "phone")
+        place = cell(row, "place")
+        pk = _phone_key(phone)
+        nk = _name_place_key(name, place) if not pk else ""
+        # Duplicate detection — check the DB set first, then the within-CSV
+        # set so subsequent identical rows in the file are also skipped.
+        dup_reason: Optional[str] = None
+        if pk:
+            if pk in existing_phone_keys:
+                dup_reason = "phone already in CRM"
+            elif pk in seen_phone_keys:
+                dup_reason = "phone repeated in file"
+        elif nk:
+            if nk in existing_name_keys:
+                dup_reason = "name already in CRM"
+            elif nk in seen_name_keys:
+                dup_reason = "name repeated in file"
+        if dup_reason:
+            skipped_duplicates.append({"row": idx, "name": name, "phone": phone, "reason": dup_reason})
+            continue
+        if pk:
+            seen_phone_keys.add(pk)
+        elif nk:
+            seen_name_keys.add(nk)
         src = cell(row, "source").lower()
         row_assignee = assignee_id
         row_office = office
@@ -1821,10 +2161,10 @@ async def bulk_upload(
         created.append({
             "id": gen_id(),
             "name": name,
-            "phone": cell(row, "phone"),
+            "phone": phone,
             "email": cell(row, "email"),
             "course": cell(row, "course"),
-            "place": cell(row, "place"),
+            "place": place,
             "source": src if src in LEAD_SOURCES else "csv",
             "status": "new",
             "assigned_to_user_id": row_assignee,
@@ -1848,7 +2188,7 @@ async def bulk_upload(
             subject_type="lead", subject_label=f"{len(created)} leads",
             after={"count": len(created), "campaign_id": campaign_id},
             office=office,
-            note=f"Uploaded {len(created)} leads" + (f" to a campaign" if campaign_id else ""),
+            note=f"Uploaded {len(created)} leads" + (" to a campaign" if campaign_id else ""),
             reversible=True,
             extras={"lead_ids": created_ids, "campaign_id": campaign_id},
         )
@@ -1865,6 +2205,11 @@ async def bulk_upload(
         "skipped_blank_rows": skipped_rows,
         "created_sample": [c["name"] for c in created[:10]],
         "unmatched_employees": unmatched_unique,
+        # Duplicates that were already in the CRM (or repeated inside the CSV
+        # itself). The frontend uses ``duplicate_count`` in the summary toast
+        # and can render the full list on demand.
+        "duplicate_count": len(skipped_duplicates),
+        "duplicates": skipped_duplicates[:200],
     }
 
 

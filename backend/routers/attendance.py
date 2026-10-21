@@ -9,7 +9,7 @@ from __future__ import annotations
 import calendar
 import csv
 import io
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import Optional
 

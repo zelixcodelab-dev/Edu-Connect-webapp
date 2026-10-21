@@ -13,6 +13,7 @@ Boxes:
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,6 +26,7 @@ from routers.notifications import notify_users
 router = APIRouter(prefix="/api/leave", tags=["leave"])
 
 LEAVE_TYPES = ("casual", "sick", "earned", "unpaid")
+IST = ZoneInfo("Asia/Kolkata")
 
 
 class LeaveIn(BaseModel):
@@ -32,6 +34,8 @@ class LeaveIn(BaseModel):
     from_date: str  # YYYY-MM-DD
     to_date: str
     reason: str = Field(default="", max_length=1000)
+    emergency: bool = False
+    half_day: bool = False
 
 
 class LeaveDecision(BaseModel):
@@ -77,7 +81,12 @@ async def create_leave(payload: LeaveIn, user: dict = Depends(require_edit("leav
         raise HTTPException(400, "Invalid leave type")
     if payload.to_date < payload.from_date:
         raise HTTPException(400, "End date can't be before start date")
+    if payload.emergency:
+        today = datetime.now(IST).strftime("%Y-%m-%d")
+        if payload.from_date != today or payload.to_date != today:
+            raise HTTPException(400, "Emergency leave can only be applied for today")
     now = now_iso()
+    days = 0.5 if payload.half_day else _days(payload.from_date, payload.to_date)
     doc = {
         "id": gen_id(),
         "requester_user_id": user["id"],
@@ -87,7 +96,9 @@ async def create_leave(payload: LeaveIn, user: dict = Depends(require_edit("leav
         "leave_type": payload.leave_type,
         "from_date": payload.from_date,
         "to_date": payload.to_date,
-        "days": _days(payload.from_date, payload.to_date),
+        "days": days,
+        "half_day": payload.half_day,
+        "emergency": payload.emergency,
         "reason": (payload.reason or "").strip(),
         "status": "pending",
         "approver_user_id": None,
@@ -101,14 +112,16 @@ async def create_leave(payload: LeaveIn, user: dict = Depends(require_edit("leav
     doc.pop("_id", None)
     approvers = await _approver_ids(user)
     if approvers:
+        tag = "Emergency " if payload.emergency else ""
+        span = "today" if payload.emergency else f"{payload.from_date} → {payload.to_date}"
         await notify_users(
             approvers,
             type="leave_request",
-            title="New leave request",
-            message=f"{doc['requester_name']} · {payload.leave_type.title()} · {payload.from_date} → {payload.to_date}",
-            link="/leave",
+            title=f"New {tag.lower()}leave request".strip().capitalize(),
+            message=f"{doc['requester_name']} · {tag}{payload.leave_type.title()}{' (half day)' if payload.half_day else ''} · {span}",
+            link="/attendance?tab=leave",
             actor_user_id=user["id"],
-            metadata={"leave_id": doc["id"]},
+            metadata={"leave_id": doc["id"], "emergency": payload.emergency},
         )
     return doc
 

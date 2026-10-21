@@ -14,6 +14,15 @@ export const LEAD_STATUSES = [
   "lost",
 ];
 
+// Sub-stages captured when a lead is marked "Lost" (stored in lead.lost_reason).
+export const LOST_SUBSTAGES = [
+  "Already Admitted",
+  "Adm. Next Year",
+  "Entrance Repeat",
+  "Inside KL Only",
+  "Other",
+];
+
 export const LEAD_STATUS_META = {
   new: { label: "New", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30" },
   not_connected: { label: "Not Connected", cls: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30" },

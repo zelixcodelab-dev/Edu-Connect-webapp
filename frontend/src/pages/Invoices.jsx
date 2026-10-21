@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, formatDate, todayISO } from "@/lib/format";
@@ -95,6 +96,25 @@ export default function Invoices() {
     setList(i.data); setClients(c.data); setAccounts(a.data);
   };
   useEffect(() => { load(); }, []);
+
+  const [sp, setSp] = useSearchParams();
+  // Open the create dialog (optionally preselecting a client) when arriving
+  // from a client's detail page via /invoices?new=1&client=<id>.
+  useEffect(() => {
+    if (sp.get("new") === "1" && clients.length) {
+      const cid = sp.get("client");
+      setEditing(null);
+      setForm({
+        ...blankForm(),
+        invoice_number: nextInvoiceNumber(list),
+        client_id: cid || clients[0]?.id || "",
+        expense_account_id: accounts[0]?.id || "",
+      });
+      setOpen(true);
+      setSp({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients]);
 
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
 

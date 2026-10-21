@@ -9,10 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, PencilSimple, Trash, Funnel } from "@phosphor-icons/react";
+import { Plus, PencilSimple, Trash, Funnel, HandCoins } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { PAYMENT_MODE_LABELS, SC_PAYOUT_CLIENT_TYPES, EXPENSE_OF_LABELS } from "@/lib/paymentModes";
+import MoneyOutFields from "@/components/MoneyOutFields";
 
-const empty = { type: "expense", amount: "", account_id: "", category_id: "", date: todayISO(), description: "" };
+const empty = { kind: "expense", type: "expense", amount: "", account_id: "", category_id: "", date: todayISO(), description: "", client_id: "", payment_mode: "", student_name: "", expense_of: "" };
+const kindOf = (t) => (t.is_sc_payout ? "payout" : t.type === "income" ? "income" : "expense");
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -21,21 +24,42 @@ export default function Transactions() {
   const [list, setList] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [students, setStudents] = useState([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
   const [filterType, setFilterType] = useState("all");
 
   const load = useCallback(async () => {
-    const params = filterType !== "all" ? { type: filterType } : {};
-    const [t, a, c] = await Promise.all([
+    const params = filterType === "sc_payout"
+      ? { sc_payout: true }
+      : (filterType !== "all" ? { type: filterType } : {});
+    const [t, a, c, cl, st] = await Promise.all([
       api.get("/transactions", { params }),
       api.get("/accounts"),
       api.get("/categories"),
+      api.get("/clients"),
+      api.get("/students"),
     ]);
-    setList(t.data); setAccounts(a.data); setCategories(c.data);
+    setList(t.data); setAccounts(a.data); setCategories(c.data); setClients(cl.data); setStudents(st.data);
   }, [filterType]);
   useEffect(() => { load(); }, [load]);
+
+  const payoutClients = useMemo(
+    () => clients.filter((c) => SC_PAYOUT_CLIENT_TYPES.includes(c.client_type)),
+    [clients],
+  );
+  const clientMap = useMemo(
+    () => Object.fromEntries(clients.map((c) => [c.id, c])),
+    [clients],
+  );
+  const recipient = payoutClients.find((c) => c.id === form.client_id);
+  const referredStudents = useMemo(() => {
+    if (!recipient) return [];
+    const t = (recipient.name || "").trim().toLowerCase();
+    return students.filter((s) => (s.reference || "").trim().toLowerCase() === t);
+  }, [students, recipient]);
 
   const accountMap = useMemo(
     () => Object.fromEntries(accounts.map(a => [a.id, a])),
@@ -53,16 +77,41 @@ export default function Transactions() {
   };
   const openEdit = (t) => {
     setEditing(t);
-    setForm({ ...t, category_id: t.category_id || "" });
+    setForm({
+      ...t,
+      kind: kindOf(t),
+      category_id: t.category_id || "",
+      client_id: t.client_id || "",
+      payment_mode: t.payment_mode || "",
+      student_name: t.student_name || "",
+      expense_of: t.expense_of || "",
+    });
     setOpen(true);
   };
 
+  const setKind = (kind) => setForm((f) => ({
+    ...f, kind,
+    type: kind === "income" ? "income" : "expense",
+    category_id: "", client_id: "", payment_mode: "", student_name: "", expense_of: "",
+  }));
+
   const submit = async (e) => {
     e.preventDefault();
+    const { kind } = form;
+    const isMoneyOut = kind !== "income";
+    const wantsStudent = kind === "payout" || (kind === "expense" && form.expense_of === "campus_visit");
     const payload = {
-      ...form,
+      type: kind === "income" ? "income" : "expense",
       amount: parseFloat(form.amount) || 0,
+      account_id: form.account_id,
       category_id: form.category_id || null,
+      date: form.date,
+      description: form.description,
+      is_sc_payout: kind === "payout",
+      client_id: isMoneyOut ? (form.client_id || null) : null,
+      payment_mode: isMoneyOut ? (form.payment_mode || null) : null,
+      student_name: wantsStudent ? (form.student_name || null) : null,
+      expense_of: kind === "expense" ? (form.expense_of || null) : null,
     };
     try {
       if (editing) {
@@ -87,6 +136,15 @@ export default function Transactions() {
 
   const filteredCategories = categories.filter(c => c.type === form.type);
 
+  // Amber tag describing a recipient-linked money-out line (payout / expense).
+  const txTag = (t) => {
+    const who = t._client_name || clientMap[t.client_id]?.name || "—";
+    const mode = t.payment_mode ? ` · ${PAYMENT_MODE_LABELS[t.payment_mode] || t.payment_mode}` : "";
+    if (t.is_sc_payout) return `SC payout · ${who}${t.student_name ? ` · ${t.student_name}` : ""}${mode}`;
+    if (t.expense_of) return `${EXPENSE_OF_LABELS[t.expense_of] || t.expense_of} · ${who}${t.student_name ? ` · ${t.student_name}` : ""}${mode}`;
+    return null;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in" data-testid="transactions-page">
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -106,6 +164,7 @@ export default function Transactions() {
               <option value="all">All</option>
               <option value="income">Income</option>
               <option value="expense">Expense</option>
+              <option value="sc_payout">SC payouts</option>
             </select>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
@@ -119,23 +178,31 @@ export default function Transactions() {
             <DialogContent className="bg-card" data-testid="transaction-dialog">
               <DialogHeader><DialogTitle className="font-display">{editing ? "Edit" : "Add"} transaction</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v, category_id: "" })}>
-                      <SelectTrigger data-testid="tx-type"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="income">Income</SelectItem>
-                        <SelectItem value="expense">Expense</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Amount</Label>
-                    <Input type="number" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} data-testid="tx-amount" />
-                  </div>
+                {/* Kind */}
+                <div className="grid grid-cols-3 gap-2" data-testid="tx-kind-toggle">
+                  {[{ v: "payout", l: "Payout" }, { v: "expense", l: "Expense" }, { v: "income", l: "Income" }].map((k) => (
+                    <button
+                      type="button"
+                      key={k.v}
+                      onClick={() => setKind(k.v)}
+                      data-testid={`tx-kind-${k.v}`}
+                      className={`h-10 rounded-md border text-sm font-medium transition-colors ${form.kind === k.v ? "border-orange-500 bg-amber-gradient text-white" : "border-border bg-card hover:bg-muted/40"}`}
+                    >
+                      {k.l}
+                    </button>
+                  ))}
                 </div>
+
+                <div>
+                  <Label>Amount</Label>
+                  <Input type="number" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} data-testid="tx-amount" />
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Date</Label>
+                    <Input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} data-testid="tx-date" />
+                  </div>
                   <div>
                     <Label>Account</Label>
                     <Select value={form.account_id} onValueChange={(v) => setForm({ ...form, account_id: v })}>
@@ -145,6 +212,23 @@ export default function Transactions() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                {form.kind !== "income" ? (
+                  <MoneyOutFields
+                    key={`${form.kind}-${editing?.id || "new"}`}
+                    kind={form.kind}
+                    recipientId={form.client_id} onRecipientChange={(v) => setForm((f) => ({ ...f, client_id: v }))}
+                    payoutClients={payoutClients}
+                    referredStudents={referredStudents}
+                    studentName={form.student_name} onStudentNameChange={(v) => setForm((f) => ({ ...f, student_name: v }))}
+                    expenseOf={form.expense_of} onExpenseOfChange={(v) => setForm((f) => ({ ...f, expense_of: v }))}
+                    paymentMode={form.payment_mode} onPaymentModeChange={(v) => setForm((f) => ({ ...f, payment_mode: v }))}
+                    expenseCategories={categories.filter((c) => c.type === "expense")}
+                    categoryId={form.category_id} onCategoryChange={(v) => setForm((f) => ({ ...f, category_id: v }))}
+                    idPrefix="tx"
+                  />
+                ) : (
                   <div>
                     <Label>Category</Label>
                     <Select value={form.category_id || "_none"} onValueChange={(v) => setForm({ ...form, category_id: v === "_none" ? "" : v })}>
@@ -155,11 +239,8 @@ export default function Transactions() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div>
-                  <Label>Date</Label>
-                  <Input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} data-testid="tx-date" />
-                </div>
+                )}
+
                 <div>
                   <Label>Description</Label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What was this for?" data-testid="tx-description" />
@@ -186,6 +267,11 @@ export default function Transactions() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{t.description || "—"}</p>
+                      {txTag(t) && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-1.5 py-0.5 rounded bg-amber-100/70 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400" data-testid={`tx-payout-chip-${t.id}`}>
+                          <HandCoins size={11} /> {txTag(t)}
+                        </span>
+                      )}
                       <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{t.date}</p>
                     </div>
                     <p className={`text-sm font-semibold tabular-nums whitespace-nowrap ${t.type === 'income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
@@ -232,7 +318,14 @@ export default function Transactions() {
                   {list.map(t => (
                     <tr key={t.id} className="hover:bg-muted/40">
                       <td className="px-6 py-3.5 tabular-nums text-muted-foreground">{t.date}</td>
-                      <td className="px-6 py-3.5">{t.description || "—"}</td>
+                      <td className="px-6 py-3.5">
+                        <div>{t.description || "—"}</div>
+                        {txTag(t) && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-1.5 py-0.5 rounded bg-amber-100/70 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400" data-testid={`tx-payout-chip-${t.id}`}>
+                            <HandCoins size={11} /> {txTag(t)}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-3.5 text-muted-foreground">{accountMap[t.account_id]?.name || "—"}</td>
                       <td className="px-6 py-3.5">
                         {categoryMap[t.category_id] ? (

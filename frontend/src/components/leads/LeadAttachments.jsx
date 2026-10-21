@@ -1,8 +1,9 @@
 import React, { useRef, useState } from "react";
-import api, { API, getStoredToken, formatApiError } from "@/lib/api";
+import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Paperclip, FilePdf, FileImage, Trash, DownloadSimple, UploadSimple } from "@phosphor-icons/react";
+import AuthedImage, { downloadAuthedFile } from "@/components/AuthedImage";
 
 /**
  * Attachments panel inside the Lead detail dialog.
@@ -28,14 +29,6 @@ function iconFor(ct) {
   if ((ct || "").startsWith("image/")) return FileImage;
   if (ct === "application/pdf") return FilePdf;
   return Paperclip;
-}
-
-function authedUrl(url) {
-  // The <a> download / <img> src needs the token appended as a query param
-  // since headers aren't attached by the browser for these tags.
-  const token = getStoredToken() || "";
-  const base = url.startsWith("/api/") ? `${API}${url.replace(/^\/api/, "")}` : url;
-  return `${base}?auth=${encodeURIComponent(token)}`;
 }
 
 export default function LeadAttachments({ lead, canManage, onChanged }) {
@@ -72,9 +65,16 @@ export default function LeadAttachments({ lead, canManage, onChanged }) {
     }
   };
 
+  const download = async (att) => {
+    try {
+      await downloadAuthedFile(att.url, att.original_filename);
+    } catch {
+      toast.error("Could not download file");
+    }
+  };
+
   const remove = async (att) => {
     if (!window.confirm(`Delete "${att.original_filename}"? This cannot be undone.`)) return;
-    setDeletingId(att.file_id);
     try {
       await api.delete(`/leads/${lead.id}/attachments/${att.file_id}`);
       onChanged?.({ ...lead, attachments: items.filter((a) => a.file_id !== att.file_id) });
@@ -132,10 +132,15 @@ export default function LeadAttachments({ lead, canManage, onChanged }) {
                 data-testid={`lead-attachment-${att.file_id}`}
               >
                 {isImg ? (
-                  <img
-                    src={authedUrl(att.url)}
+                  <AuthedImage
+                    url={att.url}
                     alt={att.original_filename}
                     className="w-9 h-9 rounded object-cover border border-border shrink-0"
+                    fallback={
+                      <div className="w-9 h-9 rounded bg-muted flex items-center justify-center shrink-0">
+                        <FileImage size={18} className="text-muted-foreground" />
+                      </div>
+                    }
                   />
                 ) : (
                   <div className="w-9 h-9 rounded bg-muted flex items-center justify-center shrink-0">
@@ -149,17 +154,15 @@ export default function LeadAttachments({ lead, canManage, onChanged }) {
                     {att.uploaded_by_name ? ` · ${att.uploaded_by_name}` : ""}
                   </p>
                 </div>
-                <a
-                  href={authedUrl(att.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={att.original_filename}
+                <button
+                  type="button"
+                  onClick={() => download(att)}
                   className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
                   data-testid={`lead-attachment-dl-${att.file_id}`}
                   aria-label={`Download ${att.original_filename}`}
                 >
                   <DownloadSimple size={14} />
-                </a>
+                </button>
                 {canManage && (
                   <button
                     type="button"

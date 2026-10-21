@@ -27,11 +27,18 @@ def fees_plan_total(fees_plan: dict | None) -> tuple[float, float]:
 
 
 def sum_sc_adjusted(payments: Iterable[dict]) -> float:
-    """Total of all ``sc_adjusted`` adjustments across the given payments."""
+    """Total of adjustments that reduce SC Earned.
+
+    Business rule: EVERY adjustment counts as "SC Adjusted" (i.e. it eats into
+    the service charge the agent earned) EXCEPT ``paid_to_college`` — money that
+    went straight to the college is not an SC reduction. So both ``sc_adjusted``
+    (Sub-Agent / Associate) and ``internal_credit`` (KM Foundation) count here.
+    """
     total = 0.0
     for p in payments:
         for adj in p.get("adjustments") or []:
-            if adj.get("kind") == "sc_adjusted":
+            kind = adj.get("kind")
+            if kind and kind != "paid_to_college":
                 total += coerce_float(adj.get("amount"))
     return round(total, 2)
 

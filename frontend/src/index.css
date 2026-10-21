@@ -244,3 +244,347 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .platform-fade-in { animation: platformFadeIn 0.35s ease both; }
 @keyframes platformPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 .platform-pop { animation: platformPop 0.16s ease-out both; }
+
+/* ---- App-wide celebratory feedback overlay (success / error) ------------- */
+.celebrate-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(10, 10, 10, 0.30);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    pointer-events: none; /* non-blocking: never traps the user */
+    animation: celebFade 1.7s ease forwards;
+}
+.celebrate-backdrop[data-kind="error"] { animation-duration: 2.6s; }
+.celebrate-backdrop[data-milestone="1"] { animation-duration: 2.8s; }
+.celebrate-confetti {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+}
+.confetti-piece {
+    position: absolute;
+    top: -16px;
+    border-radius: 2px;
+    opacity: 0;
+    will-change: transform, opacity;
+    animation-name: confettiFall;
+    animation-timing-function: cubic-bezier(0.2, 0.6, 0.3, 1);
+    animation-fill-mode: forwards;
+}
+@keyframes confettiFall {
+    0%   { transform: translate3d(0, -20px, 0) rotate(0deg); opacity: 0; }
+    8%   { opacity: 1; }
+    100% { transform: translate3d(var(--dx), 105vh, 0) rotate(var(--rot)); opacity: 0.9; }
+}
+@keyframes celebFade {
+    0%   { opacity: 0; }
+    7%   { opacity: 1; }
+    84%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+.celebrate-card {
+    pointer-events: none; /* fully click-through — never blocks dialogs/buttons */
+    width: 388px;
+    max-width: 90vw;
+    padding: 14px;
+    border-radius: 26px;
+    background: hsl(var(--card));
+    box-shadow: 0 32px 84px -22px rgba(0, 0, 0, 0.45), 0 0 60px -8px rgba(47, 125, 107, 0.35);
+    animation: celebCardIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.celebrate-backdrop[data-kind="error"] .celebrate-card {
+    box-shadow: 0 32px 84px -22px rgba(0, 0, 0, 0.45), 0 0 60px -8px rgba(199, 0, 0, 0.32);
+}
+@keyframes celebCardIn {
+    0%   { transform: translateY(12px) scale(0.96); opacity: 0; }
+    100% { transform: none; opacity: 1; }
+}
+.celebrate-hero {
+    position: relative;
+    height: 176px;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(130% 130% at 15% 16%, #eaf1b6 0%, #86c39a 24%, #2f7d6b 52%, #0c2e28 100%);
+}
+.celebrate-backdrop[data-kind="error"] .celebrate-hero {
+    background: radial-gradient(130% 130% at 15% 16%, #ffccc0 0%, #e2565a 26%, #C70000 56%, #1a0606 100%);
+}
+.celebrate-folder {
+    position: absolute;
+    width: 156px;
+    height: 126px;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+}
+.celebrate-folder path {
+    fill: rgba(255, 255, 255, 0.17);
+    stroke: rgba(255, 255, 255, 0.30);
+    stroke-width: 1.5;
+}
+.celebrate-check-badge {
+    position: relative;
+    z-index: 2;
+    width: 62px;
+    height: 62px;
+    border-radius: 9999px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 26px -6px rgba(0, 0, 0, 0.35);
+    animation: celebPop 0.55s cubic-bezier(0.18, 0.9, 0.28, 1.5) both;
+    animation-delay: 0.1s;
+}
+.celebrate-check-badge .celebrate-icon { color: #0f7a5f; }
+.celebrate-backdrop[data-kind="error"] .celebrate-check-badge .celebrate-icon { color: #C70000; }
+@keyframes celebPop {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.16); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.celebrate-body {
+    padding: 22px 22px 14px;
+    text-align: center;
+}
+.celebrate-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.4rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: hsl(var(--foreground));
+}
+.celebrate-subtitle {
+    margin-top: 7px;
+    font-size: 0.85rem;
+    line-height: 1.35rem;
+    color: hsl(var(--muted-foreground));
+    max-width: 20rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+    .celebrate-card { animation: none !important; }
+    .celebrate-check-badge { animation: none !important; }
+    .celebrate-confetti { display: none !important; }
+}
+
+/* PIN unlock success animation */
+.pin-unlock-ring {
+    animation: pinUnlockRing 0.5s ease both;
+}
+.pin-unlock-icon {
+    animation: pinUnlockIcon 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes pinUnlockRing {
+    0%   { transform: scale(0.4); opacity: 0; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+    60%  { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+}
+@keyframes pinUnlockIcon {
+    0%   { transform: rotate(-18deg) scale(0.5); opacity: 0; }
+    55%  { transform: rotate(6deg) scale(1.15); opacity: 1; }
+    100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pin-unlock-ring, .pin-unlock-icon { animation: none !important; }
+}
+
+/* ── Dashboard entrance motion ─────────────────────────────────────────── */
+@keyframes dashRise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.dash-reveal {
+    animation: dashRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dash-stagger > * {
+    animation: dashRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dash-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.dash-stagger > *:nth-child(2) { animation-delay: 0.10s; }
+.dash-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.dash-stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.dash-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.dash-stagger > *:nth-child(6) { animation-delay: 0.30s; }
+.dash-stagger > *:nth-child(7) { animation-delay: 0.35s; }
+.dash-stagger > *:nth-child(8) { animation-delay: 0.40s; }
+@media (prefers-reduced-motion: reduce) {
+    .dash-reveal,
+    .dash-stagger > * { animation: none !important; }
+}
+
+/* ── Reveal-on-scroll (long pages) ─────────────────────────────────────── */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+}
+.reveal-on-scroll.reveal-in {
+    opacity: 1;
+    transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}
+
+/* ── Dashboards that move with purpose ─────────────────────────────────── */
+
+/* Richer, consistent card & tile hover: lift + soft glow + icon reaction */
+.card-hover {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+}
+.card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 34px -16px rgba(17, 17, 17, 0.35);
+}
+.stat-icon {
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.card-hover:hover .stat-icon,
+.group:hover .stat-icon {
+    transform: scale(1.1) rotate(-4deg);
+}
+/* Springy press for buttons / clickable tiles */
+.press-spring {
+    transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.press-spring:active {
+    transform: scale(0.97);
+}
+
+/* Live "today" pulse dot */
+.live-dot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: #10b981;
+    box-shadow: 0 0 0 2px hsl(var(--card));
+}
+.live-dot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: #10b981;
+    animation: livePulse 1.9s ease-out infinite;
+}
+@keyframes livePulse {
+    0%   { transform: scale(1);   opacity: 0.55; }
+    70%  { transform: scale(2.8); opacity: 0; }
+    100% { transform: scale(2.8); opacity: 0; }
+}
+
+/* Smooth slide-and-fade when a tile/tab/sub-view swaps in */
+@keyframes viewEnter {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+.view-enter {
+    animation: viewEnter 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Chart tooltip glides to the cursor instead of snapping */
+.recharts-tooltip-wrapper {
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* Animated sidebar: a highlight rail that slides between active items */
+.nav-rail {
+    position: absolute;
+    top: 0;
+    left: 6px;
+    width: 3px;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, hsl(var(--primary)) 0%, #1a1a1a 120%);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), height 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-hover,
+    .stat-icon,
+    .press-spring,
+    .nav-rail,
+    .recharts-tooltip-wrapper { transition: none !important; }
+    .card-hover:hover { transform: none !important; }
+    .card-hover:hover .stat-icon,
+    .group:hover .stat-icon { transform: none !important; }
+    .live-dot::before { animation: none !important; }
+    .view-enter { animation: none !important; }
+}
+
+/* Dashboard tile slider — a gradient highlight that glides to the active tile,
+   mirroring the sidebar's sliding active-highlight. */
+.tile-highlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 24px -10px rgba(234, 88, 12, 0.5);
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Smooth page/route transition when navigating between pages */
+@keyframes routeEnter {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+.route-enter {
+    animation: routeEnter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Collapsible sidebar group (grid-rows trick) */
+.nav-collapse {
+    display: grid;
+    transition: grid-template-rows 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Shimmer skeleton loader */
+.shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted));
+}
+.shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--card) / 0.65), transparent);
+    animation: shimmerSweep 1.4s infinite;
+}
+@keyframes shimmerSweep {
+    100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tile-highlight { transition: none !important; }
+    .route-enter { animation: none !important; }
+    .nav-collapse { transition: none !important; }
+    .shimmer::after { animation: none !important; display: none; }
+}
+

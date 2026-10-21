@@ -100,7 +100,7 @@ def password_reset_email_html(name: str, reset_link: str, expires_minutes: int =
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e7e5e4;">
         <tr><td style="background:linear-gradient(135deg,#f97316 0%,#d97706 100%);padding:24px 28px;color:#ffffff;">
-          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;font-weight:600;">FinFlow · KM Foundation</div>
+          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;font-weight:600;">EduConnect Pro</div>
           <h1 style="margin:6px 0 0;font-size:22px;font-weight:700;">Reset your password</h1>
         </td></tr>
         <tr><td style="padding:28px 28px 8px;">
@@ -122,7 +122,7 @@ def password_reset_email_html(name: str, reset_link: str, expires_minutes: int =
           If you didn't request this, you can safely ignore this email — your password will stay the same.
         </td></tr>
       </table>
-      <div style="font-size:11px;color:#a8a29e;margin-top:14px;">This is an automated message from FinFlow by KM Foundation.</div>
+      <div style="font-size:11px;color:#a8a29e;margin-top:14px;">This is an automated message from EduConnect Pro.</div>
     </td></tr>
   </table>
 </body></html>
@@ -172,7 +172,7 @@ def application_email_html(student: dict) -> str:
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e7e5e4;">
         <tr><td style="background:linear-gradient(135deg,#f97316 0%,#d97706 100%);padding:24px 28px;color:#ffffff;">
-          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;font-weight:600;">FinFlow · KM Foundation</div>
+          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;font-weight:600;">EduConnect Pro</div>
           <h1 style="margin:6px 0 0;font-size:22px;font-weight:700;">New student application</h1>
         </td></tr>
         <tr><td style="padding:24px 28px 8px;">

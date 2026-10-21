@@ -13,6 +13,7 @@ export const PERMISSION_PAGES = [
   { key: "students", label: "Students" },
   { key: "leads", label: "Leads (CRM)" },
   { key: "leave", label: "Leave" },
+  { key: "attendance", label: "Attendance & Payroll" },
   { key: "expense_requests", label: "Office expenses" },
   { key: "settings", label: "Settings" },
 ];
@@ -44,4 +45,10 @@ export function defaultPermissions() {
     acc[p.key] = "edit";
     return acc;
   }, {});
+}
+
+// Per-company module switch (Platform Console). Missing list = everything on.
+export function hasModule(user, key) {
+  const mods = user?.enabled_modules;
+  return !Array.isArray(mods) || mods.includes(key);
 }

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { LEAD_SOURCES } from "./constants";
 
-const blankRow = () => ({ name: "", phone: "", course: "", place: "" });
+const blankRow = () => ({ _rid: Math.random().toString(36).slice(2, 10), name: "", phone: "", course: "", place: "" });
 
 export default function CampaignAddLeadsDialog({ open, onOpenChange, campaignId, onAdded }) {
   const [rows, setRows] = useState([blankRow(), blankRow(), blankRow()]);
@@ -60,7 +60,7 @@ export default function CampaignAddLeadsDialog({ open, onOpenChange, campaignId,
 
           <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1" data-testid="campaign-addleads-rows">
             {rows.map((row, i) => (
-              <div key={i} className="grid grid-cols-[1.4fr_1fr_1.2fr_1fr_auto] gap-2 items-center">
+              <div key={row._rid} className="grid grid-cols-[1.4fr_1fr_1.2fr_1fr_auto] gap-2 items-center">
                 <Input placeholder="Name *" value={row.name} onChange={(e) => update(i, "name", e.target.value)} data-testid={`campaign-row-name-${i}`} className="h-9" />
                 <Input placeholder="Phone" value={row.phone} onChange={(e) => update(i, "phone", e.target.value)} data-testid={`campaign-row-phone-${i}`} className="h-9" />
                 <Input placeholder="Course" value={row.course} onChange={(e) => update(i, "course", e.target.value)} className="h-9" />

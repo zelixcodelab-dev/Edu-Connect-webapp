@@ -73,6 +73,20 @@ MODULE_CATALOG = [
     {"key": "categories", "label": "Categories"},
     {"key": "office_overview", "label": "Office Overview"},
     {"key": "staff", "label": "Staff Directory"},
+    {"key": "academic_year", "label": "Academic Year Filter"},
+    {"key": "google_sheets", "label": "Google Sheets Sync"},
+    {"key": "passkeys", "label": "Passkey (Biometric) Login"},
+    {"key": "pin_lock", "label": "Mobile PIN Unlock"},
+    {"key": "sc_report", "label": "Service Charge Report"},
+    {"key": "celebrations", "label": "Success Animations & Sounds"},
+    {"key": "product_tour", "label": "Guided Product Tour"},
+]
+
+# Modules added after launch: switched ON once for existing companies, then the
+# owner's choice is respected (tracked via tenant.modules_backfilled).
+BACKFILL_MODULE_KEYS = [
+    "attendance", "academic_year", "google_sheets", "passkeys",
+    "pin_lock", "sc_report", "celebrations", "product_tour",
 ]
 
 ALL_MODULE_KEYS = [m["key"] for m in MODULE_CATALOG]
@@ -202,6 +216,7 @@ async def provision_tenant(
         "admin_email": admin_email,
         "branding": b,
         "enabled_modules": modules,
+        "modules_backfilled": list(BACKFILL_MODULE_KEYS),
         "created_at": now_iso(),
     }
     await gdb.tenants.insert_one(doc)

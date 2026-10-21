@@ -7,9 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import StaffProfile from "@/pages/StaffProfile";
+import { hasModule } from "@/lib/perm";
 import AdmissionRevenuePinSettings from "@/components/settings/AdmissionRevenuePinSettings";
 import GoogleSheetsSettings from "@/components/settings/GoogleSheetsSettings";
 import PasskeySettings from "@/components/settings/PasskeySettings";
+import PinSettingsSection from "@/components/settings/PinSettingsSection";
+import SoundHapticsSettings from "@/components/settings/SoundHapticsSettings";
 
 export default function Settings() {
   const { user, updateProfile } = useAuth();
@@ -76,15 +79,19 @@ function WorkspaceSettings({ user, updateProfile }) {
         </form>
       </Card>
 
-      <PasskeySettings />
+      {hasModule(user, "passkeys") && <PasskeySettings />}
 
-      {(user?.role === "super_admin" || user?.role === "office_admin") && (
+      {(user?.role === "super_admin" || user?.role === "office_admin") && hasModule(user, "google_sheets") && (
         <GoogleSheetsSettings />
       )}
 
       {user?.role === "super_admin" && (
         <AdmissionRevenuePinSettings userEmail={user?.email} />
       )}
+
+      {hasModule(user, "celebrations") && <SoundHapticsSettings />}
+
+      {hasModule(user, "pin_lock") && <PinSettingsSection />}
     </div>
   );
 }

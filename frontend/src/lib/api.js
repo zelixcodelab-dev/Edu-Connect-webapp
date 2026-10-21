@@ -1,4 +1,64 @@
 import axios from "axios";
+import { celebrate } from "@/lib/celebrate";
+
+// Endpoints whose mutations are background/automatic (not user-initiated) and
+// must NOT pop the success celebration.
+const CELEBRATE_EXCLUDES = ["/auth", "/push", "/webauthn", "/notifications", "/login-attempts", "/uploads"];
+
+function celebrationCaption(method, status) {
+  const m = (method || "").toLowerCase();
+  if (m === "delete") return "Deleted";
+  if (m === "patch" || m === "put") return "Updated";
+  if (m === "post") return status === 201 ? "Added" : "Saved";
+  return null;
+}
+
+// Significant wins get a festive confetti burst + tailored wording; routine
+// saves keep the plain folder-check popup.
+function milestoneFor(method, url) {
+  if ((method || "").toLowerCase() !== "post") return null;
+  if (/\/convert$/.test(url)) {
+    return { title: "Lead converted!", subtitle: "A new student has been enrolled." };
+  }
+  if (/\/payments$/.test(url)) {
+    return { title: "Payment recorded!", subtitle: "The fee payment has been saved." };
+  }
+  return null;
+}
+
+// Some successful mutations aren't a "save" at all — give them their own
+// welcoming wording instead of the generic "Saved successfully!".
+function customFor(method, url) {
+  if (/\/pin\/verify$/.test(url)) {
+    return { caption: "Unlocked!", title: "Unlocked!", subtitle: "You're in — here's your confidential revenue." };
+  }
+  return null;
+}
+
+function maybeCelebrate(resp) {
+  try {
+    const cfg = resp?.config || {};
+    const method = (cfg.method || "get").toLowerCase();
+    if (!["post", "put", "patch", "delete"].includes(method)) return;
+    if (cfg.skipCelebration) return;
+    const url = cfg.url || "";
+    if (CELEBRATE_EXCLUDES.some((x) => url.includes(x))) return;
+    const custom = customFor(method, url);
+    if (custom) {
+      celebrate({ kind: "success", caption: custom.caption, title: custom.title, subtitle: custom.subtitle });
+      return;
+    }
+    const milestone = milestoneFor(method, url);
+    if (milestone) {
+      celebrate({ kind: "success", caption: "Saved", milestone: true, title: milestone.title, subtitle: milestone.subtitle });
+      return;
+    }
+    const caption = celebrationCaption(method, resp?.status);
+    if (caption) celebrate({ kind: "success", caption });
+  } catch {
+    /* feedback is best-effort — never break a request */
+  }
+}
 
 // Defensive URL normalization: in some Vercel/Netlify dashboards, operators
 // configure REACT_APP_BACKEND_URL without the scheme (e.g. just the bare
@@ -158,7 +218,10 @@ function _shouldRetry(err) {
   return false;
 }
 api.interceptors.response.use(
-  (resp) => resp,
+  (resp) => {
+    maybeCelebrate(resp);
+    return resp;
+  },
   async (err) => {
     if (_shouldRetry(err)) {
       const count = (err.config.__retryCount || 0) + 1;

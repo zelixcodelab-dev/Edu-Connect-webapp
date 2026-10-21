@@ -9,7 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ArrowRight, Student as StudentIcon, FileXls, MagnifyingGlass, Buildings, UserCircle, ShareNetwork, ClipboardText, MapPin, SquaresFour, Rows } from "@phosphor-icons/react";
+import { Plus, ArrowRight, Student as StudentIcon, FileXls, MagnifyingGlass, Buildings, UserCircle, ShareNetwork, ClipboardText, MapPin, SquaresFour, Rows, UploadSimple, Trash, X } from "@phosphor-icons/react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { downloadStudentsXlsx } from "@/lib/studentExports";
 import FeesPlanFields, { emptyFeesPlan, normalizeFeesPlanForApi } from "@/components/FeesPlanFields";
@@ -20,6 +24,9 @@ import CollegeSelect from "@/components/CollegeSelect";
 import { COLLEGE_PLACES, normalizePlace } from "@/lib/places";
 import { navigateToApply, buildApplyUrl, linkedUserRef } from "@/lib/applyUrl";
 import PasteApplicationDialog from "@/components/students/PasteApplicationDialog";
+import StudentBulkUploadDialog from "@/components/student-detail/StudentBulkUploadDialog";
+import Reveal from "@/components/Reveal";
+import { CardGridSkeleton } from "@/components/Shimmer";
 
 const STATUS_OPTIONS = [
   { value: "inquiry", label: "Inquiry" },
@@ -62,17 +69,24 @@ export default function Students() {
   const allowEdit = canEdit(user, "students");
   const isSuper = user?.role === "super_admin";
   const role = user?.role;
+  const isAdmin = isSuper || role === "office_admin";
   const currency = user?.currency || "USD";
   const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
   const [colleges, setColleges] = useState([]);
   const [open, setOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
   // Filters
   const [qName, setQName] = useState("");
-  const [qCollege, setQCollege] = useState("");
-  const [qRef, setQRef] = useState("");
+  const [qCollege, setQCollege] = useState("_all");
+  const [qCourse, setQCourse] = useState("_all");
+  const [qRef, setQRef] = useState("_all");
   const [qCity, setQCity] = useState("_all"); // "_all" | one of COLLEGE_PLACES | "_other"
   const [view, setView] = useState(() => {
     try { return localStorage.getItem("students-view") || "card"; }
@@ -120,14 +134,61 @@ export default function Students() {
   };
 
   const load = useCallback(async () => {
-    const [s, c, col] = await Promise.all([
-      api.get("/students"),
-      api.get("/clients"),
-      api.get("/colleges"),
-    ]);
-    setList(s.data); setClients(c.data); setColleges(col.data);
+    setLoading(true);
+    try {
+      const [s, c, col] = await Promise.all([
+        api.get("/students"),
+        api.get("/clients"),
+        api.get("/colleges"),
+      ]);
+      setList(s.data); setClients(c.data); setColleges(col.data);
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const toggleSel = (id) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleMany = (ids, checked) => setSelectedIds((prev) => {
+    const n = new Set(prev);
+    ids.forEach((id) => { if (checked) n.add(id); else n.delete(id); });
+    return n;
+  });
+  const clearSel = () => setSelectedIds(new Set());
+  const undoBulk = async (token) => {
+    try {
+      const { data } = await api.post("/students/bulk-undo", { token });
+      toast.success(`Restored ${data.restored} student${data.restored === 1 ? "" : "s"}`);
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not undo");
+    }
+  };
+  const runBulk = async (action, value) => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const { data } = await api.post("/students/bulk-action", { ids: [...selectedIds], action, value });
+      const n = data.deleted ?? data.updated ?? 0;
+      const msg = action === "delete" ? `Deleted ${n} student${n === 1 ? "" : "s"}` : `Updated ${n} student${n === 1 ? "" : "s"}`;
+      clearSel();
+      setConfirmDelete(false);
+      load();
+      if (data.undo_token && n > 0) {
+        toast.success(msg, { duration: 8000, action: { label: "Undo", onClick: () => undoBulk(data.undo_token) } });
+      } else {
+        toast.success(msg);
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Bulk action failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   // Auto-open the Add dialog when arriving with ?new=1 (from Quick Entry hub or Add-an-admission flow)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -196,10 +257,35 @@ export default function Students() {
     return counts;
   }, [list, cityOfStudent]);
 
+  // Distinct enrolled colleges / references across the loaded students, for
+  // the filter dropdowns. Course options are scoped to the selected college.
+  const collegeOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of list) { if (s.college) set.add(String(s.college).trim()); }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [list]);
+
+  const courseOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of list) {
+      if (!s.course) continue;
+      if (qCollege !== "_all" && String(s.college).trim() !== qCollege) continue;
+      set.add(String(s.course).trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [list, qCollege]);
+
+  const referenceOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of list) { if (s.reference) set.add(String(s.reference).trim()); }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [list]);
+
   const filtered = useMemo(() => {
     const m = (v, q) => !q || String(v || "").toLowerCase().includes(q.toLowerCase());
+    const eq = (v, q) => q === "_all" || String(v || "").trim() === q;
     return [...list]
-      .filter((s) => m(s.name, qName) && m(s.college, qCollege) && m(s.reference, qRef))
+      .filter((s) => m(s.name, qName) && eq(s.college, qCollege) && eq(s.course, qCourse) && eq(s.reference, qRef))
       .filter((s) => {
         if (qCity === "_all") return true;
         const c = cityOfStudent(s);
@@ -207,7 +293,7 @@ export default function Students() {
         return c === qCity;
       })
       .sort((a, b) => String(recentRank(b)).localeCompare(String(recentRank(a))));
-  }, [list, qName, qCollege, qRef, qCity, cityOfStudent]);
+  }, [list, qName, qCollege, qCourse, qRef, qCity, cityOfStudent]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -269,7 +355,6 @@ export default function Students() {
                   }`}
                 >
                   <SquaresFour size={15} weight={view === "card" ? "fill" : "regular"} />
-                  <span className="hidden sm:inline">Card</span>
                 </button>
                 <button
                   type="button"
@@ -284,7 +369,6 @@ export default function Students() {
                   }`}
                 >
                   <Rows size={15} weight={view === "list" ? "fill" : "regular"} />
-                  <span className="hidden sm:inline">List</span>
                 </button>
               </div>
             )}
@@ -338,9 +422,28 @@ export default function Students() {
                 <ClipboardText size={16} className="mr-1.5" /> Paste application
               </Button>
             )}
+            {allowEdit && isAdmin && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBulkOpen(true)}
+                className="h-10"
+                data-testid="bulk-upload-students-btn"
+                title="Bulk upload admissions from a CSV"
+              >
+                <UploadSimple size={16} className="mr-1.5" /> Bulk upload
+              </Button>
+            )}
             {(allowEdit || role === "user") && (
-              <Button onClick={openAddStudent} data-testid="add-student-btn" className="h-10 btn-amber border-0">
-                <Plus size={16} className="mr-1.5" /> Add student
+              <Button
+                onClick={openAddStudent}
+                data-testid="add-student-btn"
+                size="icon"
+                className="h-10 w-10 btn-amber border-0"
+                title="Add student"
+                aria-label="Add student"
+              >
+                <Plus size={18} />
               </Button>
             )}
           </div>
@@ -523,8 +626,10 @@ export default function Students() {
         )}
       </header>
 
+      <StudentBulkUploadDialog open={bulkOpen} onOpenChange={setBulkOpen} onDone={() => load()} />
+
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" data-testid="students-filters">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="students-filters">
         <div className="relative">
           <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
           <Input
@@ -536,24 +641,48 @@ export default function Students() {
           />
         </div>
         <div className="relative">
-          <Buildings size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
-          <Input
-            value={qCollege}
-            onChange={(e) => setQCollege(e.target.value)}
-            placeholder="College"
-            className="pl-9 bg-card"
-            data-testid="filter-college"
-          />
+          <Buildings size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 z-10 pointer-events-none" />
+          <Select value={qCollege} onValueChange={(v) => { setQCollege(v); setQCourse("_all"); }}>
+            <SelectTrigger className="pl-9 bg-card" data-testid="filter-college">
+              <SelectValue placeholder="All colleges" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all" data-testid="filter-college-all">All colleges</SelectItem>
+              {collegeOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="relative">
-          <UserCircle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
-          <Input
-            value={qRef}
-            onChange={(e) => setQRef(e.target.value)}
-            placeholder="Reference"
-            className="pl-9 bg-card"
-            data-testid="filter-reference"
-          />
+          <StudentIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 z-10 pointer-events-none" />
+          <Select value={qCourse} onValueChange={setQCourse}>
+            <SelectTrigger className="pl-9 bg-card" data-testid="filter-course">
+              <SelectValue placeholder="All courses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all" data-testid="filter-course-all">
+                {qCollege === "_all" ? "All courses" : `All courses in ${qCollege}`}
+              </SelectItem>
+              {courseOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative">
+          <UserCircle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 z-10 pointer-events-none" />
+          <Select value={qRef} onValueChange={setQRef}>
+            <SelectTrigger className="pl-9 bg-card" data-testid="filter-reference">
+              <SelectValue placeholder="All references" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all" data-testid="filter-reference-all">All references</SelectItem>
+              {referenceOptions.map((r) => (
+                <SelectItem key={r} value={r}>{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="relative">
           <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 z-10 pointer-events-none" />
@@ -580,7 +709,9 @@ export default function Students() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <CardGridSkeleton count={6} cols="sm:grid-cols-2 lg:grid-cols-3" testid="students-loading" />
+      ) : filtered.length === 0 ? (
         <Card className="p-12 text-center text-sm text-muted-foreground border border-border shadow-none" data-testid="empty-students">
           <StudentIcon size={32} className="mx-auto text-muted-foreground/50 mb-3" />
           {list.length === 0 ? "No students yet. Add one to start tracking fees." : "No students match these filters."}
@@ -599,6 +730,10 @@ export default function Students() {
             currency={currency}
             cityOfStudent={cityOfStudent}
             hometownOf={hometownOf}
+            selectable={isAdmin}
+            selectedIds={selectedIds}
+            onToggle={toggleSel}
+            onToggleMany={toggleMany}
           />
         </>
       ) : (
@@ -610,13 +745,76 @@ export default function Students() {
               ? `Other cities — ${filtered.length} enrollments`
               : `${qCity} — ${filtered.length} enrollments`}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="students-grid">
+          <Reveal className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" testid="students-grid">
             {filtered.map((s) => (
-              <StudentCard key={s.id} s={s} currency={currency} isSuper={isSuper} />
+              <StudentCard
+                key={s.id} s={s} currency={currency} isSuper={isSuper}
+                selectable={isAdmin}
+                selected={selectedIds.has(s.id)}
+                onToggleSelect={() => toggleSel(s.id)}
+              />
             ))}
-          </div>
+          </Reveal>
         </>
       )}
+
+      {isAdmin && selectedIds.size > 0 && (
+        <div
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-3 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]"
+          data-testid="students-bulk-bar"
+        >
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap" data-testid="students-bulk-count">
+            {selectedIds.size} selected
+          </span>
+          <Select onValueChange={(v) => runBulk("status", v)} disabled={bulkBusy}>
+            <SelectTrigger className="h-9 w-[150px] rounded-full" data-testid="bulk-status-select"><SelectValue placeholder="Set status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inquiry">Inquiry</SelectItem>
+              <SelectItem value="enrolled">Enrolled</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select onValueChange={(v) => runBulk("visibility", v)} disabled={bulkBusy}>
+            <SelectTrigger className="h-9 w-[170px] rounded-full" data-testid="bulk-visibility-select"><SelectValue placeholder="Visible to office" /></SelectTrigger>
+            <SelectContent>
+              {isSuper && <SelectItem value="KM_BLR">KM Bangalore</SelectItem>}
+              {isSuper && <SelectItem value="KM_TCR">KM Thrissur</SelectItem>}
+              {isSuper && <SelectItem value="KM_KMLY">KM Kollam</SelectItem>}
+              <SelectItem value="ALL">All offices</SelectItem>
+              {!isSuper && <SelectItem value={user?.office || "ALL"}>My office</SelectItem>}
+            </SelectContent>
+          </Select>
+          <Button variant="destructive" size="sm" className="h-9 rounded-full" onClick={() => setConfirmDelete(true)} disabled={bulkBusy} data-testid="bulk-delete-btn">
+            <Trash size={15} className="mr-1.5" /> Delete
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={clearSel} disabled={bulkBusy} data-testid="bulk-clear-btn" aria-label="Clear selection">
+            <X size={16} />
+          </Button>
+        </div>
+      )}
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent data-testid="bulk-delete-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} student{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the selected admission{selectedIds.size === 1 ? "" : "s"} and their fee records. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); runBulk("delete"); }}
+              disabled={bulkBusy}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              data-testid="bulk-delete-confirm-btn"
+            >
+              {bulkBusy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

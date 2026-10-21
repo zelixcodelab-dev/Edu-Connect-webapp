@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Sparkle, ArrowRight, ChatCircleDots, Bus, GraduationCap, PhoneCall,
-  WhatsappLogo, CheckCircle, XCircle, ArrowClockwise, PencilSimple,
+  WhatsappLogo, CheckCircle, XCircle, ArrowClockwise, PencilSimple, ArrowsLeftRight,
 } from "@phosphor-icons/react";
 import { fmtDateTime, statusLabel, LEAD_STATUS_META } from "./constants";
 import FollowUpEditDialog from "./FollowUpEditDialog";
@@ -33,7 +33,7 @@ function buildEvents(lead) {
       from: h.from,
       to: h.to,
       who: h.by_name,
-      note: h.note,
+      note: h.metadata?.lost_reason ? `Lost: ${h.metadata.lost_reason}${h.note ? ` — ${h.note}` : ""}` : h.note,
       metadata: h.metadata,
       id: h.id,
     });
@@ -62,6 +62,18 @@ function buildEvents(lead) {
     });
   }
 
+  (lead.assignment_history || []).forEach((a) => {
+    events.push({
+      kind: "assignment",
+      at: a.at,
+      fromName: a.from_name,
+      toName: a.to_name,
+      who: a.by_name,
+      note: a.note,
+      id: a.id,
+    });
+  });
+
   return events
     .filter((e) => e.at)
     .sort((a, b) => new Date(a.at) - new Date(b.at));
@@ -74,6 +86,7 @@ function EventDot({ kind }) {
     followup: { icon: PhoneCall, cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-blue-500/30" },
     visit: { icon: Bus, cls: "bg-violet-500/15 text-violet-600 dark:text-violet-400 ring-violet-500/30" },
     conversion: { icon: GraduationCap, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/30" },
+    assignment: { icon: ArrowsLeftRight, cls: "bg-teal-500/15 text-teal-600 dark:text-teal-400 ring-teal-500/30" },
   };
   const { icon: Icon, cls } = map[kind] || map.status;
   return (
@@ -199,6 +212,18 @@ function EventRow({ ev, canResend, onResendLink, resending, canEditFollowup, onE
         {ev.departureAt && (
           <p className="text-[11px] text-muted-foreground">Departure: {fmtDateTime(ev.departureAt)}</p>
         )}
+        <p className="text-[11px] text-muted-foreground">{timestamp}{who}</p>
+      </>
+    ),
+    assignment: (
+      <>
+        <p className="text-sm text-foreground">
+          Reassigned{" "}
+          <span className="font-medium">{ev.fromName || "Unassigned"}</span>
+          {" → "}
+          <span className="font-medium">{ev.toName || "Unassigned"}</span>
+        </p>
+        {ev.note && <p className="text-sm text-muted-foreground mt-0.5 italic">“{ev.note}”</p>}
         <p className="text-[11px] text-muted-foreground">{timestamp}{who}</p>
       </>
     ),

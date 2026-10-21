@@ -303,6 +303,77 @@ async def add_login_to_profile(client_id: str, payload: AddLoginIn, user: dict =
     return {"ok": True, "login_user_id": uid}
 
 
+class ResetLoginIn(BaseModel):
+    password: str = Field(min_length=6)
+
+
+async def _staff_login_target(client_id: str, user: dict) -> dict:
+    """Resolve the login user linked to a scoped staff profile, or raise."""
+    _require_manager(user)
+    c = await db.clients.find_one(_client_scope_filter(client_id, user), {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Staff member not found")
+    lu_id = c.get("login_user_id")
+    if not lu_id:
+        raise HTTPException(400, "This staff member has no login yet")
+    target = await db.users.find_one({"id": lu_id}, {"_id": 0, "id": 1, "email": 1})
+    if not target:
+        raise HTTPException(404, "Login account not found")
+    return target
+
+
+class SuspendIn(BaseModel):
+    suspended: bool
+
+
+@router.post("/members/{client_id}/suspend")
+async def suspend_login(client_id: str, payload: SuspendIn, user: dict = Depends(get_current_user)):
+    """Reversibly block/unblock a staff member's login. Suspending also puts
+    their salary on hold automatically; releasing suspension leaves the hold
+    state as-is (admin releases pay explicitly)."""
+    target = await _staff_login_target(client_id, user)
+    patch: dict = {"suspended": bool(payload.suspended)}
+    if payload.suspended:
+        patch["salary_hold"] = True
+        patch["suspended_at"] = now_iso()
+        patch["suspended_by"] = user["id"]
+    else:
+        patch["suspended_at"] = None
+    if payload.suspended:
+        await db.login_attempts.delete_one({"email": target.get("email")})
+    await db.users.update_one({"id": target["id"]}, {"$set": patch})
+    return {"ok": True, "suspended": bool(payload.suspended)}
+
+
+class HoldIn(BaseModel):
+    hold: bool
+
+
+@router.post("/members/{client_id}/salary-hold")
+async def hold_salary(client_id: str, payload: HoldIn, user: dict = Depends(get_current_user)):
+    """Toggle salary hold for a staff member's login account. Held payroll
+    shows net pay as ₹0 until released, without changing the salary."""
+    target = await _staff_login_target(client_id, user)
+    await db.users.update_one({"id": target["id"]}, {"$set": {"salary_hold": bool(payload.hold)}})
+    return {"ok": True, "salary_hold": bool(payload.hold)}
+
+
+@router.post("/members/{client_id}/login/reset")
+async def reset_login_password(client_id: str, payload: ResetLoginIn, user: dict = Depends(get_current_user)):
+    """Reset the password of the login account linked to a staff profile."""
+    target = await _staff_login_target(client_id, user)
+    await db.login_attempts.delete_one({"email": target.get("email")})
+    await db.users.update_one(
+        {"id": target["id"]},
+        {"$set": {
+            "password_hash": hash_password(payload.password),
+            "password_reset_at": now_iso(),
+            "password_reset_by": user["id"],
+        }},
+    )
+    return {"ok": True, "login_user_id": target["id"]}
+
+
 # ---------- Staff self-service profile ----------
 async def _resolve_staff_client(user: dict) -> Optional[dict]:
     """Find the staff's own profile (clients) record — by explicit link first,

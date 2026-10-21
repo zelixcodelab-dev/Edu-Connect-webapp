@@ -1,0 +1,119 @@
+<analysis>Here is the summary of the previous session to help you continue without context loss.
+
+**original_problem_statement**: The ongoing product goal is to transform an existing CRM (KMConnect) into a multi-tenant SaaS called **EduConnect Pro**. The user wants to port all remaining new/changed features from an uploaded single-tenant KMConnect repository archive into the multi-tenant SaaS app. These features must be adapted to multi-tenant isolation and made switchable (on/off) per company via the Platform Console. Additionally, the user requested a new Product Tour guide with a skip option for new clients. 
+
+**User's preferred language**: English (INSTRUCT next agent to respond in English)
+
+**what currently exists?**: 
+A multi-tenant React + FastAPI CRM (EduConnect Pro) using MongoDB. Multi-tenant database routing is handled centrally via . Major platform console functionality is complete (tenants, RBAC, DB browsing, VPS/Docker panel). Previous sessions successfully ported specific features from the uploaded single-tenant archive: Attendance + Payroll, Academic-Year filter, Google Sheets sync, and WebAuthn passkeys. The standalone  route was removed, though the internal component was kept for the Attendance page.
+
+**Last working item**:
+- **Last item agent was working**: The agent was in a system-enforced Plan Mode to outline the implementation of the user's latest requests. The agent gathered answers using  and drafted  detailing the upcoming feature migrations (porting the rest of the KMConnect archive features one-by-one, fixing leftover  UI links, adding module toggles to the Platform Console, and building the Product Tour).
+- **Status**: NOT STARTED (Planning is finished, actual coding of the plan has not commenced).
+- **Agent Testing Done**: N/A
+- **Which testing method agent to use?**: testing agent (Required due to multi-tenant feature integrations and UI flows).
+- **User Testing Done**: N/A
+
+**All Pending/In progress Issue list**:
+- **Issue 1**: Leftover  route references in the frontend.
+    - **Attempted fixes**: Agent used grep to find the issues but didn't fix them before being forced into plan mode.
+    - **Next debug checklist**: Check  (line 133 tile needs to open Attendance on its Leave tab) and  (remove  from line 71).
+    - **Why fix this issue and what will be achieved with the fix?**: Ensures users aren't clicking dead links or navigating to removed standalone pages.
+    - **Status**: NOT STARTED
+    - **Is recurring issue?**: N
+    - **Should Test frontend/backend/both after fix?**: Frontend
+    - **Blocked on other issue**: None
+
+**In progress Task List**:
+- None currently in active code development (just exited planning phase).
+
+**Upcoming and Future Tasks**:
+- **Task 1 (P0)**: Implement a Product Tour (guide) for new clients, including a Skip option.
+- **Task 2 (P0)**: Port every remaining new/changed feature from the uploaded KMConnect repo one by one. *CRITICAL: Adapt them to multi-tenant architecture, keeping SaaS login and isolation intact (do not blindly overwrite  or ).*
+- **Task 3 (P0)**: Update the Platform Console to make every newly ported feature switchable (on/off) per company (module toggle).
+
+**Completed work in this session**:
+- Established the implementation plan based on user constraints and created .
+
+**Earlier issues found/mentioned but not fixed**:
+- **Issue 1**: WebAuthn real-device validation
+    - **Debug checklist**: Needs testing on a real browser/device with a platform authenticator under the production domain (). 
+    - **Why to solve this issue and what will be achieved with this?**: Verifies that biometric passkeys actually work in a production environment.
+    - **Should Test frontend/backend/both after fix**: Both
+    - **Is recurring issue?**: N
+- **Issue 2**: Google Sheets OAuth configuration
+    - **Debug checklist**: Awaits actual Google OAuth credentials from the user to verify sync functionality. 
+    - **Why to solve this issue and what will be achieved with this?**: Feature is currently in a graceful not configured state. Needs real keys to work.
+    - **Should Test frontend/backend/both after fix**: Both
+    - **Is recurring issue?**: N
+
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: N/A
+- Recurrence count: 0
+- Status: NOT STARTED
+
+**Code Architecture**:
+- Frontend: React SPA (Shadcn UI, Tailwind).
+- Backend: FastAPI.
+- Database: MongoDB (Dynamic multi-tenant routing via ).
+- Platform: Global DB for system-wide configuration (users, plans, tenants, RBAC), separate isolated DBs for each tenant.
+
+**Key Technical Concepts**:
+Multi-tenancy, Dynamic MongoDB database switching, JWT/OAuth Authentication, Docker/VPS Proxying.
+
+**key DB schema**:
+-  (Global DB): Client metadata, plan info, activated modules.
+-  /  /  /  (Tenant DBs): Isolated company data.
+
+**changes in tech stack**:
+- Railway deployment config constraints: Avoid  as it previously caused build failures due to unresolvable internal emergent packages.
+
+**All files of reference**:
+- : The agreed-upon execution plan (created this session).
+- : Contains broken  navigation.
+- : *CRITICAL* Do not overwrite. Handles multi-tenant DB routing.
+- : *CRITICAL* Do not overwrite. Handles multi-tenant auth.
+- : Ongoing project requirements.
+
+**Areas that need refactoring**:
+-  needs the Leave tile repointed to  (active tab: Leave).
+
+**key api endpoints**:
+- , 
+-  (OAuth checks)
+- VPS/Docker internal routes in 
+
+**Critical Info for New Agent**: 
+- **Surgical Feature Porting**: You will be migrating features from an uploaded, *single-tenant* codebase archive into this *multi-tenant* app. **NEVER** overwrite shared structural files like  or . 
+- **Module System**: The user explicitly wants *every* newly ported feature to be toggleable per company via the Platform Console.
+- Read  to understand the exact, user-approved phases you are expected to execute next. 
+- Always refer to  for auth testing.
+
+**documents and test reports created in this job**:
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**:
+1. (User) Update all the Updating to SaaS Edu connect web app all features.
+2. (User) Saw output of grep command showing leftover  references.
+3. (User) System-injected message forcing plan mode.
+4. (User) Clarified requirements via : Port features one by one keeping multi-tenant intact, point Staff Dashboard Leave tile to Attendance Leave tab, make new features switchable per company, skip onboarding new company for now, **add a new product tour with a skip option for clients**.
+
+**Project Health Check**:
+- Broken: Leftover  tile in Staff Dashboard.
+- Mocked: Docker VPS panel endpoints (mocked due to pod limitations), Google Sheets (waiting for credentials).
+
+**3rd Party Integrations**:
+- Google Sheets (OAuth) - requires User API credentials
+- WebAuthn Passkeys - relies on user device authentication context.
+
+**Testing status**:
+- Testing agent used after significant changes: NO (Only planning was done)
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: None this session.
+- Known regressions: None
+
+**Credentials to test flow**:
+Check 
+
+**What agent forgot to execute**:
+The agent did not start the coding phase for the newly defined plan (Product Tour, module toggles, fixing the  tile) because the system forcibly bounded the agent to execute Plan Mode and immediately finish upon creating . The next agent must begin executing .</analysis>

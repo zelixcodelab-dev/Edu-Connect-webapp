@@ -1,5 +1,8 @@
 """Client CRUD."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
@@ -29,7 +32,11 @@ async def list_clients(user: dict = Depends(get_current_user)):
     """Office admin sees own clients PLUS clients scoped to their office (or
     shared with ALL) via home_office. Super admin sees clients from ALL users
     (so staff onboarded by office admins are visible too). Each returned doc
-    gets a `_creator_name` / `_creator_office` for UI attribution."""
+    gets a `_creator_name` / `_creator_office` for UI attribution.
+
+    Also enriches staff-type rows with ``has_login`` + ``login_user_id`` so
+    the Employees UI can show a "Create login" action inline (matching the
+    Office Admin's Staff page). Not academic-year scoped."""
     if user.get("role") == "super_admin":
         docs = await db.clients.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
         if docs:
@@ -44,10 +51,37 @@ async def list_clients(user: dict = Depends(get_current_user)):
                 if u and u.get("role") == "office_admin":
                     d["_creator_name"] = u.get("name")
                     d["_creator_office"] = u.get("office")
+        await _enrich_login_status(docs)
         return docs
-    return await db.clients.find(
+    docs = await db.clients.find(
         _office_visibility_clause(user), {"_id": 0}
     ).sort("created_at", -1).to_list(1000)
+    await _enrich_login_status(docs)
+    return docs
+
+
+async def _enrich_login_status(docs: list[dict]) -> None:
+    """Mutates each staff row to add ``has_login`` (plus ``suspended`` /
+    ``salary_hold`` read from the linked login account) — used by the
+    Employees UI to render inline login + access controls."""
+    login_ids = [
+        d.get("login_user_id")
+        for d in docs
+        if d.get("client_type") == "staff" and d.get("login_user_id")
+    ]
+    umap: dict = {}
+    if login_ids:
+        us = await db.users.find(
+            {"id": {"$in": login_ids}},
+            {"_id": 0, "id": 1, "suspended": 1, "salary_hold": 1},
+        ).to_list(5000)
+        umap = {u["id"]: u for u in us}
+    for d in docs:
+        if d.get("client_type") == "staff":
+            lu = umap.get(d.get("login_user_id"))
+            d["has_login"] = bool(d.get("login_user_id"))
+            d["suspended"] = bool((lu or {}).get("suspended"))
+            d["salary_hold"] = bool((lu or {}).get("salary_hold"))
 
 
 async def _next_employee_id(office: str | None) -> str:
@@ -176,6 +210,26 @@ async def client_detail(client_id: str, user: dict = Depends(get_current_user)) 
     ]
     enriched_students.sort(key=lambda x: x.get("enrollment_date") or "", reverse=True)
 
+    # Per-student service-charge clearance: a student's SC is "Cleared" once a
+    # service_charge invoice naming that student exists against this client.
+    sc_invoices = await db.invoices.find(
+        {"client_id": client_id, "invoice_type": "service_charge"},
+        {"_id": 0, "student_name": 1},
+    ).to_list(2000)
+    sc_cleared_names = {
+        (inv.get("student_name") or "").strip().lower()
+        for inv in sc_invoices
+        if (inv.get("student_name") or "").strip()
+    }
+    for s in enriched_students:
+        st = (s.get("status") or "").lower()
+        if st == "cancelled":
+            s["sc_status"] = "not_earned"
+        elif (s.get("name") or "").strip().lower() in sc_cleared_names:
+            s["sc_status"] = "cleared"
+        else:
+            s["sc_status"] = "pending"
+
     if user.get("role") == "super_admin":
         tx_query: dict = {"client_id": client_id}
     else:
@@ -191,6 +245,37 @@ async def client_detail(client_id: str, user: dict = Depends(get_current_user)) 
     txs = await db.transactions.find(
         tx_query, {"_id": 0}
     ).sort("date", -1).to_list(500)
+
+    # SC the client EARNED as a sub-agent / associate: surfaced from student
+    # payment adjustments (kind=sc_adjusted) that reference this client. These
+    # are synthetic *credit* rows in the money trail — NOT real DB transactions
+    # — so they never pollute account balances or the main Transactions page.
+    if not is_staff:
+        sc_students = await db.students.find(
+            {"payments.adjustments.client_id": client_id},
+            {"_id": 0, "id": 1, "name": 1, "payments": 1},
+        ).to_list(2000)
+        sc_rows = []
+        for st in sc_students:
+            for p in (st.get("payments") or []):
+                for idx, a in enumerate(p.get("adjustments") or []):
+                    if a.get("client_id") == client_id and a.get("kind") == "sc_adjusted":
+                        sc_rows.append({
+                            "id": f"sc-{st['id']}-{p.get('id')}-{idx}",
+                            "date": a.get("payment_date") or p.get("date"),
+                            "description": f"SC earned — {st.get('name')}",
+                            "type": "income",
+                            "amount": round(float(a.get("amount") or 0), 2),
+                            "is_sc_earned": True,
+                            "sc_given": bool(a.get("sc_given")),
+                            "_sc_student_id": st["id"],
+                            "_sc_payment_id": p.get("id"),
+                            "_sc_adj_idx": idx,
+                            "_sc_student_name": st.get("name"),
+                        })
+        if sc_rows:
+            txs = txs + sc_rows
+            txs.sort(key=lambda t: t.get("date") or "", reverse=True)
 
     # Best-effort: resolve a matching staff LOGIN user (role="staff") for this
     # employee record so the UI can surface / edit their leave quota. Matched
@@ -229,3 +314,69 @@ async def client_detail(client_id: str, user: dict = Depends(get_current_user)) 
             enriched_students, txs, incentive_amount=incentive_amount
         ),
     }
+
+
+class ScPayoutIn(BaseModel):
+    student_id: str
+    payment_id: str
+    adjustment_idx: int
+    amount: float
+    account_id: str
+    payment_mode: str = "bank_transfer"
+    date: Optional[str] = None
+
+
+@router.post("/{client_id}/sc-payout")
+async def pay_sc_now(
+    client_id: str,
+    payload: ScPayoutIn,
+    user: dict = Depends(require_edit("transactions")),
+):
+    """One-click SC payout: pay the SC a sub-agent/associate earned on a specific
+    student fee adjustment. Marks that adjustment `sc_given=True` and logs a real
+    SC-payout expense transaction (reduces the agent's holding, shows as a debit
+    in their money trail)."""
+    client = await db.clients.find_one(_client_filter(client_id, user), {"_id": 0})
+    if not client:
+        raise HTTPException(404, "Client not found")
+
+    st_filter = {"id": payload.student_id}
+    if user.get("role") != "super_admin":
+        st_filter.update(_office_visibility_clause(user))
+    student = await db.students.find_one(st_filter, {"_id": 0})
+    if not student:
+        raise HTTPException(404, "Student not found")
+
+    payment = next((p for p in (student.get("payments") or []) if p.get("id") == payload.payment_id), None)
+    if not payment:
+        raise HTTPException(404, "Payment not found")
+    adjustments = payment.get("adjustments") or []
+    if not (0 <= payload.adjustment_idx < len(adjustments)):
+        raise HTTPException(404, "Adjustment not found")
+    adj = adjustments[payload.adjustment_idx]
+    if adj.get("kind") != "sc_adjusted" or adj.get("client_id") != client_id:
+        raise HTTPException(400, "Adjustment does not match this client")
+
+    await db.students.update_one(
+        {"id": payload.student_id, "payments.id": payload.payment_id},
+        {"$set": {f"payments.$.adjustments.{payload.adjustment_idx}.sc_given": True}},
+    )
+
+    doc = {
+        "id": gen_id(),
+        "user_id": user["id"],
+        "created_at": now_iso(),
+        "type": "expense",
+        "amount": round(float(payload.amount), 2),
+        "account_id": payload.account_id,
+        "category_id": None,
+        "date": payload.date or now_iso()[:10],
+        "description": f"SC payout — {student.get('name')} · to {client.get('name')}",
+        "client_id": client_id,
+        "is_sc_payout": True,
+        "payment_mode": payload.payment_mode,
+        "student_name": student.get("name"),
+    }
+    await db.transactions.insert_one(doc)
+    doc.pop("_id", None)
+    return {"ok": True, "transaction": doc}

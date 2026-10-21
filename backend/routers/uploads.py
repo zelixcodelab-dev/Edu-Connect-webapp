@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import (
-    APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile,
+    APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile,
 )
 
 from db import db
@@ -194,21 +194,79 @@ async def soft_delete_file(file_id: str, user: dict = Depends(get_current_user))
     return {"ok": True}
 
 
+async def _user_from_request(request: Request) -> Optional[dict]:
+    """Resolve the caller from the auth cookie OR ``Authorization: Bearer``.
+
+    Used by ``serve_file`` — which is hit by ``fetch()``/axios (both send the
+    cookie and/or the Bearer header), so we no longer accept a token in the URL
+    query string (SEC-001: query tokens leak into history / logs / referrers).
+    """
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
+        return None
+    user = await db.users.find_one(
+        {"id": payload["sub"]}, {"_id": 0, "password_hash": 0}
+    )
+    if not user or user.get("deleted_at"):
+        return None
+    return user
+
+
+async def _authorize_file_read(user: dict, record: dict) -> None:
+    """SEC-001: enforce owner / lead / office scoping on a file read.
+
+    * The uploader can always read their own file.
+    * ``profile`` photos are low-sensitivity and surface across the admin UI
+      (topbar, sidebar, cross-office staff cards), so any authenticated user
+      may view them.
+    * ``lead_document`` attachments are sensitive: super_admin sees all;
+      office_admin only within their own office; staff only for leads assigned
+      to them. Any other role is refused.
+    """
+    if record.get("owner_user_id") == user.get("id"):
+        return
+    purpose = record.get("purpose")
+    if purpose == "profile":
+        return
+    if purpose == "lead_document":
+        role = user.get("role")
+        if role == "super_admin":
+            return
+        lead_id = record.get("lead_id")
+        lead = None
+        if lead_id:
+            lead = await db.leads.find_one(
+                {"id": lead_id}, {"_id": 0, "office": 1, "assigned_to": 1}
+            )
+        if role == "office_admin" and lead and lead.get("office") == user.get("office"):
+            return
+        if role == "staff" and lead and lead.get("assigned_to") == user.get("id"):
+            return
+        raise HTTPException(403, "You do not have access to this file")
+    # Unknown purpose → owner-only (already returned above) → refuse.
+    raise HTTPException(403, "You do not have access to this file")
+
+
 @router.get("/files/{path:path}")
-async def serve_file(path: str, authorization: str = Header(None), auth: str = Query(None)):
-    """Serve a stored file. Auth via ``Authorization: Bearer <t>`` OR
-    ``?auth=<t>`` query param (needed because ``<img>``/``<a download>``
-    tags can't attach headers)."""
-    token = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]
-    elif auth:
-        token = auth
-    if not token or not decode_token(token):
+async def serve_file(path: str, request: Request):
+    """Serve a stored file. Auth via the ``access_token`` cookie OR
+    ``Authorization: Bearer <t>`` (the frontend fetches files with axios, which
+    attaches both). The file is then scope-checked against the caller
+    (SEC-001)."""
+    user = await _user_from_request(request)
+    if not user:
         raise HTTPException(401, "Not authenticated")
     record = await db.files.find_one({"storage_path": path, "is_deleted": False})
     if not record:
         raise HTTPException(404, "File not found")
+    await _authorize_file_read(user, record)
     try:
         data, content_type = get_object(path)
     except Exception as e:

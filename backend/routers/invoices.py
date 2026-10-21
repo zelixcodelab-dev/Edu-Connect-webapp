@@ -1,5 +1,6 @@
 """Invoice CRUD with auto-linked expense transactions + open-credit lookups."""
 import logging
+import re
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +9,7 @@ from pymongo.errors import OperationFailure
 from db import client, db
 from auth_lib import get_current_user, gen_id, now_iso
 from models import InvoiceIn
+from lib.academic_year import with_year
 from routers.notifications import notify_users
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
@@ -30,6 +32,37 @@ def _compute_totals(items: List[dict], tax_rate: float, credit_amount: float = 0
     tax_amount = round(subtotal * (tax_rate / 100.0), 2)
     total = round(subtotal + tax_amount - (credit_amount or 0.0) - (previous_payment or 0.0), 2)
     return {"subtotal": round(subtotal, 2), "tax_amount": tax_amount, "total": total}
+
+
+async def _sync_sc_given_from_invoice(invoice: dict) -> None:
+    """When a PAID Service Charge invoice names a student, flip that student's
+    matching SC adjustment (kind=sc_adjusted, this client) to sc_given=True so
+    the client money trail shows the SC as given. No-op unless paid + named."""
+    if invoice.get("invoice_type") != "service_charge":
+        return
+    if invoice.get("status") != "paid":
+        return
+    client_id = invoice.get("client_id")
+    sname = (invoice.get("student_name") or "").strip()
+    if not client_id or not sname:
+        return
+    cursor = db.students.find(
+        {
+            "name": {"$regex": f"^{re.escape(sname)}$", "$options": "i"},
+            "payments.adjustments": {"$elemMatch": {"kind": "sc_adjusted", "client_id": client_id}},
+        },
+        {"_id": 0, "id": 1, "payments": 1},
+    )
+    async for st in cursor:
+        changed = False
+        payments = st.get("payments") or []
+        for p in payments:
+            for a in (p.get("adjustments") or []):
+                if a.get("kind") == "sc_adjusted" and a.get("client_id") == client_id and not a.get("sc_given"):
+                    a["sc_given"] = True
+                    changed = True
+        if changed:
+            await db.students.update_one({"id": st["id"]}, {"$set": {"payments": payments}})
 
 
 async def _sync_invoice_sc_payment_transaction(user_id: str, invoice: dict) -> None:
@@ -283,6 +316,7 @@ async def create_invoice(payload: InvoiceIn, user: dict = Depends(get_current_us
     doc.pop("_id", None)
     await _sync_invoice_expense_transactions(user["id"], doc)
     await _sync_invoice_sc_payment_transaction(user["id"], doc)
+    await _sync_sc_given_from_invoice(doc)
     await _notify_linked_user_of_invoice(doc, user)
     return doc
 
@@ -303,6 +337,7 @@ async def update_invoice(invoice_id: str, payload: InvoiceIn, user: dict = Depen
     fresh = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
     await _sync_invoice_expense_transactions(user["id"], fresh)
     await _sync_invoice_sc_payment_transaction(user["id"], fresh)
+    await _sync_sc_given_from_invoice(fresh)
     return fresh
 
 
@@ -317,7 +352,9 @@ async def set_invoice_status(invoice_id: str, body: dict, user: dict = Depends(g
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Invoice not found")
-    return await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
+    fresh = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
+    await _sync_sc_given_from_invoice(fresh)
+    return fresh
 
 
 @router.delete("/{invoice_id}")

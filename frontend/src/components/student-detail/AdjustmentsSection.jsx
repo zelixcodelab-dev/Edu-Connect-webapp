@@ -64,6 +64,7 @@ export default function AdjustmentsSection({
       account_id: "",
       client_id: "",
       sub_agent_name: "",
+      sc_given: false,
     });
   };
 
@@ -97,7 +98,7 @@ export default function AdjustmentsSection({
         <div className="flex-1">
           <p className="text-sm font-medium">This payment has an adjustment</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Split the amount across KM Foundation account, Sub-Agent or Associate Consultant.
+            Split the amount across company account, Sub-Agent, Associate Consultant, or amount paid to the College.
           </p>
         </div>
       </label>
@@ -150,6 +151,13 @@ export default function AdjustmentsSection({
                       )}
                     </SelectContent>
                   </Select>
+                ) : adj.kind === "paid_to_college" ? (
+                  <div
+                    className="col-span-6 h-10 flex items-center px-3 rounded-md border border-border bg-muted/40 text-xs text-muted-foreground"
+                    data-testid={`${testIdPrefix}-college-note-${idx}`}
+                  >
+                    Paid directly to the college
+                  </div>
                 ) : (
                   <Select
                     value={adj.client_id || ""}
@@ -214,6 +222,19 @@ export default function AdjustmentsSection({
                 placeholder="Remarks"
                 data-testid={`${testIdPrefix}-remarks-${idx}`}
               />
+
+              {(adj.kind === "sub_agent" || adj.kind === "associate_consultant") && (
+                <label className="flex items-center gap-2 cursor-pointer pt-0.5" data-testid={`${testIdPrefix}-sc-given-wrap-${idx}`}>
+                  <Checkbox
+                    checked={!!adj.sc_given}
+                    onCheckedChange={(v) => onChange(idx, "sc_given", !!v)}
+                    data-testid={`${testIdPrefix}-sc-given-${idx}`}
+                  />
+                  <span className="text-xs text-foreground">
+                    SC already given to this {adj.kind === "sub_agent" ? "sub-agent" : "associate consultant"}
+                  </span>
+                </label>
+              )}
             </div>
           ))}
 

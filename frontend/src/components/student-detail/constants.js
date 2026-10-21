@@ -121,6 +121,7 @@ export const ADJUSTMENT_KIND_OPTIONS = [
   { value: "km_foundation", label: "KM FOUNDATION" },
   { value: "sub_agent", label: "SUB AGENT" },
   { value: "associate_consultant", label: "ASSOCIATE CONSULTANT" },
+  { value: "paid_to_college", label: "PAID to COLLEGE" },
 ];
 
 export function emptyAdjustment(date) {
@@ -134,6 +135,7 @@ export function emptyAdjustment(date) {
     sub_agent_name: "",
     account_id: "",
     client_id: "",
+    sc_given: false,
     remarks: "",
   };
 }

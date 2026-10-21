@@ -8,6 +8,9 @@ import {
   GraduationCap, Trophy, ClockClockwise, UserCircle,
 } from "@phosphor-icons/react";
 import { StatCard } from "@/components/dashboard/StatCard";
+import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
+import Reveal from "@/components/Reveal";
+import { StatRowSkeleton } from "@/components/Shimmer";
 import StaffBreakdownList from "@/components/office-dashboard/StaffBreakdownList";
 import {
   UpcomingBirthdaysCard, IncentiveRuleCard,
@@ -148,7 +151,7 @@ export default function OfficeDashboard({ superView = false }) {
               key={tb.value}
               onClick={() => setTab(tb.value)}
               data-testid={`office-tab-${tb.value}`}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`press-spring px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 tab === tb.value
                   ? "bg-amber-gradient text-white shadow-md shadow-orange-500/25"
                   : "bg-card border border-border text-foreground hover:bg-muted/40"
@@ -160,6 +163,7 @@ export default function OfficeDashboard({ superView = false }) {
         </div>
       </header>
 
+      <div key={tab} className="view-enter">
       {tab === "crm" ? (
         <CrmAnalytics office={superView ? office : null} />
       ) : (
@@ -181,34 +185,36 @@ export default function OfficeDashboard({ superView = false }) {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading ? <StatRowSkeleton /> : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 dash-stagger">
             <StatCard testId="stat-admissions" icon={GraduationCap} palette="amber"
               eyebrow="Admissions"
-              value={loading ? "—" : (t.admissions ?? 0)}
+              value={loading ? "—" : <AnimatedNumber value={t.admissions ?? 0} format={(n) => String(Math.round(n))} />}
               hint={`in ${windowLabel}`}
               onClick={() => nav("/students")}
             />
             <StatCard testId="stat-incentive-earned" icon={Trophy} palette="emerald"
               eyebrow="Incentive earned"
-              value={loading ? "—" : formatMoney(t.incentive_earned ?? 0, currency)}
+              value={loading ? "—" : <AnimatedNumber value={t.incentive_earned ?? 0} format={(n) => formatMoney(n, currency)} />}
               hint={`${t.eligible_admissions ?? 0} eligible admissions`}
               onClick={() => nav("/expense-requests")}
             />
             <StatCard testId="stat-incentive-pending" icon={ClockClockwise} palette="rose"
               eyebrow="Incentive pending"
-              value={loading ? "—" : formatMoney(t.incentive_pending ?? 0, currency)}
+              value={loading ? "—" : <AnimatedNumber value={t.incentive_pending ?? 0} format={(n) => formatMoney(n, currency)} />}
               hint="Yet to mark paid"
               onClick={() => nav("/expense-requests")}
             />
             <StatCard testId="stat-staff-count" icon={UserCircle} palette="violet"
               eyebrow="Staff on roster"
-              value={loading ? "—" : (t.staff_count ?? 0)}
+              value={loading ? "—" : <AnimatedNumber value={t.staff_count ?? 0} format={(n) => String(Math.round(n))} />}
               hint="Add more in Staff"
               onClick={() => nav("/employees")}
             />
           </div>
+          )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Reveal className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <StaffBreakdownList
               breakdown={breakdown}
               loading={loading}
@@ -221,9 +227,10 @@ export default function OfficeDashboard({ superView = false }) {
               <UpcomingBirthdaysCard birthdays={birthdays} />
               <IncentiveRuleCard onAddAdmission={openAdmissionPicker} />
             </div>
-          </div>
+          </Reveal>
         </>
       )}
+      </div>
 
       <StaffPickerDialog
         open={pickerOpen}

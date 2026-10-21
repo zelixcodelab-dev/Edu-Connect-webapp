@@ -10,15 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   Plus, UploadSimple, MagnifyingGlass, Target, ClockCountdown, CheckCircle, Phone, GraduationCap,
-  ListBullets, Kanban, ArrowRight,
+  ListBullets, Kanban, ArrowRight, DownloadSimple,
 } from "@phosphor-icons/react";
 import { LEAD_STATUSES, LEAD_STATUS_META, sourceLabel, fmtDateTime } from "./constants";
 import LeadFormDialog from "./LeadFormDialog";
 import LeadDetailDialog from "./LeadDetailDialog";
 import LeadsBulkUploadDialog from "./LeadsBulkUploadDialog";
 import LeadsBoard from "./LeadsBoard";
+import StageChangeDialog from "./StageChangeDialog";
 import LeadsBulkActionBar from "./LeadsBulkActionBar";
 import UserAvatar from "@/components/UserAvatar";
+import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
+import Reveal from "@/components/Reveal";
+import { CardGridSkeleton } from "@/components/Shimmer";
+
+const countFmt = (n) => String(Math.round(n));
 
 function StatTile({ icon: Icon, label, value, tone, testid, onClick, ariaLabel }) {
   const tones = {
@@ -29,7 +35,7 @@ function StatTile({ icon: Icon, label, value, tone, testid, onClick, ariaLabel }
   };
   const inner = (
     <>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tones[tone]}`}><Icon size={20} weight="duotone" /></div>
+      <div className={`stat-icon w-10 h-10 rounded-xl flex items-center justify-center ${tones[tone]}`}><Icon size={20} weight="duotone" /></div>
       <div className="flex-1 min-w-0">
         <p className="text-2xl font-display font-semibold leading-none">{value}</p>
         <p className="text-xs text-muted-foreground mt-1">{label}</p>
@@ -45,7 +51,7 @@ function StatTile({ icon: Icon, label, value, tone, testid, onClick, ariaLabel }
   );
   if (!onClick) {
     return (
-      <Card className="p-4 flex items-center gap-3" data-testid={testid}>{inner}</Card>
+      <Card className="card-hover p-4 flex items-center gap-3" data-testid={testid}>{inner}</Card>
     );
   }
   return (
@@ -54,7 +60,7 @@ function StatTile({ icon: Icon, label, value, tone, testid, onClick, ariaLabel }
       onClick={onClick}
       data-testid={testid}
       aria-label={ariaLabel || label}
-      className="group text-left w-full rounded-xl border border-border bg-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-2 hover:ring-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+      className="group card-hover press-spring text-left w-full rounded-xl border border-border bg-card p-4 flex items-center gap-3 cursor-pointer hover:ring-2 hover:ring-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
     >
       {inner}
     </button>
@@ -78,6 +84,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
   const [statusFilter, setStatusFilter] = useState(initialFilter);
   const [sourceFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [campaignFilter, setCampaignFilter] = useState("all");
   const [q, setQ] = useState("");
   const [view, setView] = useState("list");
 
@@ -97,6 +104,8 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
   }, [params, setParams]);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [boardStagePrompt, setBoardStagePrompt] = useState(null);
+  const [boardBusy, setBoardBusy] = useState(false);
   const [editLead, setEditLead] = useState(null);
   const [detailLead, setDetailLead] = useState(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -125,6 +134,11 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
       }
       if (sourceFilter !== "all") qp.source = sourceFilter;
       if (assigneeFilter !== "all") qp.assigned_to = assigneeFilter;
+      // Campaign filter (only when we're not already locked to one campaign).
+      if (!campaignId) {
+        if (campaignFilter === "__uncat__") qp.uncategorized = true;
+        else if (campaignFilter !== "all") qp.campaign_id = campaignFilter;
+      }
       if (q.trim()) qp.q = q.trim();
       if (officeOverride && officeOverride !== "all") qp.office = officeOverride;
       const { data } = await api.get("/leads", { params: qp });
@@ -134,7 +148,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, sourceFilter, assigneeFilter, q, view, campaignId, allLeadsMode, uncategorizedOnly, officeOverride]);
+  }, [statusFilter, sourceFilter, assigneeFilter, campaignFilter, q, view, campaignId, allLeadsMode, uncategorizedOnly, officeOverride]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -154,7 +168,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
 
   // Reset the selection whenever the underlying lead list refreshes so
   // stale ids don't linger (deleted leads etc.).
-  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, sourceFilter, assigneeFilter, q, view, campaignId, uncategorizedOnly]);
+  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, sourceFilter, assigneeFilter, campaignFilter, q, view, campaignId, uncategorizedOnly]);
 
   // Parent (Leads.jsx) bumps refreshKey after the shared deep-link dialog
   // mutates a lead — refetch so the pipeline reflects the change even when
@@ -171,8 +185,10 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
   }, [isStaff]);
 
   useEffect(() => {
-    if (isStaff) return;
-    api.get("/campaigns").then(({ data }) => setCampaigns(data)).catch(() => {});
+    // Admins can list every campaign; staff use a lightweight endpoint that
+    // returns only the campaigns present among their own leads.
+    const url = isStaff ? "/leads/my-campaigns" : "/campaigns";
+    api.get(url).then(({ data }) => setCampaigns(data)).catch(() => {});
   }, [isStaff, allLeadsMode]);
 
   useEffect(() => {
@@ -185,6 +201,34 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
   }, [params, editable, setParams, showActions, campaignId]);
 
   const afterChange = () => { fetchLeads(); fetchStats(); onChanged?.(); };
+
+  const [downloading, setDownloading] = useState(false);
+  const downloadCsv = async () => {
+    setDownloading(true);
+    try {
+      const qp = {};
+      if (campaignId) qp.campaign_id = campaignId;
+      if (allLeadsMode && uncategorizedOnly) qp.uncategorized = true;
+      if (statusFilter === "missed") qp.view = "missed";
+      else if (statusFilter !== "all") qp.status = statusFilter;
+      if (sourceFilter !== "all") qp.source = sourceFilter;
+      if (assigneeFilter !== "all") qp.assigned_to = assigneeFilter;
+      if (q.trim()) qp.q = q.trim();
+      if (officeOverride && officeOverride !== "all") qp.office = officeOverride;
+      const res = await api.get("/leads/export", { params: qp, responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads-${statusFilter}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Leads exported");
+    } catch {
+      toast.error("Could not export leads");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const visibleIds = useMemo(() => leads.map((l) => l.id), [leads]);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
@@ -200,13 +244,25 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
       setDetailLead({ ...lead, __autoAction: status });
       return;
     }
+    // Every other move prompts for a conversation note (+ Lost sub-stage).
+    setBoardStagePrompt({ lead, status });
+  };
+
+  const confirmBoardStage = async ({ status_note, lost_reason }) => {
+    const { lead, status } = boardStagePrompt || {};
+    if (!lead) return;
+    setBoardBusy(true);
     try {
-      await api.patch(`/leads/${lead.id}`, { status });
+      const body = { status };
+      if (status_note) body.status_note = status_note;
+      if (lost_reason) body.lost_reason = lost_reason;
+      await api.patch(`/leads/${lead.id}`, body);
       toast.success(`Moved to ${LEAD_STATUS_META[status].label}`);
+      setBoardStagePrompt(null);
       afterChange();
     } catch (err) {
       toast.error("Could not move lead");
-    }
+    } finally { setBoardBusy(false); }
   };
 
   const filterChips = useMemo(() => ([
@@ -236,14 +292,14 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
       )}
 
       {!campaignId && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="leads-stats">
-          <StatTile icon={Target} label="Total leads" value={stats.total} tone="amber"
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 dash-stagger" data-testid="leads-stats">
+          <StatTile icon={Target} label="Total leads" value={<AnimatedNumber value={stats.total} format={countFmt} />} tone="amber"
             testid="stat-total-leads" onClick={() => { setStatusFilter("all"); setView("list"); }} />
-          <StatTile icon={ClockCountdown} label="Follow-up" value={stats.by_status?.follow_up || 0} tone="sky"
+          <StatTile icon={ClockCountdown} label="Follow-up" value={<AnimatedNumber value={stats.by_status?.follow_up || 0} format={countFmt} />} tone="sky"
             testid="stat-followup-leads" onClick={() => { setStatusFilter("follow_up"); setView("list"); }} />
-          <StatTile icon={ClockCountdown} label="Missed" value={stats.missed} tone="rose"
+          <StatTile icon={ClockCountdown} label="Missed" value={<AnimatedNumber value={stats.missed} format={countFmt} />} tone="rose"
             testid="stat-missed-leads" onClick={() => { setStatusFilter("missed"); setView("list"); }} />
-          <StatTile icon={CheckCircle} label="Converted" value={stats.by_status?.converted || 0} tone="emerald"
+          <StatTile icon={CheckCircle} label="Converted" value={<AnimatedNumber value={stats.by_status?.converted || 0} format={countFmt} />} tone="emerald"
             testid="stat-converted-leads" onClick={() => { setStatusFilter("converted"); setView("list"); }} />
         </div>
       )}
@@ -283,11 +339,31 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
               </SelectContent>
             </Select>
           )}
+          {!campaignId && campaigns.length > 0 && (
+            <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+              <SelectTrigger className="w-48 h-10 bg-card" data-testid="leads-campaign-filter"><SelectValue placeholder="Campaign" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All campaigns</SelectItem>
+                {campaigns.map((c) => (
+                  <SelectItem key={c.id} value={c.id} data-testid={`leads-campaign-opt-${c.id}`}>
+                    {c.name}{typeof c.count === "number" ? ` · ${c.count}` : ""}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__uncat__">Uncategorised</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {allLeadsMode && (
             <button type="button" onClick={() => setUncategorizedOnly((v) => !v)} data-testid="leads-uncategorized-toggle"
               className={`h-10 px-3 rounded-lg border text-sm transition-colors ${uncategorizedOnly ? "bg-amber-gradient text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"}`}>
               Uncategorised only
             </button>
+          )}
+          {view === "list" && (
+            <Button variant="outline" onClick={downloadCsv} disabled={downloading || leads.length === 0} data-testid="leads-download-btn" className="h-10">
+              <DownloadSimple size={16} className="mr-1.5" />
+              {downloading ? "Exporting…" : "Download"}
+            </Button>
           )}
           <div className="flex items-center rounded-lg border border-border overflow-hidden ml-auto" data-testid="leads-view-toggle">
             <button type="button" onClick={() => setView("list")} data-testid="leads-view-list"
@@ -303,7 +379,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm" data-testid="leads-loading">Loading leads…</div>
+        <CardGridSkeleton count={6} cols="md:grid-cols-2 xl:grid-cols-3" testid="leads-loading" />
       ) : view === "board" ? (
         <LeadsBoard leads={leads} editable={editable} onCardClick={setDetailLead} onStatusChange={handleBoardStatus} />
       ) : leads.length === 0 ? (
@@ -338,7 +414,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
               </label>
             </>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="leads-grid">
+          <Reveal className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" testid="leads-grid">
             {leads.map((l) => {
               const meta = LEAD_STATUS_META[l.status] || LEAD_STATUS_META.new;
               const isChecked = selectedIds.has(l.id);
@@ -385,11 +461,15 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
                           {l.assigned_to_name}
                         </span>
                       )}
-                      {allLeadsMode && (
-                        <span className={`px-2 py-0.5 rounded-full ${l.campaign_id ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" : "bg-muted text-muted-foreground"}`} data-testid={`lead-campaign-badge-${l.id}`}>
-                          {l.campaign_id ? (campaignMap[l.campaign_id] || "Campaign") : "Uncategorised"}
+                      {l.campaign_id ? (
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" data-testid={`lead-campaign-badge-${l.id}`}>
+                          {l.campaign_name || campaignMap[l.campaign_id] || "Campaign"}
                         </span>
-                      )}
+                      ) : allLeadsMode ? (
+                        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground" data-testid={`lead-campaign-badge-${l.id}`}>
+                          Uncategorised
+                        </span>
+                      ) : null}
                       {l.next_follow_up && (
                         <span className={`px-2 py-0.5 rounded-full flex items-center gap-1 ${l.is_missed ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-blue-500/10 text-blue-700 dark:text-blue-300"}`} data-testid={l.is_missed ? `lead-missed-${l.id}` : undefined}>
                           <ClockCountdown size={11} /> {fmtDateTime(l.next_follow_up)}{l.is_missed ? " · Missed" : ""}
@@ -400,7 +480,7 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
                 </div>
               );
             })}
-          </div>
+          </Reveal>
         </div>
       )}
 
@@ -427,6 +507,13 @@ export default function LeadsPipeline({ user, campaignId = null, showActions = t
         onUploaded={afterChange}
         assignable={assignable}
         user={user}
+      />
+      <StageChangeDialog
+        open={!!boardStagePrompt}
+        onOpenChange={(v) => { if (!v) setBoardStagePrompt(null); }}
+        targetStatus={boardStagePrompt?.status}
+        busy={boardBusy}
+        onConfirm={confirmBoardStage}
       />
     </div>
   );

@@ -45,16 +45,17 @@ ENROLLED_STATUSES = ("enrolled", "completed")
 
 
 def _current_fy_label(today: Optional[date] = None) -> str:
-    """Return the current Indian financial year in 'YYYY-YY' form (Apr → Mar)."""
+    """Return the current academic year in 'YYYY-YY' form. The academic year
+    runs Jan → Dec, so its start year is simply the calendar year."""
     d = today or date.today()
-    start = d.year if d.month >= 4 else d.year - 1
+    start = d.year
     return f"{start}-{str(start + 1)[-2:]}"
 
 
 def _parse_fy(label: str) -> tuple[str, str]:
-    """Turn ``'2025-26'`` into ISO-date bounds ``('2025-04-01', '2026-04-01')``
-    (upper bound is exclusive). Also accepts a bare ``'2025'`` for the FY
-    that starts in that calendar year."""
+    """Turn ``'2025-26'`` into ISO-date bounds ``('2025-01-01', '2026-01-01')``
+    (upper bound exclusive) — the academic year runs Jan → Dec. Also accepts a
+    bare ``'2025'``."""
     label = (label or "").strip()
     if "-" in label:
         start_str, _ = label.split("-", 1)
@@ -63,8 +64,8 @@ def _parse_fy(label: str) -> tuple[str, str]:
     try:
         start_year = int(start_str)
     except ValueError:
-        raise HTTPException(400, f"Invalid financial year: {label!r}")
-    return (f"{start_year}-04-01", f"{start_year + 1}-04-01")
+        raise HTTPException(400, f"Invalid academic year: {label!r}")
+    return (f"{start_year}-01-01", f"{start_year + 1}-01-01")
 
 
 def _student_fy_date(s: dict) -> Optional[str]:
@@ -286,9 +287,10 @@ async def revenue_summary(
 
 @router.get("/fy-options")
 async def fy_options(user: dict = Depends(get_current_user)) -> dict:
-    """Return the list of financial years the super admin can pick from —
+    """Return the list of academic years the super admin can pick from —
     based on the earliest & latest enrollment/created dates on record. Always
-    includes the current FY."""
+    includes the current academic year. Academic year runs Jan → Dec, so the
+    start year is just the calendar year of the admission date."""
     if user.get("role") != "super_admin":
         raise HTTPException(403, "Super admin only")
     cur = _current_fy_label()
@@ -303,13 +305,11 @@ async def fy_options(user: dict = Depends(get_current_user)) -> dict:
         if not d:
             continue
         try:
-            year = int(str(d)[:4])
-            month = int(str(d)[5:7]) if len(str(d)) >= 7 else 4
+            start = int(str(d)[:4])
         except ValueError:
             continue
-        start = year if month >= 4 else year - 1
         years.add(start)
-    # Include current FY start so the dropdown always has an option.
+    # Include current academic year start so the dropdown always has an option.
     cur_start = int(cur.split("-")[0])
     years.add(cur_start)
     labels = [f"{y}-{str(y+1)[-2:]}" for y in sorted(years, reverse=True)]

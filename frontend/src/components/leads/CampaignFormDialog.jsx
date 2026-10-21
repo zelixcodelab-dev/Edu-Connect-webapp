@@ -220,14 +220,17 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
   });
 
   const uploadCsvIfNeeded = async (campaignId) => {
-    if (!csvFile) return { imported: 0 };
+    if (!csvFile) return { imported: 0, duplicates: 0 };
     const fd = new FormData();
     fd.append("file", csvFile);
     fd.append("campaign_id", campaignId);
     const { data } = await api.post("/leads/bulk", fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return { imported: data?.count ?? data?.created ?? 0 };
+    return {
+      imported: data?.created_count ?? data?.count ?? 0,
+      duplicates: data?.duplicate_count ?? 0,
+    };
   };
 
   const distributeIfNeeded = async (campaignId) => {
@@ -269,17 +272,21 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
 
       // Only run CSV/distribution on CREATE + LAUNCH — never on edit, never on draft.
       if (!isEdit && mode === "launch") {
-        const { imported } = await uploadCsvIfNeeded(created.id);
+        const { imported, duplicates } = await uploadCsvIfNeeded(created.id);
         const { assigned } = await distributeIfNeeded(created.id);
         const bits = [];
         if (imported) bits.push(`${imported} leads imported`);
+        if (duplicates) bits.push(`${duplicates} duplicates skipped`);
         if (assigned) bits.push(`${assigned} assigned`);
         if (bits.length) msg += ` — ${bits.join(", ")}`;
       } else if (!isEdit && mode === "draft" && csvFile) {
         // Drafts still import CSVs (so the operator can preview + tweak) but
         // don't run distribution.
-        const { imported } = await uploadCsvIfNeeded(created.id);
-        if (imported) msg += ` — ${imported} leads imported`;
+        const { imported, duplicates } = await uploadCsvIfNeeded(created.id);
+        const bits = [];
+        if (imported) bits.push(`${imported} leads imported`);
+        if (duplicates) bits.push(`${duplicates} duplicates skipped`);
+        if (bits.length) msg += ` — ${bits.join(", ")}`;
       }
       toast.success(msg);
       onSaved?.(created);

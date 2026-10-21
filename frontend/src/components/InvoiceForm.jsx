@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,30 @@ export { PARTICULAR_PRESETS } from "@/components/invoice-form/ParticularsSection
 export default function InvoiceForm({ form, setForm, clients, accounts, currency, editing, onSubmit, onCancel }) {
   const isService = form.invoice_type === "service_charge";
   const [openCredits, setOpenCredits] = useState([]);
+  const [students, setStudents] = useState([]);
+
+  // Load students once we're in service mode so we can suggest the students
+  // a client has referred (auto-fills course / college / academic year).
+  useEffect(() => {
+    if (!isService) { setStudents([]); return; }
+    let cancelled = false;
+    api.get("/students")
+      .then(({ data }) => { if (!cancelled) setStudents(data || []); })
+      .catch((err) => {
+        if (!cancelled) {
+          setStudents([]);
+          console.error("[invoice-form] students fetch failed:", err?.message || err);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [isService]);
+
+  const clientName = (clients.find((c) => c.id === form.client_id)?.name || "").trim();
+  const referredStudents = useMemo(() => {
+    if (!clientName) return [];
+    const t = clientName.toLowerCase();
+    return students.filter((s) => (s.reference || "").trim().toLowerCase() === t);
+  }, [students, clientName]);
 
   // Fetch open campus-visit credits for the selected client when in service mode.
   useEffect(() => {
@@ -117,7 +141,7 @@ export default function InvoiceForm({ form, setForm, clients, accounts, currency
 
       {/* Variant-specific meta */}
       {isService ? (
-        <ServiceMetaBlock form={form} setForm={setForm} openCredits={openCredits} currency={currency} />
+        <ServiceMetaBlock form={form} setForm={setForm} openCredits={openCredits} currency={currency} referredStudents={referredStudents} clientName={clientName} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label>Student Name</Label><Input value={form.student_name} onChange={(e) => setForm({ ...form, student_name: e.target.value })} placeholder="Full name" data-testid="inv-student" /></div>

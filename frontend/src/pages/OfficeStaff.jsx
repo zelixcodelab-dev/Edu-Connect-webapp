@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { photoSrc } from "@/pages/Clients";
+import AuthedImage from "@/components/AuthedImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,7 +178,7 @@ export default function OfficeStaff() {
                   role={r.client_id ? "button" : undefined}
                 >
                   <div className="w-12 h-12 rounded-md bg-muted text-foreground flex items-center justify-center font-medium overflow-hidden shrink-0">
-                    {r.photo_url ? <img src={photoSrc(r.photo_url)} alt={r.name} className="w-full h-full object-cover" /> : (r.name || "?").slice(0, 2).toUpperCase()}
+                    {r.photo_url ? <AuthedImage url={r.photo_url} alt={r.name} className="w-full h-full object-cover" fallback={(r.name || "?").slice(0, 2).toUpperCase()} /> : (r.name || "?").slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium truncate">{r.name}</p>
@@ -236,7 +236,7 @@ export default function OfficeStaff() {
           <form onSubmit={submit} className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border">
-                {form.photo_url ? <img src={photoSrc(form.photo_url)} alt="staff" className="w-full h-full object-cover" data-testid="staff-photo-preview" /> : <UserCircle size={38} className="text-muted-foreground" weight="thin" />}
+                {form.photo_url ? <AuthedImage url={form.photo_url} alt="staff" className="w-full h-full object-cover" testid="staff-photo-preview" /> : <UserCircle size={38} className="text-muted-foreground" weight="thin" />}
               </div>
               <div>
                 <input ref={photoInputRef} type="file" accept="image/jpeg,image/jpg" onChange={uploadPhoto} className="hidden" data-testid="staff-photo-input" />

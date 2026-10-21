@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
+import { hasModule } from "@/lib/perm";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
-  Plus, Megaphone, ArrowLeft, UploadSimple, ShareNetwork, Trash, Target, UserCheck, UsersThree, CheckCircle, X, PencilSimple,
+  Plus, Megaphone, ArrowLeft, UploadSimple, ShareNetwork, Trash, Target, UserCheck, UsersThree, CheckCircle, X, PencilSimple, GoogleLogo,
 } from "@phosphor-icons/react";
 import CampaignFormDialog from "./CampaignFormDialog";
 import CampaignAddLeadsDialog from "./CampaignAddLeadsDialog";
 import CampaignDistributeDialog from "./CampaignDistributeDialog";
 import CampaignDeleteDialog from "./CampaignDeleteDialog";
 import LeadsBulkUploadDialog from "./LeadsBulkUploadDialog";
+import CampaignImportSheetsDialog from "./CampaignImportSheetsDialog";
+import CampaignSyncedSheets from "./CampaignSyncedSheets";
 import LeadsPipeline from "./LeadsPipeline";
 
 const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
@@ -32,6 +35,7 @@ function MiniStat({ icon: Icon, label, value, tone, testid }) {
 }
 
 export default function CampaignsPanel({ user }) {
+  const sheetsOn = hasModule(user, "google_sheets");
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -40,6 +44,7 @@ export default function CampaignsPanel({ user }) {
   const [editCampaign, setEditCampaign] = useState(null);   // set → open in edit mode
   const [addOpen, setAddOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [importSheetsOpen, setImportSheetsOpen] = useState(false);
   const [distOpen, setDistOpen] = useState(false);
   const [pipelineKey, setPipelineKey] = useState(0);
   // Delete confirm dialog state — covers both single-detail-delete and
@@ -163,6 +168,7 @@ export default function CampaignsPanel({ user }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setAddOpen(true)} data-testid="campaign-add-leads-btn"><Plus size={15} className="mr-1" /> Add leads</Button>
             <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)} data-testid="campaign-upload-btn"><UploadSimple size={15} className="mr-1" /> Upload CSV</Button>
+            {sheetsOn && <Button variant="outline" size="sm" onClick={() => setImportSheetsOpen(true)} data-testid="campaign-import-sheets-btn"><GoogleLogo size={15} weight="bold" className="mr-1" /> Import from Sheets</Button>}
             <Button size="sm" onClick={() => setDistOpen(true)} data-testid="campaign-distribute-btn" className="btn-amber border-0"><ShareNetwork size={15} className="mr-1" /> Distribute</Button>
             <button type="button" onClick={editCurrent} data-testid="campaign-edit-btn" className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10 transition-colors" aria-label="Edit campaign"><PencilSimple size={16} /></button>
             <button type="button" onClick={removeCampaign} data-testid="campaign-delete-btn" className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors" aria-label="Delete campaign"><Trash size={16} /></button>
@@ -187,6 +193,8 @@ export default function CampaignsPanel({ user }) {
           </div>
         )}
 
+        {sheetsOn && <CampaignSyncedSheets campaignId={selectedId} refreshKey={pipelineKey} />}
+
         <div className="pt-1">
           <p className="text-xs font-medium text-muted-foreground mb-3">Campaign pipeline</p>
           <LeadsPipeline key={pipelineKey} user={user} campaignId={selectedId} showActions={false} onChanged={refreshDetail} />
@@ -194,6 +202,7 @@ export default function CampaignsPanel({ user }) {
 
         <CampaignAddLeadsDialog open={addOpen} onOpenChange={setAddOpen} campaignId={selectedId} onAdded={refreshAll} />
         <LeadsBulkUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} onUploaded={refreshAll} user={user} campaignId={selectedId} />
+        <CampaignImportSheetsDialog open={importSheetsOpen} onOpenChange={setImportSheetsOpen} campaignId={selectedId} onImported={refreshAll} />
         <CampaignDistributeDialog open={distOpen} onOpenChange={setDistOpen} campaignId={selectedId} employees={detail.employees} stats={s} onDistributed={refreshAll} />
         <CampaignFormDialog
           open={!!editCampaign}

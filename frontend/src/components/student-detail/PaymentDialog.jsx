@@ -220,7 +220,7 @@ export default function PaymentDialog({
                   ))}
                   {Object.keys(groupedClients).length === 0 && (
                     <div className="px-3 py-2 text-xs text-muted-foreground">
-                      No Sub-Agents / Consultants / KM Offices on file yet.
+                      No Sub-Agents / Consultants / Offices on file yet.
                     </div>
                   )}
                 </SelectContent>

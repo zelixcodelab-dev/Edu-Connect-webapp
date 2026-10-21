@@ -21,11 +21,21 @@ from lib.email_notifier import send_email, password_reset_email_html
 from lib.whitelabel import (
     find_tenant_for_email, tenant_public, merged_branding, DEFAULT_APP_NAME,
 )
+from lib.rate_limit import hit as rate_limit_hit, client_ip
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 log = logging.getLogger("auth")
 
 RESET_TOKEN_TTL_MINUTES = 30
+
+
+async def _resolve_biometric_enabled(user_id: str) -> bool:
+    """True when the user has ≥1 enrolled WebAuthn credential."""
+    try:
+        n = await db.webauthn_credentials.count_documents({"user_id": user_id})
+        return n > 0
+    except Exception:  # noqa: BLE001
+        return False
 
 
 async def _resolve_user_photo_url(user: dict) -> str:
@@ -115,13 +125,20 @@ async def login(payload: LoginIn, response: Response):
             raise HTTPException(status_code=403, detail="Your account is awaiting super-admin approval.")
         if status == "rejected":
             raise HTTPException(status_code=403, detail="Your access request was rejected. Please contact the super admin.")
-
+        if user.get("suspended"):
+            raise HTTPException(
+                status_code=403,
+                detail="Your account has been suspended. Please contact your admin.",
+            )
+        # Successful login → wipe the failed-attempt counter
         await clear_failed_attempts(email)
         set_current_tenant(tenant["id"])
         token = create_access_token(user["id"], email, tenant_id=tenant["id"], scope="tenant")
         set_auth_cookie(response, token)
         user.pop("password_hash", None)
         user.pop("_id", None)
+        user["pin_enabled"] = bool(user.pop("pin_hash", None))
+        user["biometric_enabled"] = await _resolve_biometric_enabled(user["id"])
         user["photo_url"] = await _resolve_user_photo_url(user)
         tp = tenant_public(tenant)
         return {
@@ -135,11 +152,12 @@ async def login(payload: LoginIn, response: Response):
         }
     except HTTPException:
         raise
-    except Exception as exc:  # log opaque crashes so prod ops can debug
+    except Exception:  # log opaque crashes so prod ops can debug
         log.exception("[auth/login] unexpected error for email=%r", email)
+        # SEC-002: never leak the internal exception class/message to clients.
         raise HTTPException(
             status_code=500,
-            detail=f"Login failed: {type(exc).__name__}: {exc}",
+            detail="Login failed due to a server error. Please try again.",
         )
 
 
@@ -161,6 +179,8 @@ async def me(user: dict = Depends(get_current_user)):
             "branding": merged_branding(None),
         }
     user["photo_url"] = await _resolve_user_photo_url(user)
+    user["pin_enabled"] = bool(user.get("pin_hash"))
+    user["biometric_enabled"] = await _resolve_biometric_enabled(user["id"])
     extras = {"scope": "tenant"}
     tenant = await gdb.tenants.find_one({"id": user.get("tenant_id")})
     if tenant:
@@ -181,7 +201,145 @@ async def update_settings(payload: SettingsUpdate, user: dict = Depends(require_
         await db.users.update_one({"id": user["id"]}, {"$set": update})
     fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     fresh["photo_url"] = await _resolve_user_photo_url(fresh)
+    fresh["pin_enabled"] = bool(fresh.get("pin_hash"))
+    fresh["biometric_enabled"] = await _resolve_biometric_enabled(fresh["id"])
     return fresh
+
+
+class TourIn(BaseModel):
+    status: str = Field(pattern=r"^(completed|skipped)$")
+
+
+@router.post("/tour")
+async def mark_tour(payload: TourIn, user: dict = Depends(get_current_user)):
+    """Record that the user finished or skipped the guided product tour."""
+    await db.users.update_one(
+        {"id": user["id"]}, {"$set": {"tour_status": payload.status, "tour_done_at": now_iso()}}
+    )
+    return {"ok": True, "tour_status": payload.status}
+
+
+# ---------- Mobile 4-digit PIN unlock ----------
+class SetPinIn(BaseModel):
+    """Set/replace the caller's unlock PIN.
+
+    ``current_password`` is required as a bind-back so someone who found an
+    unlocked device can't silently install a new PIN they know.
+    """
+    pin: str = Field(pattern=r"^\d{4}$", description="Exactly 4 digits")
+    current_password: str = Field(min_length=1)
+
+
+class VerifyPinIn(BaseModel):
+    email: EmailStr
+    pin: str = Field(pattern=r"^\d{4}$")
+
+
+PIN_MAX_ATTEMPTS = 3  # 3 wrong tries → clear PIN + force password login
+
+
+@router.post("/pin")
+async def set_pin(payload: SetPinIn, response: Response, user: dict = Depends(get_current_user)):
+    """Install / replace the caller's 4-digit unlock PIN.
+
+    Requires re-typing the account password so a stolen unlocked session
+    can't silently pivot to a PIN-only takeover.
+    """
+    full = await db.users.find_one({"id": user["id"]})
+    if not full or not verify_password(payload.current_password, full.get("password_hash", "")):
+        raise HTTPException(401, "Password incorrect")
+    if payload.pin in {"0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
+                        "1234", "4321", "1122", "0101"}:
+        raise HTTPException(400, "Please choose a less predictable PIN")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "pin_hash": hash_password(payload.pin),
+            "pin_updated_at": now_iso(),
+            "pin_fail_count": 0,
+        }},
+    )
+    return {"ok": True, "pin_enabled": True}
+
+
+@router.delete("/pin")
+async def disable_pin(user: dict = Depends(get_current_user)):
+    """Turn off PIN unlock for the caller."""
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$unset": {"pin_hash": "", "pin_updated_at": "", "pin_fail_count": ""}},
+    )
+    return {"ok": True, "pin_enabled": False}
+
+
+@router.post("/pin/verify")
+async def verify_pin(payload: VerifyPinIn, request: Request, response: Response):
+    """Unlock via 4-digit PIN — returns a fresh JWT on success.
+
+    After ``PIN_MAX_ATTEMPTS`` wrong tries the stored PIN is cleared and the
+    user is forced back to full password login (returned as HTTP 429). The
+    lockout counter is per-account, resets on any successful verify.
+
+    SEC-003: on top of the per-account 3-strike wipe, we throttle by source IP
+    (20 attempts / 5 min) so an attacker can't rotate emails to enumerate which
+    accounts have a PIN, nor hammer many victims into a forced PIN reset.
+    """
+    await rate_limit_hit(
+        bucket="pin-verify-ip", key=client_ip(request), max_hits=20, window_seconds=300,
+    )
+    email = payload.email.lower().strip()
+    # A tighter per-(IP,email) budget blocks brute-forcing a single account.
+    await rate_limit_hit(
+        bucket="pin-verify-email", key=f"{client_ip(request)}:{email}",
+        max_hits=8, window_seconds=300,
+    )
+    tenant, user = await find_tenant_for_email(email)
+    if tenant:
+        set_current_tenant(tenant["id"])
+        if tenant.get("status") == "suspended":
+            raise HTTPException(403, "This workspace is currently suspended. Please contact support.")
+        if "pin_lock" not in (tenant.get("enabled_modules") or ["pin_lock"]):
+            raise HTTPException(401, "PIN unlock is not set for this account")
+    # Return the same 401 for "no user" and "wrong PIN" so we don't leak
+    # existence of an account.
+    if not user or not user.get("pin_hash"):
+        raise HTTPException(401, "PIN unlock is not set for this account")
+    if user.get("deleted_at"):
+        raise HTTPException(403, "This account has been removed.")
+    if user.get("approval_status", "approved") != "approved":
+        raise HTTPException(403, "Account not active")
+
+    if verify_password(payload.pin, user["pin_hash"]):
+        await db.users.update_one({"id": user["id"]}, {"$set": {"pin_fail_count": 0}})
+        token = create_access_token(user["id"], email, tenant_id=tenant["id"], scope="tenant")
+        set_auth_cookie(response, token)
+        user.pop("password_hash", None)
+        user.pop("pin_hash", None)
+        user.pop("_id", None)
+        user["photo_url"] = await _resolve_user_photo_url(user)
+        user["pin_enabled"] = True
+        user["biometric_enabled"] = await _resolve_biometric_enabled(user["id"])
+        tp = tenant_public(tenant)
+        return {
+            **user, "access_token": token, "scope": "tenant",
+            "tenant_id": tenant["id"], "tenant_name": tenant.get("name"),
+            "branding": tp["branding"], "enabled_modules": tp["enabled_modules"],
+        }
+
+    # Wrong PIN — bump counter and enforce the 3-strike wipe.
+    fail_count = int(user.get("pin_fail_count") or 0) + 1
+    if fail_count >= PIN_MAX_ATTEMPTS:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$unset": {"pin_hash": "", "pin_fail_count": "", "pin_updated_at": ""}},
+        )
+        raise HTTPException(
+            429,
+            "PIN disabled after too many wrong attempts. Please sign in with your password.",
+        )
+    await db.users.update_one({"id": user["id"]}, {"$set": {"pin_fail_count": fail_count}})
+    remaining = PIN_MAX_ATTEMPTS - fail_count
+    raise HTTPException(401, f"Wrong PIN. {remaining} attempt{'s' if remaining != 1 else ''} left.")
 
 
 # ---------- Self-service password reset ----------

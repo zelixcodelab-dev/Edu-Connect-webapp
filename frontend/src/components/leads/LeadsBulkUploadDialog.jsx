@@ -46,9 +46,13 @@ export default function LeadsBulkUploadDialog({ open, onOpenChange, onUploaded, 
       else if (!isStaff && assignee) fd.append("assigned_to_user_id", assignee);
       const r = await api.post("/leads/bulk", fd, { headers: { "Content-Type": "multipart/form-data" } });
       setResult(r.data);
+      const dupN = r.data.duplicate_count || 0;
       if (r.data.created_count > 0) {
-        toast.success(`Imported ${r.data.created_count} lead(s)`);
+        const dupNote = dupN ? ` — ${dupN} duplicate${dupN === 1 ? "" : "s"} skipped` : "";
+        toast.success(`Imported ${r.data.created_count} lead(s)${dupNote}`);
         onUploaded?.();
+      } else if (dupN > 0) {
+        toast.message("Nothing new to import", { description: `All ${dupN} row(s) already exist in the CRM.` });
       } else {
         toast.message("Nothing imported", { description: "All rows were blank." });
       }
@@ -118,6 +122,24 @@ export default function LeadsBulkUploadDialog({ open, onOpenChange, onUploaded, 
               </div>
               {result.skipped_blank_rows?.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">{result.skipped_blank_rows.length} blank row(s) skipped</p>
+              )}
+              {result.duplicate_count > 0 && (
+                <details className="text-xs mt-1 group" data-testid="leads-bulk-duplicates">
+                  <summary className="cursor-pointer text-amber-700 dark:text-amber-400 select-none">
+                    {result.duplicate_count} duplicate row(s) skipped — already in the CRM
+                  </summary>
+                  <ul className="mt-1.5 pl-1 space-y-0.5 max-h-40 overflow-y-auto text-muted-foreground">
+                    {(result.duplicates || []).slice(0, 50).map((d) => (
+                      <li key={`${d.row}-${d.phone || d.name}`}>
+                        Row {d.row}: <span className="text-foreground">{d.name}</span>
+                        {d.phone ? ` (${d.phone})` : ""} — {d.reason}
+                      </li>
+                    ))}
+                    {(result.duplicates || []).length > 50 && (
+                      <li>…and {(result.duplicates || []).length - 50} more</li>
+                    )}
+                  </ul>
+                </details>
               )}
               {result.unmatched_employees?.length > 0 && (
                 <p className="text-xs text-amber-700 dark:text-amber-400 mt-1" data-testid="leads-bulk-unmatched">

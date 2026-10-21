@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import api from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, LockOpen, ShieldCheck, Warning, KeyReturn } from "@phosphor-icons/react";
+import { Lock, LockOpen, ShieldCheck, Warning } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 const DIGITS = 4;
@@ -33,8 +33,12 @@ export default function PinLock({
 }) {
   const [status, setStatus] = useState(null); // null | {is_set, locked, seconds_remaining}
   const [mode, setMode] = useState("check"); // "check" | "setup" | "enter"
-  // Deliberately NOT persisted — re-locks on every navigation back to the page.
-  const [unlocked, setUnlocked] = useState(false);
+  // Persisted per browser-tab session so navigating away and back (e.g. to the
+  // SC Report and back to Admission Revenue) does NOT re-prompt the PIN.
+  const _skey = `pinlock_unlocked_${basePath}`;
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return sessionStorage.getItem(_skey) === "1"; } catch { return false; }
+  });
 
   useEffect(() => {
     if (unlocked) return;
@@ -50,7 +54,10 @@ export default function PinLock({
     })();
   }, [basePath, unlocked]);
 
-  const doUnlock = () => setUnlocked(true);
+  const doUnlock = () => {
+    try { sessionStorage.setItem(_skey, "1"); } catch { /* ignore */ }
+    setUnlocked(true);
+  };
 
   if (unlocked) return <>{children}</>;
   if (!status) {
@@ -95,6 +102,7 @@ export default function PinLock({
 function EnterPin({ basePath, status, onSuccess, onStatusRefresh }) {
   const [pin, setPin] = useState(Array(DIGITS).fill(""));
   const [submitting, setSubmitting] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [error, setError] = useState("");
   const [lockRemaining, setLockRemaining] = useState(status?.seconds_remaining || 0);
   const inputs = useRef([]);
@@ -153,19 +161,22 @@ function EnterPin({ basePath, status, onSuccess, onStatusRefresh }) {
 
   const submit = async (e) => {
     e?.preventDefault();
-    if (isLocked) return;
+    if (isLocked || submitting || verified) return;
     if (combined.length !== DIGITS) { setError("Enter all 4 digits"); return; }
     setSubmitting(true);
     setError("");
     try {
       await api.post(`/${basePath}/pin/verify`, { pin: combined });
-      onSuccess();
+      // Play the unlock animation, then reveal the page.
+      setVerified(true);
+      setTimeout(() => onSuccess(), 850);
     } catch (err) {
       const detail = err?.response?.data?.detail;
       const code = err?.response?.status;
       setPin(Array(DIGITS).fill(""));
       inputs.current[0]?.focus();
       setError(typeof detail === "string" ? detail : "Wrong PIN");
+      setSubmitting(false);
       if (code === 429) {
         // Server says we're now locked — refresh status.
         try {
@@ -173,65 +184,73 @@ function EnterPin({ basePath, status, onSuccess, onStatusRefresh }) {
           onStatusRefresh(r.data);
         } catch { /* ignore */ }
       }
-    } finally {
-      setSubmitting(false);
     }
   };
 
+  // Auto-verify as soon as all 4 digits are entered — no Unlock button needed.
+  useEffect(() => {
+    if (combined.length === DIGITS && !submitting && !verified && !isLocked) {
+      submit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combined]);
+
   return (
     <form onSubmit={submit} className="space-y-4" data-testid="pin-enter-form">
-      <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-        Enter 4-digit PIN
-      </label>
-      <div className="flex gap-2 justify-center" onPaste={onPaste}>
-        {pin.map((v, i) => (
-          <input
-            key={i}
-            ref={(el) => { inputs.current[i] = el; }}
-            type="password"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={1}
-            disabled={submitting || isLocked}
-            value={v}
-            onChange={(e) => setDigit(i, e.target.value)}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            className={`w-14 h-16 text-center text-2xl font-display rounded-lg border-2 bg-card focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all ${
-              error ? "border-rose-500/60" : "border-border focus:border-amber-500"
-            } ${isLocked ? "opacity-50" : ""}`}
-            data-testid={`pin-digit-${i}`}
-          />
-        ))}
-      </div>
-
-      {isLocked ? (
-        <div
-          className="flex items-center gap-2 text-sm text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-md p-3"
-          data-testid="pin-locked-banner"
-        >
-          <Warning size={16} weight="fill" />
-          Too many wrong attempts. Try again in <strong className="tabular-nums">{lockRemaining}s</strong>.
+      {verified ? (
+        <div className="flex flex-col items-center gap-3 py-6" data-testid="pin-unlock-animation">
+          <div className="pin-unlock-ring w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+            <LockOpen size={30} weight="fill" className="pin-unlock-icon text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Unlocked</p>
         </div>
       ) : (
-        error && (
-          <p className="text-sm text-rose-700 dark:text-rose-400 text-center" data-testid="pin-error">
-            {error}
-          </p>
-        )
-      )}
+        <>
+          <label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+            Enter 4-digit PIN
+          </label>
+          <div className="flex gap-2 justify-center" onPaste={onPaste}>
+            {pin.map((v, i) => (
+              <input
+                key={i}
+                ref={(el) => { inputs.current[i] = el; }}
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={1}
+                disabled={submitting || isLocked}
+                value={v}
+                onChange={(e) => setDigit(i, e.target.value)}
+                onKeyDown={(e) => onKeyDown(i, e)}
+                className={`w-14 h-16 text-center text-2xl font-display rounded-lg border-2 bg-card focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all ${
+                  error ? "border-rose-500/60" : "border-border focus:border-amber-500"
+                } ${isLocked ? "opacity-50" : ""}`}
+                data-testid={`pin-digit-${i}`}
+              />
+            ))}
+          </div>
 
-      <Button
-        type="submit"
-        className="w-full btn-amber border-0 h-11"
-        disabled={submitting || isLocked || combined.length !== DIGITS}
-        data-testid="pin-submit-btn"
-      >
-        <LockOpen size={16} className="mr-1.5" />
-        {submitting ? "Verifying…" : "Unlock"}
-      </Button>
-      <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
-        <KeyReturn size={11} /> Press Enter to submit
-      </p>
+          {isLocked ? (
+            <div
+              className="flex items-center gap-2 text-sm text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-md p-3"
+              data-testid="pin-locked-banner"
+            >
+              <Warning size={16} weight="fill" />
+              Too many wrong attempts. Try again in <strong className="tabular-nums">{lockRemaining}s</strong>.
+            </div>
+          ) : (
+            error ? (
+              <p className="text-sm text-rose-700 dark:text-rose-400 text-center" data-testid="pin-error">
+                {error}
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1" data-testid="pin-hint">
+                {submitting ? "Verifying…" : "Unlocks automatically once all 4 digits are entered"}
+              </p>
+            )
+          )}
+        </>
+      )}
     </form>
   );
 }

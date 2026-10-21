@@ -8,9 +8,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   Target, ClockCountdown, GraduationCap, CalendarCheck, UserPlus, PaperPlaneTilt,
-  Copy, ShareNetwork, ArrowRight, Student as StudentIcon,
+  Copy, ShareNetwork, ArrowRight, Student as StudentIcon, Clock,
 } from "@phosphor-icons/react";
 import LeaveRequestDialog from "@/components/leave/LeaveRequestDialog";
+import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
+import Reveal from "@/components/Reveal";
+
+const countFmt = (n) => String(Math.round(n));
 
 function StatTile({ icon: Icon, label, value, tone, onClick, testid, ariaLabel }) {
   const tones = {
@@ -21,7 +25,7 @@ function StatTile({ icon: Icon, label, value, tone, onClick, testid, ariaLabel }
   };
   const inner = (
     <>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tones[tone]}`}><Icon size={20} weight="duotone" /></div>
+      <div className={`stat-icon w-10 h-10 rounded-xl flex items-center justify-center ${tones[tone]}`}><Icon size={20} weight="duotone" /></div>
       <div className="flex-1 min-w-0">
         <p className="text-2xl font-display font-semibold leading-none">{value}</p>
         <p className="text-xs text-muted-foreground mt-1">{label}</p>
@@ -44,7 +48,7 @@ function StatTile({ icon: Icon, label, value, tone, onClick, testid, ariaLabel }
       onClick={onClick}
       data-testid={testid}
       aria-label={ariaLabel || label}
-      className="group text-left w-full rounded-xl border border-border bg-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-2 hover:ring-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+      className="group card-hover press-spring text-left w-full rounded-xl border border-border bg-card p-4 flex items-center gap-3 cursor-pointer hover:ring-2 hover:ring-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
     >
       {inner}
     </button>
@@ -58,7 +62,7 @@ function MiniTile({ label, value, onClick, testid }) {
       onClick={onClick}
       data-testid={testid}
       aria-label={`View ${label} leads`}
-      className="group text-left rounded-lg bg-muted/40 p-3 hover:bg-muted transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+      className="group press-spring text-left rounded-lg bg-muted/40 p-3 hover:bg-muted transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
     >
       <div className="flex items-start justify-between">
         <p className="text-xl font-semibold tabular-nums">{value}</p>
@@ -122,21 +126,23 @@ export default function StaffDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="staff-stats">
-        <StatTile icon={Target} label="My leads" value={stats.total} tone="amber"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 dash-stagger" data-testid="staff-stats">
+        <StatTile icon={Target} label="My leads" value={<AnimatedNumber value={stats.total} format={countFmt} />} tone="amber"
           testid="staff-stat-leads" onClick={() => nav("/leads")} />
-        <StatTile icon={ClockCountdown} label="Missed follow-ups" value={stats.missed} tone="rose"
+        <StatTile icon={ClockCountdown} label="Missed follow-ups" value={<AnimatedNumber value={stats.missed} format={countFmt} />} tone="rose"
           testid="staff-stat-missed" onClick={() => nav("/leads?filter=missed")} />
-        <StatTile icon={GraduationCap} label="Students referred" value={referrals.length} tone="emerald"
+        <StatTile icon={GraduationCap} label="Students referred" value={<AnimatedNumber value={referrals.length} format={countFmt} />} tone="emerald"
           testid="staff-stat-referrals" onClick={() => nav("/my-students")} />
-        <StatTile icon={CalendarCheck} label="Pending leave" value={leaveStats.pending_mine} tone="sky"
-          testid="staff-stat-leave" onClick={() => nav("/leave")} />
+        <StatTile icon={CalendarCheck} label="Pending leave" value={<AnimatedNumber value={leaveStats.pending_mine} format={countFmt} />} tone="sky"
+          testid="staff-stat-leave" onClick={() => nav("/attendance?tab=leave")} />
       </div>
 
       {/* Quick actions */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Quick actions</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ActionButton icon={Clock} label="Attendance" sub="Check in / out · breaks · payroll" testid="staff-action-attendance"
+            onClick={() => nav("/attendance")} />
           <ActionButton icon={UserPlus} label="Add student" sub="Open your referral application form" testid="staff-action-add-student"
             onClick={() => navigateToApply(nav, user?.id)} />
           <ActionButton icon={CalendarCheck} label="Request leave" sub="Casual / sick / earned / unpaid" testid="staff-action-leave"
@@ -162,7 +168,7 @@ export default function StaffDashboard() {
       </Card>
 
       {/* Two columns: leads shortcut + referred students */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Reveal className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="font-medium text-foreground flex items-center gap-1.5"><Target size={16} className="text-orange-600 dark:text-orange-400" /> Leads</p>
@@ -171,13 +177,13 @@ export default function StaffDashboard() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <MiniTile label="Follow-up" value={stats.by_status?.follow_up || 0}
+            <MiniTile label="Follow-up" value={<AnimatedNumber value={stats.by_status?.follow_up || 0} format={countFmt} />}
               onClick={() => nav("/leads?filter=follow_up")} testid="staff-mini-follow_up" />
-            <MiniTile label="Interested" value={stats.by_status?.interested || 0}
+            <MiniTile label="Interested" value={<AnimatedNumber value={stats.by_status?.interested || 0} format={countFmt} />}
               onClick={() => nav("/leads?filter=interested")} testid="staff-mini-interested" />
-            <MiniTile label="New" value={stats.by_status?.new || 0}
+            <MiniTile label="New" value={<AnimatedNumber value={stats.by_status?.new || 0} format={countFmt} />}
               onClick={() => nav("/leads?filter=new")} testid="staff-mini-new" />
-            <MiniTile label="Converted" value={stats.by_status?.converted || 0}
+            <MiniTile label="Converted" value={<AnimatedNumber value={stats.by_status?.converted || 0} format={countFmt} />}
               onClick={() => nav("/leads?filter=converted")} testid="staff-mini-converted" />
           </div>
         </Card>
@@ -205,7 +211,7 @@ export default function StaffDashboard() {
             </div>
           )}
         </Card>
-      </div>
+      </Reveal>
 
       <LeaveRequestDialog open={leaveOpen} onOpenChange={setLeaveOpen} onSubmitted={refreshLeave} />
     </div>

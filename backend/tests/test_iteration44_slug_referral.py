@@ -10,7 +10,7 @@ import uuid
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "https://finance-flow-1727.preview.emergentagent.com"
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "https://edu-crm-hub-15.preview.emergentagent.com"
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@kmfoundation.online"

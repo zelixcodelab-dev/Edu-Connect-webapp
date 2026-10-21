@@ -112,7 +112,32 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-async def _resolve_user_from_token(token: str) -> dict:
+# API path prefix → per-company module key (Platform Console toggle).
+MODULE_API_PREFIXES = [
+    ("/api/attendance", "attendance"),
+    ("/api/google", "google_sheets"),
+    ("/api/oauth/sheets", "google_sheets"),
+    ("/api/webauthn", "passkeys"),
+    ("/api/auth/pin", "pin_lock"),
+    ("/api/students/sc-by-college", "sc_report"),
+    ("/api/academic-years", "academic_year"),
+]
+
+
+def module_for_path(path: str) -> Optional[str]:
+    for prefix, key in MODULE_API_PREFIXES:
+        if path.startswith(prefix):
+            return key
+    return None
+
+
+async def tenant_has_module(tenant_id: Optional[str], key: str) -> bool:
+    t = await gdb.tenants.find_one({"id": tenant_id}, {"_id": 0, "enabled_modules": 1})
+    mods = (t or {}).get("enabled_modules")
+    return mods is None or key in mods
+
+
+async def _resolve_user_from_token(token: str, path: str = "") -> dict:
     """Decode a JWT and load the corresponding user (platform owner or tenant
     user), binding the tenant DB context. Raises HTTPException on any problem."""
     payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
@@ -144,6 +169,9 @@ async def _resolve_user_from_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Account has been removed")
     user["tenant_id"] = tenant_id
     user["scope"] = "tenant"
+    mod = module_for_path(path)
+    if mod and not await tenant_has_module(tenant_id, mod):
+        raise HTTPException(status_code=403, detail="This feature is not enabled for your workspace.")
     return user
 
 
@@ -166,7 +194,7 @@ async def get_current_user(request: Request) -> dict:
     last_exc: Optional[HTTPException] = None
     for token in candidates:
         try:
-            return await _resolve_user_from_token(token)
+            return await _resolve_user_from_token(token, request.url.path)
         except jwt.ExpiredSignatureError:
             last_exc = HTTPException(status_code=401, detail="Token expired")
         except jwt.InvalidTokenError:

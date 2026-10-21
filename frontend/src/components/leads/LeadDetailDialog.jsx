@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import api, { formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -18,6 +17,7 @@ import InterestedDialog from "./InterestedDialog";
 import ConvertDialog from "./ConvertDialog";
 import LeadJourney from "./LeadJourney";
 import LeadAttachments from "./LeadAttachments";
+import StageChangeDialog from "./StageChangeDialog";
 import UserAvatar from "@/components/UserAvatar";
 
 function InfoRow({ icon: Icon, children }) {
@@ -43,7 +43,11 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
   const [slot, setSlot] = useState(null);
   const [interestedOpen, setInterestedOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [stagePrompt, setStagePrompt] = useState(null); // {status} when a stage note popup is open
+  const [noteText, setNoteText] = useState(""); // always-visible add-note box
   const [admins, setAdmins] = useState([]);
+  const [colleagues, setColleagues] = useState([]);
+  const [reassigning, setReassigning] = useState(false);
   const [resending, setResending] = useState(false);
   const editable = canEdit(user, "leads");
   const isAdmin = user?.role === "super_admin" || user?.role === "office_admin";
@@ -79,22 +83,73 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
     }
   }, [open, hasVisit, isAdmin]);
 
+  // Colleagues a lead can be handed to (office-scoped for staff/office admin).
+  useEffect(() => {
+    if (open && editable) {
+      api.get("/users/assignable").then(({ data }) => setColleagues(data)).catch(() => {});
+    }
+  }, [open, editable]);
+
   if (!local) return null;
   const meta = LEAD_STATUS_META[local.status] || LEAD_STATUS_META.new;
 
   const refresh = (updated) => { setLocal(updated); onChanged?.(); };
 
+  const reassign = async (toId) => {
+    if (!toId || toId === local.assigned_to_user_id || reassigning) return;
+    setReassigning(true);
+    try {
+      const { data } = await api.post(`/leads/${local.id}/reassign`, { assigned_to_user_id: toId });
+      setLocal(data);
+      onChanged?.();
+      toast.success(`Lead handed over to ${data.assigned_to_name || "colleague"}`);
+      // Handover: if it's no longer mine, close the detail view for staff.
+      if (user?.role === "staff" && data.assigned_to_user_id !== user.id) {
+        onOpenChange?.(false);
+      }
+    } catch (err) {
+      toast.error(formatApiError(err?.response?.data?.detail) || "Reassign failed");
+    } finally {
+      setReassigning(false);
+    }
+  };
+
   const changeStatus = async (status) => {
     // Interested & Converted have dedicated capture forms
     if (status === "interested") { setInterestedOpen(true); return; }
     if (status === "converted" && !local.converted_student_id) { setConvertOpen(true); return; }
+    // Every other stage change goes through the note/sub-stage popup.
+    setStagePrompt({ status });
+  };
+
+  const confirmStageChange = async ({ status_note, lost_reason }) => {
+    const status = stagePrompt?.status;
+    if (!status) return;
     setBusy(true);
     try {
-      const { data } = await api.patch(`/leads/${local.id}`, { status });
+      const body = { status };
+      if (status_note) body.status_note = status_note;
+      if (lost_reason) body.lost_reason = lost_reason;
+      const { data } = await api.patch(`/leads/${local.id}`, body);
       refresh(data);
+      setStagePrompt(null);
       toast.success(`Marked ${LEAD_STATUS_META[status].label}`);
     } catch (err) {
       toast.error(formatApiError(err?.response?.data?.detail) || "Update failed");
+    } finally { setBusy(false); }
+  };
+
+  const addNote = async () => {
+    const note = noteText.trim();
+    if (!note) return;
+    setBusy(true);
+    try {
+      const { data } = await api.patch(`/leads/${local.id}`, { status_note: note });
+      refresh(data);
+      setNoteText("");
+      toast.success("Note added");
+    } catch (err) {
+      toast.error(formatApiError(err?.response?.data?.detail) || "Could not add note");
     } finally { setBusy(false); }
   };
 
@@ -203,6 +258,30 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
             )}
           </div>
           {local.notes && <p className="text-sm text-muted-foreground bg-muted/40 rounded-lg p-2.5">{local.notes}</p>}
+
+          {editable && !local.converted_student_id && (
+            <div className="flex items-center gap-2 flex-wrap" data-testid="lead-reassign-row">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <UsersThree size={13} /> Assign to
+              </span>
+              <Select
+                value={local.assigned_to_user_id || "unassigned"}
+                onValueChange={reassign}
+                disabled={reassigning || busy}
+              >
+                <SelectTrigger className="h-8 w-56 bg-card text-xs" data-testid="lead-reassign-select">
+                  <SelectValue placeholder="Reassign to a colleague" />
+                </SelectTrigger>
+                <SelectContent>
+                  {colleagues.map((c) => (
+                    <SelectItem key={c.id} value={c.id} data-testid={`lead-reassign-opt-${c.id}`}>
+                      {c.name}{c.id === user?.id ? " (me)" : ""} · {c.role === "office_admin" ? "Office admin" : "Staff"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {local.converted_student_id && (
             <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5" data-testid="lead-converted-note">
               <GraduationCap size={14} /> Converted to a student record.
@@ -366,6 +445,15 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
             </div>
           )}
 
+          {/* Add a conversation note anytime (no stage change) */}
+          {editable && (
+            <div className="rounded-lg border border-border p-3 space-y-2" data-testid="lead-note-box">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><PencilSimple size={14} /> Add a note</p>
+              <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Short conversation summary…" rows={2} data-testid="lead-note-input" />
+              <Button type="button" size="sm" onClick={addNote} disabled={busy || !noteText.trim()} data-testid="lead-note-save-btn" className="btn-amber border-0">Add note</Button>
+            </div>
+          )}
+
           {/* Journey timeline (status transitions, follow-ups, visit, created) */}
           <LeadJourney
             lead={local}
@@ -409,6 +497,13 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
         onOpenChange={setConvertOpen}
         lead={local}
         onDone={(patch) => refresh({ ...local, ...patch })}
+      />
+      <StageChangeDialog
+        open={!!stagePrompt}
+        onOpenChange={(v) => { if (!v) setStagePrompt(null); }}
+        targetStatus={stagePrompt?.status}
+        busy={busy}
+        onConfirm={confirmStageChange}
       />
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

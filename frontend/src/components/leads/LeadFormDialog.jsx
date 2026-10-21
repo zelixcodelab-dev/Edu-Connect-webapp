@@ -11,7 +11,7 @@ import { LEAD_STATUSES, LEAD_STATUS_META, LEAD_SOURCES } from "./constants";
 
 const empty = {
   name: "", phone: "", email: "", course: "", place: "",
-  source: "walk_in", status: "new", assigned_to_user_id: "", notes: "", lost_reason: "",
+  source: "walk_in", status: "new", assigned_to_user_id: "", campaign_id: "", notes: "", lost_reason: "",
 };
 
 const LOST_REASONS = ["Admission Taken", "No Response", "Joined Competitor", "Not Eligible", "Other"];
@@ -21,6 +21,7 @@ export default function LeadFormDialog({ open, onOpenChange, lead, assignable, u
   const isStaff = user?.role === "staff";
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
+  const [campaigns, setCampaigns] = useState([]);
 
   useEffect(() => {
     if (open) {
@@ -28,8 +29,12 @@ export default function LeadFormDialog({ open, onOpenChange, lead, assignable, u
         name: lead.name || "", phone: lead.phone || "", email: lead.email || "",
         course: lead.course || "", place: lead.place || "", source: lead.source || "walk_in",
         status: lead.status || "new", assigned_to_user_id: lead.assigned_to_user_id || "",
+        campaign_id: lead.campaign_id || "",
         notes: lead.notes || "", lost_reason: lead.lost_reason || "",
       } : empty);
+      api.get("/leads/assigned-campaigns")
+        .then((r) => setCampaigns(Array.isArray(r.data) ? r.data : []))
+        .catch(() => setCampaigns([]));
     }
   }, [open, lead]);
 
@@ -54,8 +59,12 @@ export default function LeadFormDialog({ open, onOpenChange, lead, assignable, u
       if (!isStaff) payload.assigned_to_user_id = form.assigned_to_user_id || null;
       if (isEdit) {
         await api.patch(`/leads/${lead.id}`, payload);
+        if ((form.campaign_id || "") !== (lead.campaign_id || "")) {
+          await api.post(`/leads/${lead.id}/campaign`, { campaign_id: form.campaign_id || null });
+        }
         toast.success("Lead updated");
       } else {
+        payload.campaign_id = form.campaign_id || null;
         await api.post("/leads", payload);
         toast.success("Lead added");
       }
@@ -138,6 +147,31 @@ export default function LeadFormDialog({ open, onOpenChange, lead, assignable, u
               </Select>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label>Campaign</Label>
+            <Select
+              value={form.campaign_id || "none"}
+              onValueChange={(v) => setForm((f) => ({ ...f, campaign_id: v === "none" ? "" : v }))}
+            >
+              <SelectTrigger data-testid="lead-campaign-select" className="bg-card">
+                <SelectValue placeholder="No campaign" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" data-testid="lead-campaign-none">No campaign</SelectItem>
+                {campaigns.map((c) => (
+                  <SelectItem key={c.id} value={c.id} data-testid={`lead-campaign-opt-${c.id}`}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isStaff && campaigns.length === 0 && (
+              <p className="text-[11px] text-muted-foreground" data-testid="lead-campaign-empty">
+                No campaigns assigned to you yet.
+              </p>
+            )}
+          </div>
 
           {!isStaff && (
             <div className="space-y-1.5">

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
 from models import TransactionIn
+from lib.academic_year import date_filter, in_year
 from routers.notifications import notify_super_admins, notify_users
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
@@ -20,6 +21,7 @@ async def list_transactions(
     start: Optional[str] = None,
     end: Optional[str] = None,
     year: Optional[int] = None,
+    sc_payout: Optional[bool] = None,
     limit: int = 200,
 ):
     q: dict = {"user_id": user["id"]}
@@ -29,6 +31,8 @@ async def list_transactions(
         q["account_id"] = account_id
     if category_id:
         q["category_id"] = category_id
+    if sc_payout is not None:
+        q["is_sc_payout"] = sc_payout
     if start or end:
         q["date"] = {}
         if start:
@@ -36,9 +40,65 @@ async def list_transactions(
         if end:
             q["date"]["$lte"] = end
     elif year is not None:
-        from lib.academic_year import date_filter
         q.update(date_filter("date", year))
-    return await db.transactions.find(q, {"_id": 0}).sort("date", -1).limit(limit).to_list(limit)
+    rows = await db.transactions.find(q, {"_id": 0}).sort("date", -1).limit(limit).to_list(limit)
+    # Enrich SC-payout rows with the recipient client's name for display.
+    client_ids = list({r.get("client_id") for r in rows if r.get("client_id")})
+    if client_ids:
+        clients = await db.clients.find(
+            {"id": {"$in": client_ids}}, {"_id": 0, "id": 1, "name": 1, "client_type": 1}
+        ).to_list(2000)
+        cmap = {c["id"]: c for c in clients}
+        for r in rows:
+            c = cmap.get(r.get("client_id"))
+            if c:
+                r["_client_name"] = c.get("name")
+                r["_client_type"] = c.get("client_type")
+    return rows
+
+
+# Client types eligible as Service Charge payout recipients.
+SC_PAYOUT_CLIENT_TYPES = {"sub_agent_associate", "associate_consultant"}
+
+
+@router.get("/sc-payouts")
+async def list_sc_payouts(user: dict = Depends(get_current_user), year: Optional[int] = None):
+    """Money-out lines that reduce a sub-agent's holding: Service Charge payouts
+    (is_sc_payout) and Campus-Visit expenses (expense_of == campus_visit).
+
+    Super admin sees these across all users; others see only their own.
+    Each row is enriched with recipient client name/type + account name + a
+    `_kind` tag so the Ledger can render edit/delete controls."""
+    ledger_or = [{"is_sc_payout": True}, {"expense_of": "campus_visit"}]
+    q: dict = {"$or": ledger_or}
+    if user.get("role") != "super_admin":
+        q["user_id"] = user["id"]
+    rows = await db.transactions.find(q, {"_id": 0}).sort("date", -1).to_list(5000)
+    if year is not None:
+        rows = [r for r in rows if in_year(r.get("date"), year)]
+
+    client_ids = list({r.get("client_id") for r in rows if r.get("client_id")})
+    account_ids = list({r.get("account_id") for r in rows if r.get("account_id")})
+    cmap = {}
+    if client_ids:
+        clients = await db.clients.find(
+            {"id": {"$in": client_ids}}, {"_id": 0, "id": 1, "name": 1, "client_type": 1}
+        ).to_list(2000)
+        cmap = {c["id"]: c for c in clients}
+    amap = {}
+    if account_ids:
+        accounts = await db.accounts.find(
+            {"id": {"$in": account_ids}}, {"_id": 0, "id": 1, "name": 1}
+        ).to_list(2000)
+        amap = {a["id"]: a.get("name") for a in accounts}
+
+    for r in rows:
+        c = cmap.get(r.get("client_id"))
+        r["_client_name"] = c.get("name") if c else None
+        r["_client_type"] = c.get("client_type") if c else None
+        r["_account_name"] = amap.get(r.get("account_id"))
+        r["_kind"] = "payout" if r.get("is_sc_payout") else "campus_visit"
+    return rows
 
 
 @router.post("")

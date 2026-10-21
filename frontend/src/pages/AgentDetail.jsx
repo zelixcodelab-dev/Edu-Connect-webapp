@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, formatDate } from "@/lib/format";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, UsersThree, Briefcase, IdentificationBadge, CaretDown, CaretUp } from "@phosphor-icons/react";
+import { ArrowLeft, UsersThree, Briefcase, IdentificationBadge, CaretDown, CaretUp, HandCoins } from "@phosphor-icons/react";
 
 const TYPE_META = {
   sub_agent: { label: "Sub Agent", icon: UsersThree, color: "bg-violet-100/60 dark:bg-violet-500/15 text-violet-700 dark:text-violet-400" },
@@ -71,12 +71,44 @@ export default function AgentDetail() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="agent-totals">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-testid="agent-totals">
         <Tile label="Total routed" value={formatMoney(t.total_received, currency)} />
         <Tile label="Paid to college" value={formatMoney(t.paid_to_college, currency)} tone="info" />
         <Tile label="SC adjusted" value={formatMoney(t.sc_adjusted, currency)} tone="success" />
+        <Tile label="SC paid out" value={formatMoney(t.sc_paid_out || 0, currency)} tone="warning" />
         <Tile label="Currently holding" value={formatMoney(t.holding, currency)} tone={t.holding > 0 ? "danger" : "default"} />
       </div>
+
+      {(data.payouts || []).length > 0 && (
+        <Card className="border border-border bg-card rounded-lg shadow-none overflow-hidden" data-testid="agent-payouts-card">
+          <div className="px-6 py-4 border-b border-border">
+            <p className="label-eyebrow flex items-center gap-1.5"><HandCoins size={13} /> Service Charge payouts</p>
+            <h3 className="font-display text-lg mt-0.5">Money paid out to {data.name}</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left bg-muted/40 border-b border-border">
+                  <th className="px-6 py-3 label-eyebrow">Date</th>
+                  <th className="px-6 py-3 label-eyebrow">Mode</th>
+                  <th className="px-6 py-3 label-eyebrow">Notes</th>
+                  <th className="px-6 py-3 label-eyebrow text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data.payouts.map((p) => (
+                  <tr key={p.id} className="hover:bg-muted/40" data-testid={`agent-payout-${p.id}`}>
+                    <td className="px-6 py-3 tabular-nums text-muted-foreground">{formatDate(p.date)}</td>
+                    <td className="px-6 py-3 text-muted-foreground">{PAYMENT_MODE_LABELS[p.payment_mode] || "—"}</td>
+                    <td className="px-6 py-3 text-muted-foreground">{p.description || "—"}</td>
+                    <td className="px-6 py-3 text-right tabular-nums font-medium text-amber-700 dark:text-amber-400">{formatMoney(p.amount, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card className="border border-border bg-card rounded-lg shadow-none overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
@@ -178,6 +210,7 @@ function Tile({ label, value, tone }) {
       <p className={`font-display text-2xl mt-2 tabular-nums ${
         tone === "success" ? "text-emerald-700 dark:text-emerald-400" :
         tone === "danger" ? "text-rose-700 dark:text-rose-400" :
+        tone === "warning" ? "text-amber-700 dark:text-amber-400" :
         tone === "info" ? "text-sky-700 dark:text-sky-400" : "text-foreground"
       }`}>{value}</p>
     </Card>

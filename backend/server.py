@@ -218,15 +218,19 @@ async def startup() -> None:
     # context-less requests resolve to a real database).
     await seed_platform_and_default_tenant()
 
-    # Backfill: ensure every existing company has the Attendance module enabled
-    # (added after some companies were provisioned). Idempotent + cheap.
+    # Backfill newly-ported modules ON exactly once per company; later owner
+    # switch-offs persist because the key is recorded in modules_backfilled.
     try:
-        await gdb.tenants.update_many(
-            {"enabled_modules": {"$nin": ["attendance"]}},
-            {"$addToSet": {"enabled_modules": "attendance"}},
-        )
+        from lib.whitelabel import BACKFILL_MODULE_KEYS
+        async for t in gdb.tenants.find({}, {"_id": 0, "id": 1, "modules_backfilled": 1}):
+            todo = [k for k in BACKFILL_MODULE_KEYS if k not in (t.get("modules_backfilled") or [])]
+            if todo:
+                await gdb.tenants.update_one(
+                    {"id": t["id"]},
+                    {"$addToSet": {"enabled_modules": {"$each": todo}, "modules_backfilled": {"$each": todo}}},
+                )
     except Exception:
-        logger.exception("[startup] attendance module backfill failed")
+        logger.exception("[startup] module backfill failed")
 
     # Per-tenant helper indexes (rate-limit + activity) resolve against the
     # default tenant DB now that it's bound. Non-fatal.
@@ -250,36 +254,50 @@ async def startup() -> None:
         logger.exception("[storage] init failed — uploads will retry on first use")
     # Background sweep: remind assignees of due lead follow-ups every 10 min.
     asyncio.create_task(_followup_sweep_loop())
-    # Background sweep: ping admins about staff not checked in by 10:30 IST
-    # (runs across ALL companies/tenants).
+    # Background sweep: auto-import new rows from synced Google Sheets.
+    asyncio.create_task(_sheet_sync_loop())
+    # Background sweep: ping admins about staff not checked in by 10:30 IST.
     asyncio.create_task(_late_alert_loop())
 
 
+async def _sweep_all_tenants(fn, label: str, module: str | None = None) -> None:
+    """Run a tenant-scoped sweep once per company (skips tenants with the module off)."""
+    try:
+        tenants = [t async for t in gdb.tenants.find({}, {"_id": 0, "id": 1, "enabled_modules": 1})]
+    except Exception:
+        logger.exception("[%s] tenant scan failed", label)
+        return
+    for t in tenants:
+        if module and module not in (t.get("enabled_modules") or []):
+            continue
+        token = set_current_tenant(t["id"])
+        try:
+            await fn()
+        except Exception:
+            logger.exception("[%s] sweep failed for tenant %s", label, t["id"])
+        finally:
+            reset_current_tenant(token)
+
+
 async def _late_alert_loop() -> None:
-    from routers import attendance
     await asyncio.sleep(60)
     while True:
-        try:
-            tenant_ids = [t["id"] async for t in gdb.tenants.find({}, {"_id": 0, "id": 1})]
-            for tid in tenant_ids:
-                token = set_current_tenant(tid)
-                try:
-                    await attendance.sweep_late_checkins()
-                except Exception:
-                    logger.exception("[attendance] late-alert sweep failed for tenant %s", tid)
-                finally:
-                    reset_current_tenant(token)
-        except Exception:
-            logger.exception("[attendance] late-alert loop failed")
+        await _sweep_all_tenants(attendance.sweep_late_checkins, "attendance", "attendance")
         await asyncio.sleep(900)
+
+
+async def _sheet_sync_loop() -> None:
+    # Every 30 min; each sync respects its own interval_hours (default 6h).
+    await asyncio.sleep(120)
+    while True:
+        if google_sheets._configured():
+            await _sweep_all_tenants(google_sheets.sweep_due_syncs, "google-sync", "google_sheets")
+        await asyncio.sleep(1800)
 
 
 async def _followup_sweep_loop() -> None:
     while True:
-        try:
-            await leads.sweep_due_followups()
-        except Exception:
-            logger.exception("[leads] follow-up sweep failed")
+        await _sweep_all_tenants(leads.sweep_due_followups, "leads", "leads")
         await asyncio.sleep(600)
 
 

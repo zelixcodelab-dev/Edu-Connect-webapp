@@ -85,6 +85,13 @@ class UserOut(BaseModel):
     # Profile photo — resolved from the linked/own client row on read.
     # Relative /api/files/... path (or empty string when no photo uploaded).
     photo_url: Optional[str] = None
+    # Mobile 4-digit unlock PIN — the hash is stored on the row and never
+    # returned; this boolean lets the client decide whether to render the
+    # "Set PIN" prompt or the PIN pad on next open.
+    pin_enabled: Optional[bool] = False
+    # WebAuthn passkey biometric — derived from webauthn_credentials count > 0.
+    biometric_enabled: Optional[bool] = False
+    tour_status: Optional[str] = None
     created_at: str
 
 
@@ -137,6 +144,14 @@ class ClientIn(BaseModel):
     address: Optional[str] = None
     place: Optional[str] = None
     photo_url: Optional[str] = None  # relative /api/files/... path
+    # Payslip fields (all optional — hidden on the payslip when blank)
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    date_of_joining: Optional[str] = None   # ISO date
+    leave_balance: Optional[float] = None
+    tax_regime: Optional[str] = None        # "old" | "new" | free text
+    bank_account_no: Optional[str] = None
+    ifsc_code: Optional[str] = None
     # Cross-user visibility: when set to KM_BLR / KM_TCR / KM_KMLY, all office
     # admins of that office see the record. "ALL" → every office admin sees it.
     # Office admins always have this overridden server-side to their own office.
@@ -181,6 +196,14 @@ class TransactionIn(BaseModel):
     description: Optional[str] = ""
     client_id: Optional[str] = None
     linked_invoice_id: Optional[str] = None
+    # Service Charge payout to a sub-associate / associate consultant.
+    # When True, `client_id` is the recipient and `payment_mode` the method.
+    is_sc_payout: bool = False
+    payment_mode: Optional[str] = None
+    # Referred student this money-out line relates to (optional link / free text).
+    student_name: Optional[str] = None
+    # For non-payout expenses tied to a recipient: "campus_visit" | "personal".
+    expense_of: Optional[str] = None
 
 
 # ---------- Invoices ----------

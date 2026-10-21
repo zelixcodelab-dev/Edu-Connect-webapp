@@ -5,7 +5,7 @@ Verifies that defensive MONGO_URL/DB_NAME reading caused no regression.
 import requests
 import json
 
-BASE_URL = "https://saas-customizer.preview.emergentagent.com"
+BASE_URL = "https://edu-crm-hub-15.preview.emergentagent.com"
 
 # Credentials from review_request
 PLATFORM_OWNER = {"email": "owner@educonnect.app", "password": "Owner@12345"}

@@ -28,7 +28,6 @@ def init_storage() -> str | None:
 
 
 def _key_or_reinit() -> str:
-    global _storage_key
     key = _storage_key or init_storage()
     if not key:
         raise RuntimeError("Object storage is not configured (EMERGENT_LLM_KEY missing)")
