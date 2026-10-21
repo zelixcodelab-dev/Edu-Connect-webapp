@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only test of the new Behance-style collapsible sidebar (AppShell.jsx), run with Playwright at desktop 1920x1080 and mobile 390x844. Admin, staff and owner accounts were used. Working: the floating rounded panel (272px wide, 16px radius, shadow); the header with logo, app name and collapse chevron; the profile card with the role in brand colour (rgb 224,0,0 = --primary). Search works: 'stu' shows only nav-students, and gibberish shows sidebar-search-empty. Academic year select works. Groups accounts/office/details toggle aria-expanded with the chevron. Active item has the tinted pill, the left bar and the filled icon. These links all navigate with correct titles: students, leads, attendance, messages, users, settings and overview. The theme toggle switches dark on and off, and sidebar-logout-btn goes to /login. Rail: data-collapsed=true at 80px, with tooltips on hover (e.g. 'Students'). The state persists after reload (sidebarRail=1). rail-search, rail-year and the topbar toggle all expand or collapse it, and nothing overflows. Badges: with a mocked unread-count of 12, the expanded pill shows '9+' and the rail shows a 10px dot. Staff sees a flat list: Overview, Messages, Students, My Leads, Attendance, Profile. Mobile: the drawer is 300px wide and full height at z-70, above the z-50 bottom nav. The element at the bottom is drawer-logout-btn. Everything can be reached by scrolling, a tap navigates and closes the drawer, there is no horizontal overflow, and drawer logout works. The tour step 'Navigation' (2 of 10) highlights nav-overview. The owner /platform console is unchanged. ONE REAL BUG: in rail mode the nav links lose most of their classes, so the icons are off-centre and the active pill is missing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SidebarContent renderLink (rail mode)", "issue": "In the collapsed rail, every NavLink's class attribute is the SOURCE TEXT of the linkClass function. The actual class is the literal string '({ isActive }) => [\"group relative ...'. Result: justify-content is 'normal', so nav icons sit 12px left of the rail centre, while header, search, year, theme and logout buttons are centred. The active item has no brand-tinted pill (background is transparent). Hover background and rounded styles are broken, and the badge dot is placed relative to an unstyled link. RCA: RailTip wraps the NavLink in <TooltipTrigger asChild>. The Radix Slot merges className as [slotClass, childClass].filter(Boolean).join(' '), which turns NavLink's function className into a string. Expanded mode has no tooltip wrapper, so it is fine.", "selector": "[data-testid='desktop-sidebar'][data-collapsed='true'] [data-testid^='nav-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Desktop sidebar (rail)", "issues": ["The rail search icon only expands the sidebar. It does not focus sidebar-search afterwards, so the user has to click again.", "If a search query is typed and then the sidebar is collapsed, the rail still shows only the filtered results (e.g. only nav-students), and there is no visible search box to explain why. Clear the query when collapsing, or ignore it in rail mode."]},
+      {"screen": "Desktop sidebar (dark mode)", "issues": ["The tenant BrandMark logo in the sidebar header is almost invisible in dark mode: a dark logo on a dark tile.", "The 'Super Admin' role text in brand red on the dark profile card has low contrast."]},
+      {"screen": "Desktop header", "issues": ["The Academic Year selector now appears twice: in the sidebar under search, and in the topbar. Consider hiding the topbar one on md+ screens."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the rail link classes in AppShell.jsx renderLink. Option 1: give NavLink a plain string className computed with useLocation/matchPath. Option 2: wrap the NavLink in a <span className=\"flex justify-center\"> as the TooltipTrigger asChild child, so Slot merges onto the span and not onto the NavLink function className. Then verify the rail icons are centred and the active pill shows.",
+    "Optional: when rail-search expands the sidebar, focus the search input. Also clear the query when collapsing.",
+    "Optional: improve BrandMark visibility and role-text contrast in dark mode, and remove the duplicate academic-year selector from the topbar on desktop."
+  ],
+  "critical_code_review_comments": [
+    "AppShell.jsx is 625 lines. Consider moving SidebarContent, Avatar and RailTip into components/Sidebar.jsx.",
+    "RailTip with asChild must never wrap a component whose className is a function (NavLink). This is the root cause of the rail bug.",
+    "The 2x 401 console errors seen on every login are pre-login session probes, not caused by the sidebar."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "93% (1 HIGH visual bug in the rail; all functional flows pass)"},
+  "seed_data_creation": "None. Badges were tested by mocking /api/messages/unread-count via page.route.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "On mobile, admin login shows a 'Set a 4-digit PIN' dialog. Click the text 'Skip for now', then product-tour-skip. The owner goes to /platform, which has no desktop-sidebar. Rail centring check: compare each nav svg centre with the desktop-sidebar centre; before the fix the offset was -12px and buttons were 0px. localStorage sidebarRail was left at '0'.",
+  "rca of the issue": "Radix Slot (TooltipTrigger asChild) mergeProps joins className values as strings. NavLink receives a function className, which gets stringified, so the className callback never runs in rail mode. Reproduce: collapse the sidebar, then inspect [data-testid=nav-overview].className, which starts with '({ isActive }) =>'."
+}

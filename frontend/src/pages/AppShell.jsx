@@ -173,6 +173,9 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   const { theme, toggle: toggleTheme } = useTheme();
   const enabled = user?.enabled_modules;
   const [query, setQuery] = React.useState("");
+  const searchRef = React.useRef(null);
+  React.useEffect(() => { if (rail) setQuery(""); }, [rail]);
+  const expandAndFocus = () => { onToggleRail?.(); setTimeout(() => searchRef.current?.focus(), 320); };
   const alertFor = (to) => {
     if (to === "/messages") return alerts?.messages || 0;
     if (to === "/expense-requests" && role === "super_admin") return alerts?.approvals || 0;
@@ -218,6 +221,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     const count = alertFor(item.to);
     return (
       <RailTip key={item.to} show={rail} label={`${item.label}${count > 0 ? ` · ${count}` : ""}`}>
+      <span className={rail ? "flex justify-center w-full" : "block"}>
       <NavLink to={item.to} end={item.end} data-testid={item.tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
         {({ isActive }) => (
           <>
@@ -238,6 +242,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
           </>
         )}
       </NavLink>
+      </span>
       </RailTip>
     );
   };
@@ -287,7 +292,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
         <div className="px-4 space-y-2">
           <div className="relative">
             <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu" data-testid="sidebar-search"
+            <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu" data-testid="sidebar-search"
               className="w-full h-9 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] border border-transparent focus:border-[hsl(var(--primary))]/40 focus:bg-[hsl(var(--sidebar-bg))] pl-9 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-colors" />
           </div>
           {hasModule(user, "academic_year") && <AcademicYearSelect className="!w-full !justify-start !rounded-xl !h-9" />}
@@ -295,7 +300,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       )}
       {rail && (
         <div className="px-3 space-y-1.5 flex flex-col items-center">
-          <RailTip show label="Search menu"><button type="button" onClick={onToggleRail} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-search" aria-label="Search menu">
+          <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-search" aria-label="Search menu">
             <MagnifyingGlass size={18} />
           </button></RailTip>
           {hasModule(user, "academic_year") && (

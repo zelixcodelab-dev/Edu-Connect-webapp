@@ -345,3 +345,10 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Console: "Trial ends" column (TrialBadge), Subscription tab has the "On trial expiry" select, and Home attention lists trials that are expired or end within 7 days.
 - api.js handleSessionEnd: a revoked session (401), an expired token (401) or a trial block (403) stores sessionStorage auth.notice {kind, text, at}, calls /auth/logout to clear the cookie, then redirects to /login.
   AuthPage reads the notice without consuming it (valid for 2 minutes) and clears it on sign-in, so it survives a hard reload.
+
+## 2026-06 — Behance-style collapsible sidebar (client app only; tested: iteration_6.json, rail bug fixed and re-verified)
+- AppShell SidebarContent was rewritten as a floating rounded panel. It has a header with logo, name and collapse chevron (sidebar-collapse-btn); a profile card (sidebar-profile); live menu search (sidebar-search); a compact Academic Year select; uppercase section labels; and groups with a rotating chevron.
+  Active item: brand-colour pill (hsl(var(--primary))) with a left bar and filled icon. Bottom has a Dark-mode switch (sidebar-theme-toggle) and Sign out (sidebar-logout-btn / drawer-logout-btn).
+- Rail mode is about 80px, with centred icons, Radix tooltips, badge dots, and search/year icons that expand the sidebar (search also gets focus). It's saved in localStorage sidebarRail, and the topbar toggle does the same.
+  NavLink is wrapped in a span inside TooltipTrigger asChild, because Slot breaks NavLink's function className.
+- The mobile drawer uses the same design: a rounded right edge, z-[70] so it sits above the bottom nav, width 84vw (max 300px). The Platform Console sidebar is unchanged.
