@@ -257,7 +257,7 @@ export default function BottomNav() {
                 onClick={onFabClick}
                 data-testid="bottom-nav-add"
                 aria-label={isLinkedUser ? "Add new student" : "Quick add"}
-                className="absolute -top-5 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-amber-gradient text-white shadow-lg shadow-orange-500/40 flex items-center justify-center active:scale-95 transition-transform ring-4 ring-background"
+                className="absolute -top-5 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-lg shadow-[hsl(var(--primary)/0.4)] flex items-center justify-center active:scale-95 transition-transform ring-4 ring-background"
               >
                 <Plus size={26} weight="bold" />
               </button>

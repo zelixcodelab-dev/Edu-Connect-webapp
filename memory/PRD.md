@@ -392,3 +392,5 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Brand-coloured selected tile icon + Customize live preview (self-tested: screenshots)
 - Dashboard quick-nav tiles: selected tile's icon box fills with brand colour (Dashboard.jsx).
 - Customize page: new components/branding/BrandPreview.jsx mini-app mock (rail, tabs, link, switch, checkbox, primary button) with Light/Dark toggle; uses brandSwatch() in lib/branding.jsx. Unsaved colour preview is reverted when leaving the page.
+
+## 2026-06 — Mobile "+" quick-entry button uses brand colour (BottomNav.jsx; self-tested via screenshot, computed bg matches brand)
