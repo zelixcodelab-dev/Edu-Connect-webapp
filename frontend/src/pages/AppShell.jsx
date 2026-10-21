@@ -12,6 +12,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 import AcademicYearSelect from "@/components/AcademicYearSelect";
 import BottomNav from "@/components/BottomNav";
 import ProductTour, { START_TOUR_EVENT } from "@/components/ProductTour";
+import TrialBanner from "@/components/TrialBanner";
 import InstallPrompt from "@/components/InstallPrompt";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
@@ -572,6 +573,7 @@ export default function AppShell() {
           </div>
           </div>
         </header>
+        <TrialBanner />
 
         <div className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8 pb-28 md:pb-12 max-w-[1500px] w-full mx-auto">
           <div key={location.pathname} className="route-enter">

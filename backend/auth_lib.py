@@ -140,7 +140,7 @@ async def tenant_has_module(tenant_id: Optional[str], key: str) -> bool:
     return mods is None or key in mods
 
 
-async def _resolve_user_from_token(token: str, path: str = "") -> dict:
+async def _resolve_user_from_token(token: str, path: str = "", method: str = "GET") -> dict:
     """Decode a JWT and load the corresponding user (platform owner or tenant
     user), binding the tenant DB context. Raises HTTPException on any problem."""
     payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
@@ -172,10 +172,16 @@ async def _resolve_user_from_token(token: str, path: str = "") -> dict:
         raise HTTPException(status_code=401, detail="Account has been removed")
     user["tenant_id"] = tenant_id
     user["scope"] = "tenant"
-    from lib.subscription import tenant_revoked_at
-    revoked = await tenant_revoked_at(tenant_id)
-    if revoked and float(payload.get("iat") or 0) < int(revoked):
-        raise HTTPException(status_code=401, detail="Your session was ended by the administrator. Please sign in again.")
+    from lib.subscription import tenant_access, REVOKED_MSG, TRIAL_BLOCKED_MSG, TRIAL_READONLY_MSG
+    acc = await tenant_access(tenant_id)
+    if acc["revoked"] and float(payload.get("iat") or 0) < int(acc["revoked"]):
+        raise HTTPException(status_code=401, detail=REVOKED_MSG)
+    trial = acc["trial"]
+    if trial and trial["expired"]:
+        if trial["expiry_action"] == "block":
+            raise HTTPException(status_code=403, detail=TRIAL_BLOCKED_MSG)
+        if trial["expiry_action"] == "read_only" and method not in ("GET", "HEAD", "OPTIONS") and not path.startswith("/api/auth/"):
+            raise HTTPException(status_code=403, detail=TRIAL_READONLY_MSG)
     mod = module_for_path(path)
     if mod and not await tenant_has_module(tenant_id, mod):
         raise HTTPException(status_code=403, detail="This feature is not enabled for your workspace.")
@@ -201,7 +207,7 @@ async def get_current_user(request: Request) -> dict:
     last_exc: Optional[HTTPException] = None
     for token in candidates:
         try:
-            return await _resolve_user_from_token(token, request.url.path)
+            return await _resolve_user_from_token(token, request.url.path, request.method)
         except jwt.ExpiredSignatureError:
             last_exc = HTTPException(status_code=401, detail="Token expired")
         except jwt.InvalidTokenError:

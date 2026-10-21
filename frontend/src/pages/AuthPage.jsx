@@ -1,3 +1,4 @@
+import { AUTH_NOTICE_KEY } from "@/lib/api";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
@@ -17,6 +18,13 @@ export default function AuthPage({ mode }) {
   const nav = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [notice] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(AUTH_NOTICE_KEY);
+      sessionStorage.removeItem(AUTH_NOTICE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
 
   const handle = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -154,6 +162,11 @@ export default function AuthPage({ mode }) {
               </Link>
             </div>
 
+            {notice && !error && (
+              <div className={`text-sm rounded-lg px-3 py-2.5 border ${notice.kind === "expired" ? "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/20" : "text-amber-800 dark:text-amber-300 bg-amber-500/10 border-amber-500/30"}`} data-testid="auth-notice" data-kind={notice.kind}>
+                {notice.text}
+              </div>
+            )}
             {error && (
               <div className="text-sm text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2.5" data-testid="auth-error">
                 {error}

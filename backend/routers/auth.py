@@ -18,7 +18,7 @@ from models import RegisterIn, LoginIn, UserOut, SettingsUpdate, DEFAULT_PERMISS
 from seed import seed_user_defaults
 from routers.notifications import notify_super_admins
 from lib.email_notifier import send_email, password_reset_email_html
-from lib.subscription import record_login_event
+from lib.subscription import record_login_event, trial_info, TRIAL_BLOCKED_MSG
 from lib.whitelabel import (
     find_tenant_for_email, tenant_public, merged_branding, DEFAULT_APP_NAME,
 )
@@ -123,6 +123,9 @@ async def login(payload: LoginIn, response: Response, request: Request):
                 status_code=403,
                 detail="This account has been removed. Please contact the super admin.",
             )
+        trial = trial_info(tenant.get("subscription"))
+        if trial and trial["expired"] and trial["expiry_action"] == "block":
+            raise HTTPException(status_code=403, detail=TRIAL_BLOCKED_MSG)
         status = user.get("approval_status", "approved")
         if status == "pending":
             raise HTTPException(status_code=403, detail="Your account is awaiting super-admin approval.")
@@ -152,6 +155,7 @@ async def login(payload: LoginIn, response: Response, request: Request):
             "scope": "tenant",
             "branding": tp["branding"],
             "enabled_modules": tp["enabled_modules"],
+            "trial": trial,
             "access_token": token,
         }
     except HTTPException:
@@ -194,6 +198,7 @@ async def me(user: dict = Depends(get_current_user)):
             "enabled_modules": tp["enabled_modules"],
             "tenant_name": tenant.get("name"),
             "tenant_status": tenant.get("status", "active"),
+            "trial": trial_info(tenant.get("subscription")),
         })
     return {**user, **extras}
 

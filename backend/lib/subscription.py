@@ -7,6 +7,28 @@ from fastapi import HTTPException, Request
 from db import db, gdb, get_current_tenant
 
 SUB_STATUSES = ["trial", "active", "past_due", "cancelled"]
+EXPIRY_ACTIONS = ["keep", "read_only", "block"]
+NEAR_DAYS = 7
+REVOKED_MSG = "Your session was ended by the administrator. Please sign in again."
+TRIAL_BLOCKED_MSG = "Your trial has ended. Contact your platform provider to upgrade and restore access."
+TRIAL_READONLY_MSG = "Your trial has ended, so this workspace is read-only. Contact your platform provider to upgrade."
+
+
+def trial_info(sub: dict | None) -> dict | None:
+    """Trial countdown for a subscription; expired = the day after trial_ends_at."""
+    sub = sub or {}
+    end = sub.get("trial_ends_at")
+    if sub.get("status") != "trial" or not end:
+        return None
+    try:
+        end_day = datetime.fromisoformat(str(end)[:10]).date()
+    except ValueError:
+        return None
+    days_left = (end_day - datetime.now(timezone.utc).date()).days
+    return {
+        "trial_ends_at": end_day.isoformat(), "days_left": days_left, "expired": days_left < 0,
+        "near": 0 <= days_left <= NEAR_DAYS, "expiry_action": sub.get("expiry_action") or "keep",
+    }
 _revoked_cache: dict = {}
 _CACHE_TTL = 10
 
@@ -31,13 +53,14 @@ async def enforce_seat_limit() -> None:
         )
 
 
-async def tenant_revoked_at(tenant_id: str) -> float:
+async def tenant_access(tenant_id: str) -> dict:
+    """Cached {revoked, trial} snapshot used on every tenant request."""
     hit = _revoked_cache.get(tenant_id)
     now = time.monotonic()
     if hit and now - hit[1] < _CACHE_TTL:
         return hit[0]
-    t = await gdb.tenants.find_one({"id": tenant_id}, {"_id": 0, "sessions_revoked_at": 1})
-    val = float((t or {}).get("sessions_revoked_at") or 0)
+    t = await gdb.tenants.find_one({"id": tenant_id}, {"_id": 0, "sessions_revoked_at": 1, "subscription": 1}) or {}
+    val = {"revoked": float(t.get("sessions_revoked_at") or 0), "trial": trial_info(t.get("subscription"))}
     _revoked_cache[tenant_id] = (val, now)
     return val
 

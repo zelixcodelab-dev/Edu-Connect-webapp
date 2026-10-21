@@ -234,9 +234,30 @@ api.interceptors.response.use(
         return Promise.reject(retryErr);
       }
     }
+    handleSessionEnd(err);
     return Promise.reject(err);
   },
 );
+
+export const AUTH_NOTICE_KEY = "auth.notice";
+const REVOKED = "session was ended by the administrator";
+const TRIAL_BLOCKED = "trial has ended. contact your platform provider to upgrade and restore access";
+
+// Forced sign-out / expired session / trial lock → remember why, then go to login.
+function handleSessionEnd(err) {
+  const status = err?.response?.status;
+  const detail = String(err?.response?.data?.detail || "").toLowerCase();
+  const url = String(err?.config?.url || "");
+  if (!getStoredToken() || url.includes("/auth/login")) return;
+  let notice = null;
+  if (status === 401 && detail.includes(REVOKED)) notice = { kind: "revoked", text: "Your session was ended by your administrator. Please sign in again." };
+  else if (status === 401 && detail === "token expired") notice = { kind: "expired", text: "Your session expired. Please sign in again." };
+  else if (status === 403 && detail.includes(TRIAL_BLOCKED)) notice = { kind: "trial", text: "Your workspace trial has ended. Contact your provider to upgrade and restore access." };
+  if (!notice) return;
+  try { sessionStorage.setItem(AUTH_NOTICE_KEY, JSON.stringify(notice)); } catch { /* no-op */ }
+  setStoredToken(null);
+  if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
+}
 
 export function formatApiError(detail) {
   if (detail == null) return "Something went wrong. Please try again.";

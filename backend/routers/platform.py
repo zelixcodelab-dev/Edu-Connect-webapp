@@ -21,6 +21,7 @@ from lib.whitelabel import (
     MODULE_CATALOG, email_in_use,
 )
 from lib.tour import resolve_tour_steps, clean_tour_steps, tour_stats
+from lib.subscription import trial_info
 
 router = APIRouter(prefix="/api/platform", tags=["platform"])
 log = logging.getLogger("platform")
@@ -205,6 +206,19 @@ async def attention(owner: dict = Depends(get_platform_owner)):
             "module": "settings", "link": "/platform/settings", "entity_id": rec.get("email"),
         })
 
+    async for t in gdb.tenants.find({"subscription.status": "trial"}, {"_id": 0, "id": 1, "name": 1, "subscription": 1}):
+        tr = trial_info(t.get("subscription"))
+        if not tr or not (tr["expired"] or tr["near"]):
+            continue
+        d = tr["days_left"]
+        when = "expired" if tr["expired"] else ("ends today" if d == 0 else f"ends in {d} day{'s' if d != 1 else ''}")
+        items.append({
+            "id": f"trial-{t['id']}", "severity": "critical" if tr["expired"] or d <= 3 else "warning", "icon": "clock",
+            "title": f"{t.get('name', 'A company')}: trial {when}",
+            "subtitle": f"Trial end date {tr['trial_ends_at']} · on expiry: {tr['expiry_action'].replace('_', ' ')}.",
+            "module": "clients", "link": f"/platform/clients/{t['id']}", "entity_id": t["id"],
+        })
+
     total = await gdb.tenants.count_documents({})
     if total == 0:
         items.append({
@@ -282,6 +296,7 @@ async def list_tenants(owner: dict = Depends(get_platform_owner)):
         pub["is_default"] = t["id"] == default_id
         pub["plan"] = t.get("plan", "trial")
         pub["created_at"] = t.get("created_at")
+        pub["trial"] = trial_info(t.get("subscription"))
         out.append(pub)
     return {"tenants": out}
 
@@ -532,14 +547,16 @@ class SubscriptionIn(BaseModel):
     trial_ends_at: Optional[str] = None
     seat_limit: Optional[int] = Field(default=None, ge=0, le=100000)
     notes: Optional[str] = Field(default="", max_length=500)
+    expiry_action: str = Field(default="keep", pattern=r"^(keep|read_only|block)$")
 
 
 async def _subscription_view(t: dict) -> dict:
-    from lib.subscription import seat_usage
+    from lib.subscription import seat_usage, trial_info
     sub = dict(t.get("subscription") or {})
     sub.setdefault("status", "trial" if (t.get("plan") or "trial") == "trial" else "active")
     sub.setdefault("plan_name", (t.get("plan") or "trial").title())
     sub["seats_used"] = await seat_usage(tenant_database(t["id"]))
+    sub["trial"] = trial_info(t.get("subscription"))
     plans = [p async for p in gdb.plans.find({}, {"_id": 0}).sort("price", 1)]
     return {"subscription": sub, "plans": plans}
 
@@ -565,9 +582,12 @@ async def put_subscription(tenant_id: str, payload: SubscriptionIn, request: Req
         "plan_id": plan["id"], "plan_name": plan["name"], "price": plan.get("price", 0), "currency": plan.get("currency"),
         "status": payload.status, "trial_ends_at": payload.trial_ends_at or None,
         "seat_limit": int(seat_limit) if seat_limit else None, "notes": payload.notes or "",
+        "expiry_action": payload.expiry_action,
         "updated_at": now_iso(), "updated_by": owner.get("email"),
     }
     await gdb.tenants.update_one({"id": tenant_id}, {"$set": {"subscription": sub, "plan": plan["name"].lower()}})
+    from lib.subscription import forget_revoked
+    forget_revoked(tenant_id)
     await record_audit(owner, "client.subscription", t.get("name", "client"), request,
                        meta={"tenant_id": tenant_id, "plan": plan["name"], "status": payload.status, "seat_limit": sub["seat_limit"]})
     return await _subscription_view(await _tenant_or_404(tenant_id))

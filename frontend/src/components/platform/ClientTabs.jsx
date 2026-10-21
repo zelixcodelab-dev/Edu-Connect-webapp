@@ -108,6 +108,14 @@ const money = (price, currency) => {
   return `${sym}${Number(price).toLocaleString()}/mo`;
 };
 
+export function TrialBadge({ trial }) {
+  if (!trial) return <span className="text-muted-foreground">—</span>;
+  const d = trial.days_left;
+  const tone = trial.expired || d <= 3 ? "bg-rose-500/10 text-rose-700 dark:text-rose-400" : d <= 7 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground";
+  const label = trial.expired ? "Expired" : d === 0 ? "Ends today" : `in ${d} day${d === 1 ? "" : "s"}`;
+  return <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${tone}`} title={trial.trial_ends_at}>{label} · {trial.trial_ends_at}</span>;
+}
+
 const SUB_STATUSES = [["trial", "Trial"], ["active", "Active"], ["past_due", "Past due"], ["cancelled", "Cancelled"]];
 
 function SubscriptionForm({ clientId, data, onSaved }) {
@@ -118,6 +126,7 @@ function SubscriptionForm({ clientId, data, onSaved }) {
     trial_ends_at: (s.trial_ends_at || "").slice(0, 10),
     seat_limit: s.seat_limit ?? (s.plan_id ? 0 : ""),
     notes: s.notes || "",
+    expiry_action: s.expiry_action || "keep",
   });
   const [saving, setSaving] = useState(false);
   const plan = data.plans.find((p) => p.id === form.plan_id);
@@ -131,7 +140,7 @@ function SubscriptionForm({ clientId, data, onSaved }) {
     setSaving(true);
     try {
       const r = await api.put(`/platform/tenants/${clientId}/subscription`, {
-        plan_id: form.plan_id, status: form.status, notes: form.notes,
+        plan_id: form.plan_id, status: form.status, notes: form.notes, expiry_action: form.expiry_action,
         trial_ends_at: form.trial_ends_at || null, seat_limit: form.seat_limit === "" ? null : Number(form.seat_limit),
       });
       onSaved(r.data); toast.success("Subscription updated");
@@ -152,6 +161,14 @@ function SubscriptionForm({ clientId, data, onSaved }) {
           </select>
         </div>
         <div className="space-y-1.5"><Label>Trial ends</Label><Input type="date" value={form.trial_ends_at} onChange={set("trial_ends_at")} data-testid="sub-trial-ends" /></div>
+        <div className="space-y-1.5 sm:col-span-2"><Label>On trial expiry</Label>
+          <select value={form.expiry_action} onChange={set("expiry_action")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" data-testid="sub-expiry-action">
+            <option value="keep">Keep access (show reminder only)</option>
+            <option value="read_only">Read-only (view, no changes)</option>
+            <option value="block">Block sign-in</option>
+          </select>
+          <p className="text-[11px] text-muted-foreground">Applies from the day after the trial end date while status is Trial.</p>
+        </div>
         <div className="space-y-1.5"><Label>Seat limit (users)</Label><Input type="number" min={0} value={form.seat_limit} onChange={set("seat_limit")} placeholder={plan?.limits?.users ? `Plan default: ${plan.limits.users}` : "Unlimited"} data-testid="sub-seat-limit" /></div>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-2">Leave seats empty for the plan default, or enter 0 for unlimited.</p>
@@ -181,7 +198,7 @@ export function ClientSubscription({ clientId }) {
               {s.seat_limit && s.seats_used >= s.seat_limit && <p className="text-xs text-rose-600 mt-1.5">Seat limit reached. New users are blocked.</p>}
             </div>
             <div className="text-sm space-y-1.5">
-              <div className="flex justify-between"><span className="text-muted-foreground">Trial ends</span><span>{s.trial_ends_at ? new Date(s.trial_ends_at).toLocaleDateString() : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Trial ends</span><span data-testid="sub-trial-state">{s.trial ? <TrialBadge trial={s.trial} /> : "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span>{s.price ? money(s.price, s.currency) : "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Updated</span><span>{fmt(s.updated_at)}</span></div>
             </div>
