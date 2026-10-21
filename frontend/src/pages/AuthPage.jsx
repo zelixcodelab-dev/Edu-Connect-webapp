@@ -1,4 +1,5 @@
 import { readAuthNotice, clearAuthNotice } from "@/lib/api";
+import { useMonoTheme } from "@/pages/AppShell";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
@@ -20,6 +21,7 @@ export default function AuthPage({ mode }) {
   const [submitting, setSubmitting] = useState(false);
   // Read (not consume) so a hard reload right after the redirect still shows it; cleared on sign-in.
   const [notice] = useState(readAuthNotice);
+  useMonoTheme();
 
   const handle = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -592,3 +593,110 @@ h1, h2, h3, h4, h5, h6, .font-display {
 /* Sidebar nav: thin scrollbar that never shifts the icon rail */
 .sidebar-scroll { scrollbar-width: none; }
 .sidebar-scroll::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ───────────── Monochrome client theme ("Dashboard design 2020") ─────────────
+   Applied via html.theme-mono while the client app / login is mounted. !important
+   so it wins over per-company runtime brand variables set inline on <html>. */
+html.theme-mono {
+    --background: 0 0% 100% !important;
+    --foreground: 0 0% 7% !important;
+    --card: 0 0% 97.5% !important;
+    --card-foreground: 0 0% 7% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 0 0% 7% !important;
+    --primary: 0 0% 7% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 0 0% 95% !important;
+    --secondary-foreground: 0 0% 10% !important;
+    --muted: 0 0% 96% !important;
+    --muted-foreground: 0 0% 45% !important;
+    --accent: 0 0% 10% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --border: 0 0% 92% !important;
+    --input: 0 0% 90% !important;
+    --ring: 0 0% 7% !important;
+    --radius: 1.1rem !important;
+    --brand-a: #111111 !important;
+    --brand-b: #111111 !important;
+    --sidebar-bg: 0 0% 100% !important;
+    --sidebar-border: 0 0% 92% !important;
+    --sidebar-fg: 0 0% 10% !important;
+    --sidebar-muted: 0 0% 48% !important;
+    --rail-bg: 0 0% 4%;
+    --rail-fg: 0 0% 100%;
+    --chart-1: 0 0% 8% !important;
+    --chart-2: 0 0% 55% !important;
+    --chart-3: 0 0% 35% !important;
+    --chart-4: 0 0% 72% !important;
+    --chart-5: 24 95% 55% !important;
+}
+html.theme-mono.dark {
+    --background: 0 0% 5% !important;
+    --foreground: 0 0% 96% !important;
+    --card: 0 0% 10% !important;
+    --card-foreground: 0 0% 96% !important;
+    --popover: 0 0% 10% !important;
+    --popover-foreground: 0 0% 96% !important;
+    --primary: 0 0% 98% !important;
+    --primary-foreground: 0 0% 6% !important;
+    --secondary: 0 0% 14% !important;
+    --secondary-foreground: 0 0% 92% !important;
+    --muted: 0 0% 13% !important;
+    --muted-foreground: 0 0% 62% !important;
+    --accent: 0 0% 92% !important;
+    --accent-foreground: 0 0% 6% !important;
+    --border: 0 0% 17% !important;
+    --input: 0 0% 20% !important;
+    --ring: 0 0% 92% !important;
+    --brand-a: #2a2a2a !important;
+    --brand-b: #0d0d0d !important;
+    --sidebar-bg: 0 0% 9% !important;
+    --sidebar-border: 0 0% 17% !important;
+    --sidebar-fg: 0 0% 94% !important;
+    --sidebar-muted: 0 0% 58% !important;
+    --rail-bg: 0 0% 13%;
+    --rail-fg: 0 0% 100%;
+    --chart-1: 0 0% 96% !important;
+    --chart-2: 0 0% 55% !important;
+    --chart-3: 0 0% 75% !important;
+    --chart-4: 0 0% 38% !important;
+    --chart-5: 24 95% 58% !important;
+}
+html.theme-mono body,
+html.theme-mono h1, html.theme-mono h2, html.theme-mono h3, html.theme-mono h4,
+html.theme-mono .font-display {
+    font-family: 'Poppins', system-ui, sans-serif;
+}
+html.theme-mono h1, html.theme-mono h2, html.theme-mono h3 { letter-spacing: -0.02em; }
+html.theme-mono .btn-amber {
+    background-image: none;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.45);
+}
+html.theme-mono .btn-amber:hover { filter: none; opacity: 0.92; }
+html.theme-mono .text-amber-gradient { background-image: none; color: hsl(var(--foreground)); }
+html.theme-mono .card-premium,
+html.theme-mono .rounded-xl.border.bg-card,
+html.theme-mono [class*="rounded-2xl"][class*="border"][class*="bg-card"] {
+    border-color: transparent;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+html.theme-mono .card-premium:hover { box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.18); }
+html.theme-mono header[data-testid="topbar"] { background: hsl(var(--background) / 0.85); border-bottom-color: transparent; }
+
+/* Icon rail notch: the active cell joins the page with concave corners. */
+.rail-cell { position: relative; display: flex; justify-content: center; width: 100%; padding: 6px 0; }
+.rail-cell-active {
+    background: hsl(var(--background));
+    margin-left: 12px;
+    width: calc(100% - 12px);
+    border-radius: 22px 0 0 22px;
+    padding-right: 12px;
+}
+.rail-cell-active::before, .rail-cell-active::after {
+    content: ""; position: absolute; right: 0; width: 22px; height: 22px; background: transparent; pointer-events: none;
+}
+.rail-cell-active::before { top: -22px; border-bottom-right-radius: 22px; box-shadow: 8px 8px 0 8px hsl(var(--background)); }
+.rail-cell-active::after { bottom: -22px; border-top-right-radius: 22px; box-shadow: 8px -8px 0 8px hsl(var(--background)); }
+.desktop-rail { overflow: visible; }

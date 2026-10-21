@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   ShoppingBag, ChartPie, UsersThree, Receipt, FileText, CalendarBlank,
   Student, Notebook, ArrowUpRight, ArrowDownRight,
-  IdentificationBadge, Briefcase, Buildings, GraduationCap, Copy,
+  IdentificationBadge, Briefcase, Buildings, GraduationCap, Copy, CaretRight,
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "react-router-dom";
 import OfficeDashboard from "./OfficeDashboard";
@@ -170,19 +170,44 @@ function SuperAdminDashboard() {
   return (
     <div className="space-y-7 animate-fade-in" data-testid="dashboard-page">
       <AnnouncementBanners />
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <p className="label-eyebrow">Overview</p>
-          <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-2" data-testid="dashboard-greeting">
-            {greeting}, {user?.name?.split(" ")[0] || "there"}.
-          </h1>
+      <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="dashboard-hero">
+        <div className="relative overflow-hidden rounded-[28px] bg-card px-7 py-8 sm:px-9 min-h-[230px] flex items-center">
+          <div className="relative z-[1] max-w-[440px]">
+            <p className="label-eyebrow">{greeting}</p>
+            <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight mt-2" data-testid="dashboard-greeting">
+              Hi {user?.name?.split(" ")[0] || "there"}.
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              Welcome back {user?.name || ""}. Here's what's happening across admissions, payments and your team today.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link to="/quick-entry" data-testid="quick-add-tx" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl btn-amber text-sm font-medium">
+                <Receipt size={16} /> Quick entry
+              </Link>
+              <Link to="/students" data-testid="hero-view-details" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border border-foreground/15 text-sm font-medium hover:bg-foreground/5 transition-colors">
+                View details
+              </Link>
+            </div>
+          </div>
+          <img src="/illustrations/dashboard-hero.png" alt="" aria-hidden className="hidden sm:block absolute right-4 lg:right-10 bottom-0 h-[92%] max-h-[260px] w-auto object-contain pointer-events-none select-none animate-fade-in" />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/quick-entry" data-testid="quick-add-tx" className="inline-flex items-center gap-2 h-10 px-4 rounded-lg btn-amber text-sm font-medium">
-            <Receipt size={16} /> Quick entry
-          </Link>
+        <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-3" data-testid="hero-stats">
+          {[
+            { k: "income", label: "Income this month", value: summary?.month_income, to: "/transactions", Icon: ArrowUpRight },
+            { k: "expense", label: "Expenses this month", value: summary?.month_expense, to: "/transactions", Icon: ArrowDownRight },
+            { k: "outstanding", label: "Outstanding invoices", value: summary?.outstanding_invoices, to: "/invoices", Icon: FileText },
+          ].map(({ k, label, value, to, Icon }) => (
+            <Link key={k} to={to} data-testid={`hero-stat-${k}`} className="group flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 hover:-translate-y-0.5 hover:shadow-lg transition-[transform,box-shadow] duration-200">
+              <span className="w-10 h-10 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm"><Icon size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] text-muted-foreground">{label}</span>
+                <span className="block font-display text-lg font-semibold tabular-nums truncate">{formatMoney(value ?? 0, currency)}</span>
+              </span>
+              <CaretRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          ))}
         </div>
-      </header>
+      </section>
       <OnboardingChecklist />
 
       {/* Inline tile tabs — gradient highlight slides to the active tile */}

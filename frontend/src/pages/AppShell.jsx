@@ -23,7 +23,7 @@ import {
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
   Target, IdentificationBadge, Handshake, UserCircle, CaretRight, CaretDown, FolderSimplePlus,
-  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CaretUp, CalendarBlank, PushPin,
+  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CaretUp, CalendarBlank, PushPin, SquaresFour,
 } from "@phosphor-icons/react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -147,6 +147,106 @@ function buildSections(navItems, role) {
   ].filter((s) => s.items.length > 0);
 }
 
+function visibleNavItems(user, variant) {
+  const role = user?.role;
+  const enabled = user?.enabled_modules;
+  return ALL_NAV.filter((i) => {
+    if (variant !== "mobile" && i.mobileOnly) return false;
+    if (i.roles && !i.roles.includes(role)) return false;
+    if (i.perm && !canView(user, i.perm)) return false;
+    if (i.module && Array.isArray(enabled) && !enabled.includes(i.module)) return false;
+    return true;
+  }).map((i) => {
+    if (role !== "staff") return i;
+    if (i.to === "/settings") return { ...i, label: "Profile", icon: UserCircle };
+    if (i.to === "/leads") return { ...i, label: "My Leads" };
+    return i;
+  });
+}
+
+export function useMonoTheme() {
+  useEffect(() => {
+    document.documentElement.classList.add("theme-mono");
+    return () => document.documentElement.classList.remove("theme-mono");
+  }, []);
+}
+
+const RAIL_DEFAULTS = ["/", "/students", "/my-students", "/leads", "/messages", "/attendance"];
+
+// Black icon rail with a "notch" on the active item; the full menu opens as a flyout.
+function DesktopRail({ user, alerts, onLogout }) {
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const items = visibleNavItems(user, "desktop");
+  const pinned = (user?.nav_pins || []).map((to) => items.find((i) => i.to === to)).filter(Boolean);
+  const rail = (pinned.length ? pinned : RAIL_DEFAULTS.map((to) => items.find((i) => i.to === to)).filter(Boolean)).slice(0, 7);
+  const settings = items.find((i) => i.to === "/settings");
+  const isActive = (to) => (to === "/" ? location.pathname === "/" : location.pathname === to || location.pathname.startsWith(`${to}/`));
+  const anyActive = rail.some((i) => isActive(i.to)) || (settings && isActive(settings.to));
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const alertFor = (to) => (to === "/messages" ? alerts?.messages || 0 : to === "/expense-requests" && user?.role === "super_admin" ? alerts?.approvals || 0 : 0);
+  const cell = (key, active, label, children, extra = {}) => (
+    <RailTip key={key} show label={label}>
+      <div className={`rail-cell ${active ? "rail-cell-active" : ""}`}>{React.cloneElement(children, extra)}</div>
+    </RailTip>
+  );
+  const iconCls = (active) => `relative w-11 h-11 rounded-2xl flex items-center justify-center transition-[background-color,color,transform] duration-200 ${active ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 hover:scale-105"}`;
+
+  return (
+    <TooltipProvider>
+      <div className="hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 w-[104px] z-40">
+        <aside className="desktop-rail h-full w-[84px] flex flex-col items-center rounded-[28px] bg-[hsl(var(--rail-bg))] py-5" data-testid="desktop-sidebar" data-collapsed="true">
+          <div className="w-12 h-12 rounded-full bg-[hsl(var(--rail-fg))] flex items-center justify-center overflow-hidden shrink-0 mb-6" data-testid="rail-logo">
+            <BrandMark size={40} />
+          </div>
+          <nav className="flex-1 w-full flex flex-col gap-2" data-testid="rail-nav">
+            {rail.map((item) => {
+              const active = isActive(item.to) && !open;
+              const count = alertFor(item.to);
+              return cell(item.to, active, `${item.label}${count ? ` · ${count}` : ""}`, (
+                <NavLink to={item.to} end={item.end} data-testid={item.tid} aria-label={item.label} className={iconCls(active)}>
+                  <item.icon size={20} weight={active ? "fill" : "regular"} />
+                  {count > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" data-testid={`nav-alert-${item.tid}`} />}
+                </NavLink>
+              ));
+            })}
+            {cell("menu", open || !anyActive, "All menu", (
+              <button type="button" onClick={() => setOpen((v) => !v)} data-testid="rail-menu-btn" aria-label="Open full menu" aria-expanded={open} className={iconCls(open || !anyActive)}>
+                <SquaresFour size={20} weight={open || !anyActive ? "fill" : "regular"} />
+              </button>
+            ))}
+            {settings && cell("settings", isActive(settings.to) && !open, settings.label, (
+              <NavLink to={settings.to} data-testid={settings.tid} aria-label={settings.label} className={iconCls(isActive(settings.to))}>
+                <settings.icon size={20} weight={isActive(settings.to) ? "fill" : "regular"} />
+              </NavLink>
+            ))}
+          </nav>
+          <RailTip show label="Sign out">
+            <button type="button" onClick={onLogout} data-testid="sidebar-logout-btn" aria-label="Sign out" className="w-11 h-11 rounded-2xl flex items-center justify-center text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 transition-colors">
+              <SignOut size={20} />
+            </button>
+          </RailTip>
+        </aside>
+      </div>
+      {open && (
+        <>
+          <div className="hidden md:block fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]" onClick={() => setOpen(false)} data-testid="rail-flyout-overlay" />
+          <aside className="hidden md:flex fixed left-[112px] top-4 bottom-4 z-50 w-[288px] flex-col rounded-[28px] border bg-[hsl(var(--sidebar-bg))] border-[hsl(var(--sidebar-border))] shadow-2xl overflow-hidden animate-fade-in" data-testid="rail-flyout">
+            <SidebarContent user={user} alerts={alerts} variant="flyout" tidPrefix="flyout-" onItemClick={() => setOpen(false)} onLogout={onLogout} />
+          </aside>
+        </>
+      )}
+    </TooltipProvider>
+  );
+}
+
 function Avatar({ user, size = 40 }) {
   return (
     <div className="rounded-full bg-[hsl(var(--primary))] text-white text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-[hsl(var(--primary))]/20" style={{ width: size, height: size }}>
@@ -168,7 +268,7 @@ function RailTip({ show, label, children }) {
   );
 }
 
-function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile", rail = false, onToggleRail }) {
+function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile", rail = false, onToggleRail, tidPrefix = "" }) {
   const role = user?.role;
   const { branding } = useBranding();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -217,18 +317,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     }
     return init;
   });
-  const navItems = ALL_NAV.filter((i) => {
-    if (variant === "desktop" && i.mobileOnly) return false;
-    if (i.roles && !i.roles.includes(role)) return false;
-    if (i.perm && !canView(user, i.perm)) return false;
-    if (i.module && Array.isArray(enabled) && !enabled.includes(i.module)) return false;
-    return true;
-  }).map((i) => {
-    if (role !== "staff") return i;
-    if (i.to === "/settings") return { ...i, label: "Profile", icon: UserCircle };
-    if (i.to === "/leads") return { ...i, label: "My Leads" };
-    return i;
-  });
+  const navItems = visibleNavItems(user, variant);
 
   const isMobile = variant === "mobile";
   const pinnedItems = pins.map((to) => navItems.find((i) => i.to === to)).filter(Boolean);
@@ -249,7 +338,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   const renderLink = (item, indent, pinIdx = -1) => {
     const count = alertFor(item.to);
     const inPinned = pinIdx >= 0;
-    const tid = inPinned ? `pinned-${item.tid}` : item.tid;
+    const tid = inPinned ? `${tidPrefix}pinned-${item.tid}` : `${tidPrefix}${item.tid}`;
     const isPinned = pins.includes(item.to);
     const dragProps = inPinned && !rail ? {
       draggable: true,
@@ -437,7 +526,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
         </RailTip>
         {onLogout && (
           <RailTip show={rail} label="Sign out">
-          <button type="button" onClick={onLogout} data-testid={isMobile ? "drawer-logout-btn" : "sidebar-logout-btn"} aria-label="Sign out"
+          <button type="button" onClick={onLogout} data-testid={isMobile ? "drawer-logout-btn" : `${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out"
             className={`group relative flex items-center gap-3 rounded-xl text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors ${rail ? "w-11 h-11 justify-center" : "w-full px-3 py-2.5"}`}>
             <SignOut size={19} className="shrink-0" />
             {!rail && <span>Sign out</span>}
@@ -455,14 +544,6 @@ export default function AppShell() {
   const nav = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarHidden, setSidebarHidden] = useState(() => {
-    try { return localStorage.getItem("sidebarRail") === "1"; } catch { return false; }
-  });
-  const toggleSidebar = () => setSidebarHidden((v) => {
-    const next = !v;
-    try { localStorage.setItem("sidebarRail", next ? "1" : "0"); } catch { /* ignore */ }
-    return next;
-  });
   const [alerts, setAlerts] = useState({ messages: 0, approvals: 0 });
   const { theme, toggle: toggleTheme } = useTheme();
 
@@ -499,6 +580,7 @@ export default function AppShell() {
     || (branding?.app_name || "EduConnect Pro");
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  useMonoTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -516,17 +598,7 @@ export default function AppShell() {
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex">
       {/* Desktop Sidebar */}
-      <TooltipProvider>
-      <div className={`hidden md:block shrink-0 sticky top-0 h-screen p-3 pr-0 transition-[width] duration-300 ease-out ${sidebarHidden ? "w-[92px]" : "w-[284px]"}`}>
-        <aside
-          className="h-full flex flex-col rounded-2xl border bg-[hsl(var(--sidebar-bg))] border-[hsl(var(--sidebar-border))] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden"
-          data-testid="desktop-sidebar"
-          data-collapsed={sidebarHidden ? "true" : "false"}
-        >
-          <SidebarContent user={user} alerts={alerts} variant="desktop" rail={sidebarHidden} onToggleRail={toggleSidebar} onLogout={handleLogout} />
-        </aside>
-      </div>
-      </TooltipProvider>
+      <DesktopRail user={user} alerts={alerts} onLogout={handleLogout} />
 
       {/* Mobile Drawer */}
       {mobileOpen && (

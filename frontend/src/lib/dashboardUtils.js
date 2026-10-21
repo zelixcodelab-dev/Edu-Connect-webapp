@@ -112,14 +112,9 @@ export function allTimeMonthlyBuckets(dates) {
 
 // ---- Visual token maps ----
 
-export const PALETTES = {
-  amber: { bg: "bg-amber-50 dark:bg-amber-500/15", icon: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400" },
-  violet: { bg: "bg-violet-50 dark:bg-violet-500/15", icon: "bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-400" },
-  emerald: { bg: "bg-emerald-50 dark:bg-emerald-500/15", icon: "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
-  rose: { bg: "bg-rose-50 dark:bg-rose-500/15", icon: "bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400" },
-  sky: { bg: "bg-sky-50 dark:bg-sky-500/15", icon: "bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400" },
-  stone: { bg: "bg-muted", icon: "bg-muted text-foreground" },
-};
+// Monochrome card palettes (client "Dashboard design 2020" theme): soft grey card + white icon chip.
+const MONO = { bg: "bg-card", icon: "bg-background text-foreground shadow-sm" };
+export const PALETTES = { amber: MONO, violet: MONO, emerald: MONO, rose: MONO, sky: MONO, stone: MONO };
 
 export const FILTER_OPTIONS = [
   { value: "today", label: "Today" },
