@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin, BellRinging, FileText, ChatCircleDots } from "@phosphor-icons/react";
 import api from "@/lib/api";
 import AuthedImage from "@/components/AuthedImage";
+import ApplicationsReviewDialog from "@/components/dashboard/ApplicationsReviewDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const initials = (n) => (n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
@@ -131,16 +132,20 @@ export function TeamStrip({ role }) {
 // Right of the greeting card: what needs attention now.
 export function HeroInbox() {
   const [d, setD] = useState(null);
-  useEffect(() => { api.get("/dashboard/inbox").then((r) => setD(r.data)).catch(() => setD({})); }, []);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const load = () => api.get("/dashboard/inbox").then((r) => setD(r.data)).catch(() => setD({}));
+  useEffect(() => { load(); }, []);
   const rows = [
     { k: "reminders", label: "Follow-up reminders", hint: "due now", value: d?.followups_due, to: "/leads", Icon: BellRinging },
-    { k: "applications", label: "New applications", hint: "last 7 days", value: d?.new_applications, to: "/students", Icon: FileText },
+    { k: "applications", label: "New applications", hint: "pending review", value: d?.new_applications, Icon: FileText, onClick: () => setReviewOpen(true) },
     { k: "messages", label: "New messages", hint: "unread", value: d?.unread_messages, to: "/messages", Icon: ChatCircleDots },
   ];
   return (
     <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-3" data-testid="hero-inbox">
-      {rows.map(({ k, label, hint, value, to, Icon }) => (
-        <Link key={k} to={to} data-testid={`hero-inbox-${k}`} className="group flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 hover:-translate-y-0.5 hover:shadow-lg transition-[transform,box-shadow] duration-200">
+      {rows.map(({ k, label, hint, value, to, Icon, onClick }) => {
+        const Tag = onClick ? "button" : Link;
+        return (
+        <Tag key={k} {...(onClick ? { type: "button", onClick } : { to })} data-testid={`hero-inbox-${k}`} className="group w-full text-left flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 hover:-translate-y-0.5 hover:shadow-lg transition-[transform,box-shadow] duration-200">
           <span className="relative w-10 h-10 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm">
             <Icon size={18} />
             {value > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-card" />}
@@ -150,8 +155,10 @@ export function HeroInbox() {
             <span className="block font-display text-lg font-semibold tabular-nums" data-testid={`hero-inbox-${k}-count`}>{d ? value ?? 0 : "…"}</span>
           </span>
           <CaretRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      ))}
+        </Tag>
+        );
+      })}
+      <ApplicationsReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} onChanged={load} />
     </div>
   );
 }

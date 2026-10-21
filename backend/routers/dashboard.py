@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 
 from db import db
 from auth_lib import get_current_user
@@ -328,10 +329,43 @@ async def inbox(user: dict = Depends(get_current_user)):
         "status": {"$in": ["new", "not_connected", "interested", "follow_up"]},
         "next_follow_up": {"$ne": None, "$lte": now.isoformat()},
     })
-    week = (now - timedelta(days=7)).isoformat()
-    apps = await db.students.count_documents({"application": {"$exists": True}, "created_at": {"$gte": week}})
+    apps = await db.students.count_documents(PENDING_APP_FILTER)
     unread = 0
     async for m in db.messages.find({"recipient_ids": user["id"], "parent_id": None}, {"_id": 0, "acks": 1}).limit(500):
         if not ((m.get("acks") or {}).get(user["id"]) or {}).get("read_at"):
             unread += 1
     return {"followups_due": due, "new_applications": apps, "unread_messages": unread}
+
+
+PENDING_APP_FILTER = {"application": {"$exists": True}, "status": "inquiry", "application_review": {"$exists": False}}
+
+
+@router.get("/pending-applications")
+async def pending_applications(user: dict = Depends(get_current_user)):
+    """Inquiry-status students from the admission form not yet reviewed (newest first)."""
+    _admin_only(user)
+    items = await db.students.find(PENDING_APP_FILTER, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"items": items}
+
+
+class ReviewIn(BaseModel):
+    decision: str = Field(pattern=r"^(approved|rejected)$")
+    reason: Optional[str] = Field(default="", max_length=500)
+
+
+@router.post("/applications/{student_id}/review")
+async def review_application(student_id: str, payload: ReviewIn, user: dict = Depends(get_current_user)):
+    """Approve = mark reviewed (status stays Inquiry). Reject = Cancelled with reason in notes."""
+    _admin_only(user)
+    s = await db.students.find_one({"id": student_id, "application": {"$exists": True}}, {"_id": 0, "notes": 1})
+    if not s:
+        raise HTTPException(status_code=404, detail="Application not found")
+    from auth_lib import now_iso
+    review = {"status": payload.decision, "reason": (payload.reason or "").strip(), "by": user["id"], "by_name": user.get("name"), "at": now_iso()}
+    patch = {"application_review": review}
+    if payload.decision == "rejected":
+        patch["status"] = "cancelled"
+        if review["reason"]:
+            patch["notes"] = ((s.get("notes") or "") + f"\n[Application rejected] {review['reason']}").strip()
+    await db.students.update_one({"id": student_id}, {"$set": patch})
+    return {"ok": True, "review": review}
