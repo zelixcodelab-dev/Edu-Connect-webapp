@@ -121,6 +121,8 @@ MODULE_API_PREFIXES = [
     ("/api/auth/pin", "pin_lock"),
     ("/api/students/sc-by-college", "sc_report"),
     ("/api/academic-years", "academic_year"),
+    ("/api/onboarding/checklist", "onboarding"),
+    ("/api/onboarding/tour", "product_tour"),
 ]
 
 

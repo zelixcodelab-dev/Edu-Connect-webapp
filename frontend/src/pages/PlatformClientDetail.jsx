@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState, Avatar } from "@/components/platform/PlatformKit";
 import { MODULE_BY_KEY } from "@/lib/platformModules";
+import TourEditor from "@/components/platform/TourEditor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -67,6 +68,7 @@ export default function PlatformClientDetail() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
+          <TabsTrigger value="tour" data-testid="tab-tour">Product Tour</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="database">Database</TabsTrigger>
           <TabsTrigger value="subscription">Subscription</TabsTrigger>
@@ -91,6 +93,7 @@ export default function PlatformClientDetail() {
               <Row k="Created" v={fmt(client.created_at)} />
               <Row k="Brand color" v={<span className="inline-flex items-center gap-2"><span className="w-3.5 h-3.5 rounded-full border" style={{ background: b.brand_color }} />{b.brand_color}</span>} />
               <Row k="Default tenant" v={client.is_default ? "Yes" : "No"} />
+              <Row k="Product tour" v={`${client.stats?.tour?.completed ?? 0} finished · ${client.stats?.tour?.skipped ?? 0} skipped · ${client.stats?.tour?.not_started ?? 0} not started`} />
             </div>
           </div>
         </TabsContent>
@@ -112,6 +115,10 @@ export default function PlatformClientDetail() {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="tour" className="pt-6">
+          <TourEditor clientId={clientId} />
         </TabsContent>
 
         <TabsContent value="tickets" className="pt-6">

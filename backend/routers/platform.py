@@ -17,8 +17,9 @@ from db import (
 from auth_lib import get_platform_owner, hash_password, now_iso, gen_id
 from lib.whitelabel import (
     provision_tenant, tenant_public, merged_branding, normalize_modules,
-    MODULE_CATALOG, email_in_use, BRANDING_FIELDS,
+    MODULE_CATALOG, email_in_use,
 )
+from lib.tour import resolve_tour_steps, clean_tour_steps, tour_stats
 
 router = APIRouter(prefix="/api/platform", tags=["platform"])
 log = logging.getLogger("platform")
@@ -55,6 +56,17 @@ class TenantUpdate(BaseModel):
     enabled_modules: Optional[List[str]] = None
 
 
+class TourStepIn(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    title: str = Field(min_length=1, max_length=80)
+    body: str = Field(default="", max_length=400)
+    enabled: bool = True
+
+
+class TourIn(BaseModel):
+    steps: List[TourStepIn] = Field(max_length=30)
+
+
 class AdminReset(BaseModel):
     admin_password: str = Field(min_length=6, max_length=128)
 
@@ -65,9 +77,11 @@ async def _tenant_stats(tenant_id: str) -> dict:
         users = await tdb.users.count_documents({"deleted_at": {"$exists": False}})
         students = await tdb.students.count_documents({})
         leads = await tdb.leads.count_documents({})
+        tour = await tour_stats(tdb)
     except Exception:
         users = students = leads = 0
-    return {"users": users, "students": students, "leads": leads}
+        tour = {"completed": 0, "skipped": 0, "not_started": 0, "total": 0}
+    return {"users": users, "students": students, "leads": leads, "tour": tour}
 
 
 @router.get("/me")
@@ -410,3 +424,53 @@ async def delete_tenant(tenant_id: str, request: Request, owner: dict = Depends(
     await record_audit(owner, "client.delete", t.get("name", "client"), request,
                        meta={"tenant_id": tenant_id})
     return {"ok": True}
+
+
+async def _tenant_or_404(tenant_id: str) -> dict:
+    t = await gdb.tenants.find_one({"id": tenant_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return t
+
+
+@router.get("/tenants/{tenant_id}/tour")
+async def get_tenant_tour(tenant_id: str, owner: dict = Depends(require_permission("client.view"))):
+    t = await _tenant_or_404(tenant_id)
+    tdb = tenant_database(tenant_id)
+    users = []
+    async for u in tdb.users.find({"deleted_at": {"$exists": False}},
+                                  {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "tour_status": 1, "tour_done_at": 1}).limit(500):
+        users.append({**u, "tour_status": u.get("tour_status") or "not_started"})
+    return {
+        "steps": resolve_tour_steps(t.get("tour_steps")),
+        "customized": bool(t.get("tour_steps")),
+        "stats": await tour_stats(tdb),
+        "users": users,
+    }
+
+
+@router.put("/tenants/{tenant_id}/tour")
+async def save_tenant_tour(tenant_id: str, payload: TourIn, request: Request, owner: dict = Depends(require_permission("client.edit"))):
+    t = await _tenant_or_404(tenant_id)
+    steps = clean_tour_steps([s.model_dump() for s in payload.steps])
+    if not steps:
+        raise HTTPException(status_code=400, detail="Keep at least one step with a title.")
+    await gdb.tenants.update_one({"id": tenant_id}, {"$set": {"tour_steps": steps}})
+    await record_audit(owner, "client.tour.edit", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
+    return {"steps": resolve_tour_steps(steps), "customized": True}
+
+
+@router.delete("/tenants/{tenant_id}/tour")
+async def reset_tenant_tour(tenant_id: str, request: Request, owner: dict = Depends(require_permission("client.edit"))):
+    t = await _tenant_or_404(tenant_id)
+    await gdb.tenants.update_one({"id": tenant_id}, {"$unset": {"tour_steps": ""}})
+    await record_audit(owner, "client.tour.reset", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
+    return {"steps": resolve_tour_steps(None), "customized": False}
+
+
+@router.post("/tenants/{tenant_id}/tour/reset-users")
+async def reset_tour_users(tenant_id: str, request: Request, owner: dict = Depends(require_permission("client.edit"))):
+    t = await _tenant_or_404(tenant_id)
+    r = await tenant_database(tenant_id).users.update_many({}, {"$unset": {"tour_status": "", "tour_done_at": ""}})
+    await record_audit(owner, "client.tour.replay", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
+    return {"ok": True, "reset": r.modified_count}

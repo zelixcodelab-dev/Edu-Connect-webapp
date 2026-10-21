@@ -80,13 +80,14 @@ MODULE_CATALOG = [
     {"key": "sc_report", "label": "Service Charge Report"},
     {"key": "celebrations", "label": "Success Animations & Sounds"},
     {"key": "product_tour", "label": "Guided Product Tour"},
+    {"key": "onboarding", "label": "Getting-started Checklist"},
 ]
 
 # Modules added after launch: switched ON once for existing companies, then the
 # owner's choice is respected (tracked via tenant.modules_backfilled).
 BACKFILL_MODULE_KEYS = [
     "attendance", "academic_year", "google_sheets", "passkeys",
-    "pin_lock", "sc_report", "celebrations", "product_tour",
+    "pin_lock", "sc_report", "celebrations", "product_tour", "onboarding",
 ]
 
 ALL_MODULE_KEYS = [m["key"] for m in MODULE_CATALOG]

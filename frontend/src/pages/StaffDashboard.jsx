@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { buildApplyUrl, navigateToApply } from "@/lib/applyUrl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,7 @@ export default function StaffDashboard() {
         <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight">{user?.name?.split(" ")[0] || "Staff"}&apos;s desk</h1>
         <p className="text-sm text-muted-foreground mt-1">Your leads, referrals and quick actions in one place.</p>
       </div>
+      <OnboardingChecklist />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 dash-stagger" data-testid="staff-stats">

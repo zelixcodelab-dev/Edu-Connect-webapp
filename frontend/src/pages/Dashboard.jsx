@@ -19,6 +19,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import OfficeDashboard from "./OfficeDashboard";
 import StaffDashboard from "./StaffDashboard";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import {
   rangeFor, withinFilter, monthlyBuckets, allTimeMonthlyBuckets, todayISO,
   FILTER_OPTIONS, LEDGER_TYPE_LABEL, LEDGER_TYPE_COLOR, PALETTES,
@@ -182,6 +183,7 @@ function SuperAdminDashboard() {
           </Link>
         </div>
       </header>
+      <OnboardingChecklist />
 
       {/* Inline tile tabs — gradient highlight slides to the active tile */}
       <section className="relative" data-testid="quick-nav-tiles">

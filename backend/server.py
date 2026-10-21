@@ -19,6 +19,7 @@ from starlette.middleware.cors import CORSMiddleware
 from db import client, db, gdb, set_default_tenant, set_current_tenant, reset_current_tenant
 from seed import seed_platform_and_default_tenant
 from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity, attendance, academic, google_sheets, webauthn
+from routers import onboarding as onboarding_router
 from routers import platform as platform_router
 from routers import branding as branding_router
 from routers import connect as connect_router
@@ -61,6 +62,7 @@ app.include_router(academic.router)
 app.include_router(google_sheets.router)
 app.include_router(google_sheets.oauth_router)
 app.include_router(webauthn.router)
+app.include_router(onboarding_router.router)
 app.include_router(platform_router.router)
 app.include_router(branding_router.router)
 app.include_router(connect_router.router)

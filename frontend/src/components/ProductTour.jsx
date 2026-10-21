@@ -10,19 +10,17 @@ export const START_TOUR_EVENT = "educonnect:start-tour";
 
 const ADMIN = ["super_admin", "office_admin"];
 
-// Each step lists candidate selectors; the first visible one is highlighted.
-const STEPS = [
-  { id: "welcome", title: "Welcome to your workspace", body: "Here's a quick look around. It takes under a minute, and you can skip any time." },
-  { id: "nav", sel: ['[data-testid="nav-overview"]', '[data-testid="bottom-nav"]'], title: "Navigation", body: "Every area of the app is listed here. Your menu only shows what your role and company can use." },
-  { id: "year", module: "academic_year", sel: ['[data-testid="academic-year-select"]'], title: "Academic year", body: "Pick a year to scope every page's numbers, lists and reports. \"All years\" removes the filter." },
-  { id: "students", module: "students", sel: ['[data-testid="nav-students"]', '[data-testid="nav-my-students"]', '[data-testid="bottom-nav-students"]', '[data-testid="bottom-nav-my-students"]'], title: "Students", body: "Admissions, fees, payments and documents for every student." },
-  { id: "leads", module: "leads", sel: ['[data-testid="nav-leads"]', '[data-testid="bottom-nav-crm"]', '[data-testid="bottom-nav-leads"]'], title: "CRM & leads", body: "Track enquiries through the pipeline, run campaigns and convert leads into students." },
-  { id: "attendance", module: "attendance", sel: ['[data-testid="nav-attendance"]', '[data-testid="bottom-nav-attendance"]'], title: "Attendance & leave", body: "Check in and out, apply for leave and see payroll from one place." },
-  { id: "messages", module: "messages", sel: ['[data-testid="nav-messages"]', '[data-testid="topbar-messages-btn"]', '[data-testid="bottom-nav-messages"]'], title: "Messages", body: "Chat with your team. Unread counts show up right here." },
-  { id: "team", roles: ADMIN, sel: ['[data-testid="nav-users"]', '[data-testid="nav-office-staff"]'], title: "Your team", body: "Invite colleagues and control what each person can see or edit." },
-  { id: "profile", sel: ['[data-testid="profile-menu-btn"]'], title: "Profile & settings", body: "Switch light/dark mode, open settings, or replay this tour any time from here." },
-  { id: "done", title: "You're all set", body: "That's the tour. You can replay it from the profile menu whenever you like." },
-];
+// Targets + visibility rules per default step id; wording comes from the company's tour config.
+const META = {
+  nav: { sel: ['[data-testid="nav-overview"]', '[data-testid="bottom-nav"]'] },
+  year: { module: "academic_year", sel: ['[data-testid="academic-year-select"]'] },
+  students: { module: "students", sel: ['[data-testid="nav-students"]', '[data-testid="nav-my-students"]', '[data-testid="bottom-nav-students"]', '[data-testid="bottom-nav-my-students"]'] },
+  leads: { module: "leads", sel: ['[data-testid="nav-leads"]', '[data-testid="bottom-nav-crm"]', '[data-testid="bottom-nav-leads"]'] },
+  attendance: { module: "attendance", sel: ['[data-testid="nav-attendance"]', '[data-testid="bottom-nav-attendance"]'] },
+  messages: { module: "messages", sel: ['[data-testid="nav-messages"]', '[data-testid="topbar-messages-btn"]', '[data-testid="bottom-nav-messages"]'] },
+  team: { roles: ADMIN, sel: ['[data-testid="nav-users"]', '[data-testid="nav-office-staff"]'] },
+  profile: { sel: ['[data-testid="profile-menu-btn"]'] },
+};
 
 function visible(el) {
   if (!el) return false;
@@ -73,12 +71,19 @@ export default function ProductTour() {
   const [tick, setTick] = useState(0);
   const enabled = user && user !== false && user.scope !== "platform" && hasModule(user, "product_tour");
 
+  const [config, setConfig] = useState(null);
+
+  useEffect(() => {
+    if (!open || config) return;
+    api.get("/onboarding/tour").then((r) => setConfig(r.data.steps || [])).catch(() => setConfig([]));
+  }, [open, config]);
+
   const steps = useMemo(() => {
-    if (!open) return [];
-    return STEPS.filter((s) => (!s.module || hasModule(user, s.module))
+    if (!open || !config) return [];
+    return config.map((c) => ({ ...c, ...(META[c.id] || {}) })).filter((s) => (!s.module || hasModule(user, s.module))
       && (!s.roles || s.roles.includes(user?.role))
       && (!s.sel || findTarget(s)));
-  }, [open, user]);
+  }, [open, user, config]);
 
   useEffect(() => {
     if (enabled && !user.tour_status && !setupPinPromptOpen) {
@@ -89,7 +94,7 @@ export default function ProductTour() {
   }, [enabled, user?.tour_status, setupPinPromptOpen]);
 
   useEffect(() => {
-    const start = () => { setIdx(0); setOpen(true); setTick((n) => n + 1); };
+    const start = () => { setIdx(0); setConfig(null); setOpen(true); setTick((n) => n + 1); };
     window.addEventListener(START_TOUR_EVENT, start);
     return () => window.removeEventListener(START_TOUR_EVENT, start);
   }, []);

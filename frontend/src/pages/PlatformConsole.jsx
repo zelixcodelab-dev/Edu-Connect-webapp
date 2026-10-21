@@ -45,8 +45,6 @@ const emptyForm = () => ({
   enabled_modules: [],
 });
 
-function StatCardLocalUnused() { return null; }
-
 export default function PlatformConsole() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -254,6 +252,7 @@ export default function PlatformConsole() {
                     <TableHead>Company</TableHead>
                     <TableHead className="hidden md:table-cell">Plan</TableHead>
                     <TableHead className="hidden lg:table-cell">Users</TableHead>
+                    <TableHead className="hidden xl:table-cell">Tour</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden lg:table-cell">Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -279,6 +278,13 @@ export default function PlatformConsole() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell capitalize text-sm text-muted-foreground">{t.plan || "trial"}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{t.stats?.users ?? 0}</TableCell>
+                      <TableCell className="hidden xl:table-cell" data-testid={`tour-stats-${t.slug}`}>
+                        <div className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" title="Finished">{t.stats?.tour?.completed ?? 0} done</span>
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400" title="Skipped">{t.stats?.tour?.skipped ?? 0} skipped</span>
+                          <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Not started">{t.stats?.tour?.not_started ?? 0} new</span>
+                        </div>
+                      </TableCell>
                       <TableCell><StatusBadge status={t.status} /></TableCell>
                       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{fmtDate(t.created_at)}</TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
