@@ -316,3 +316,6 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## Backlog
 - Choose whether staff checklist ticks should count only that staff member's own records (right now they are company-wide).
 - Swap window.confirm in TourEditor for AlertDialog; warn about unsaved tour edits.
+- 2026-06: Setup celebration. When a user's checklist is complete, the card is replaced by "Your workspace is ready!" (onboarding-complete)
+  with the milestone celebrate() overlay and sound, but only if the celebrations module is on. "Got it" calls POST /api/onboarding/checklist/celebrated
+  (users.onboarding_celebrated), so it shows once per user. Users who hid the checklist don't see it.

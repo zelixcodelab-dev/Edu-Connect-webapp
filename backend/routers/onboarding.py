@@ -56,6 +56,7 @@ async def checklist(user: dict = Depends(get_current_user)):
     return {
         "items": items, "done": finished, "total": len(items),
         "dismissed": bool(user.get("onboarding_dismissed")),
+        "celebrated": bool(user.get("onboarding_celebrated")),
         "complete": bool(items) and finished == len(items),
     }
 
@@ -63,6 +64,12 @@ async def checklist(user: dict = Depends(get_current_user)):
 @router.post("/checklist/dismiss")
 async def dismiss(user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"onboarding_dismissed": True, "onboarding_dismissed_at": now_iso()}})
+    return {"ok": True}
+
+
+@router.post("/checklist/celebrated")
+async def celebrated(user: dict = Depends(get_current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$set": {"onboarding_celebrated": True, "onboarding_celebrated_at": now_iso()}})
     return {"ok": True}
 
 
