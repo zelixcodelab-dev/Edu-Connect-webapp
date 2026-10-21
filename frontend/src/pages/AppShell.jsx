@@ -197,7 +197,7 @@ function DesktopRail({ user, alerts, onLogout }) {
       <div className={`rail-cell ${active ? "rail-cell-active" : ""}`}>{React.cloneElement(children, extra)}</div>
     </RailTip>
   );
-  const iconCls = (active) => `relative w-11 h-11 rounded-2xl flex items-center justify-center transition-[background-color,color,transform] duration-200 ${active ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 hover:scale-105"}`;
+  const iconCls = (active) => `relative w-11 h-11 rounded-2xl flex items-center justify-center transition-[background-color,color,transform] duration-200 ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-md" : "text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 hover:scale-105"}`;
 
   return (
     <TooltipProvider>
@@ -330,7 +330,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     "group relative z-[1] flex items-center gap-3 rounded-xl text-sm transition-[background-color,color,transform] duration-200",
     rail ? "justify-center h-11 w-11 mx-auto" : `${indent ? "pl-10 pr-3" : "px-3"} py-2.5`,
     isActive
-      ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-semibold"
+      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold shadow-sm"
       : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--primary))]",
     !rail && !isActive ? "hover:translate-x-0.5" : "",
   ].join(" ");
@@ -376,7 +376,6 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       <NavLink to={item.to} end={item.end} data-testid={tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
         {({ isActive }) => (
           <>
-            {isActive && !rail && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[hsl(var(--primary))]" aria-hidden />}
             <item.icon size={19} weight={isActive ? "fill" : "regular"} className="shrink-0" />
             {!rail && <span className="truncate">{item.label}</span>}
             {count > 0 && (

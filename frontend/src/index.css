@@ -604,8 +604,8 @@ html.theme-mono {
     --card-foreground: 0 0% 7% !important;
     --popover: 0 0% 100% !important;
     --popover-foreground: 0 0% 7% !important;
-    --primary: 0 0% 7% !important;
-    --primary-foreground: 0 0% 100% !important;
+    --primary: var(--brand-hsl, 0 0% 7%) !important;
+    --primary-foreground: var(--brand-fg, 0 0% 100%) !important;
     --secondary: 0 0% 95% !important;
     --secondary-foreground: 0 0% 10% !important;
     --muted: 0 0% 96% !important;
@@ -614,7 +614,7 @@ html.theme-mono {
     --accent-foreground: 0 0% 100% !important;
     --border: 0 0% 92% !important;
     --input: 0 0% 90% !important;
-    --ring: 0 0% 7% !important;
+    --ring: var(--brand-hsl, 0 0% 7%) !important;
     --radius: 1.1rem !important;
     --brand-a: #111111 !important;
     --brand-b: #111111 !important;
@@ -637,8 +637,8 @@ html.theme-mono.dark {
     --card-foreground: 0 0% 96% !important;
     --popover: 0 0% 10% !important;
     --popover-foreground: 0 0% 96% !important;
-    --primary: 0 0% 98% !important;
-    --primary-foreground: 0 0% 6% !important;
+    --primary: var(--brand-hsl-dark, 0 0% 98%) !important;
+    --primary-foreground: var(--brand-fg-dark, 0 0% 6%) !important;
     --secondary: 0 0% 14% !important;
     --secondary-foreground: 0 0% 92% !important;
     --muted: 0 0% 13% !important;
@@ -647,7 +647,7 @@ html.theme-mono.dark {
     --accent-foreground: 0 0% 6% !important;
     --border: 0 0% 17% !important;
     --input: 0 0% 20% !important;
-    --ring: 0 0% 92% !important;
+    --ring: var(--brand-hsl-dark, 0 0% 92%) !important;
     --brand-a: #2a2a2a !important;
     --brand-b: #0d0d0d !important;
     --sidebar-bg: 0 0% 9% !important;
@@ -723,3 +723,16 @@ html.theme-mono [data-testid="trial-banner"][data-days-left="3"] { background: h
 html.theme-mono [data-testid="sidebar-logout-btn"], html.theme-mono [data-testid="drawer-logout-btn"], html.theme-mono [data-testid="flyout-logout-btn"] { color: hsl(var(--foreground)); }
 html.theme-mono .desktop-rail [data-testid="sidebar-logout-btn"] { color: hsl(var(--rail-fg) / 0.7); }
 html.theme-mono [data-testid="rail-logo"] > * { background: #fff !important; }
+
+/* White-label accents in the mono theme: links, selected tabs, sidebar selection. */
+html.theme-mono a.text-orange-600, html.theme-mono a.text-orange-500, html.theme-mono a.text-orange-700,
+html.theme-mono a.text-orange-400, html.theme-mono a.text-amber-600,
+html.theme-mono a.hover\:text-orange-600:hover, html.theme-mono a.hover\:text-orange-700:hover,
+html.theme-mono a.hover\:text-orange-400:hover {
+    color: hsl(var(--primary)) !important;
+}
+html.theme-mono [role="tab"][data-state="active"] {
+    color: hsl(var(--primary));
+    box-shadow: inset 0 -2px 0 hsl(var(--primary));
+}
+html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { accent-color: hsl(var(--primary)); }

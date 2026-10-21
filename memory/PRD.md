@@ -382,3 +382,9 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - The inbox new_applications count is now the pending count (0 for non-admins).
 - ApplicationsReviewDialog opens from hero-inbox-applications (admins only) and has expand, approve, reject (with reason, cleared on cancel), PDF and open-record actions. Celebration copy reads "Application reviewed".
 - OfficeDashboard (office_admin) now also shows Trending, HeroInbox and TeamStrip.
+
+## 2026-06 — White-label brand colour on primary buttons (self-tested: screenshots blue/yellow/black, light+dark, desktop+mobile)
+- Mono theme --primary/--ring now follow each company's brand_color (runtime vars --brand-hsl / --brand-fg set in lib/branding.jsx applyBranding).
+- Automatic black/white button text via WCAG contrast (prefersDarkText). Dark mode uses same brand; near-black brands (L<15%) invert to white so they stay visible.
+- Applies to: buttons, switches, checkboxes, link-style accents (a.text-orange-*), active tabs (underline), sidebar selected item (filled) and rail active icon (filled). Client app + login page; Platform Console unaffected.
+- Note: Workspace Admin tenant brand is #000000 (so it still looks black/white).

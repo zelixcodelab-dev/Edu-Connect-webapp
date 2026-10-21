@@ -49,6 +49,19 @@ function hexToHsl(hex) {
   };
 }
 
+// True when black text reads better than white on this colour (WCAG contrast).
+export function prefersDarkText(hex) {
+  let h = (hex || "").replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length !== 6) return false;
+  const lin = (i) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const L = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+  return (L + 0.05) / 0.05 > 1.05 / (L + 0.05);
+}
+
 // Apply a branding object to the document: CSS brand variables, primary
 // colour, page title and favicon. Safe to call repeatedly.
 export function applyBranding(branding) {
@@ -65,6 +78,12 @@ export function applyBranding(branding) {
     root.style.setProperty("--ring", primary);
     root.style.setProperty("--accent", primary);
     root.style.setProperty("--chart-1", primary);
+    root.style.setProperty("--brand-hsl", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
+    root.style.setProperty("--brand-fg", prefersDarkText(color) ? "0 0% 7%" : "0 0% 100%");
+    // Near-black brands would vanish on the dark canvas; invert them there.
+    const tooDark = hsl.l < 15;
+    root.style.setProperty("--brand-hsl-dark", tooDark ? "0 0% 98%" : `${hsl.h} ${hsl.s}% ${hsl.l}%`);
+    root.style.setProperty("--brand-fg-dark", tooDark ? "0 0% 6%" : prefersDarkText(color) ? "0 0% 7%" : "0 0% 100%");
   }
   if (b.app_name) document.title = b.app_name;
   // Favicon from logo (data URL or path). Falls back silently if none.
