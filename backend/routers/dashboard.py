@@ -250,3 +250,71 @@ async def office_admin_dashboard(
         "staff_breakdown": breakdown,
         "upcoming_birthdays": upcoming,
     }
+
+
+# ─────────── Overview: trending highlights + team strip (company admins) ───────────
+from collections import Counter  # noqa: E402
+from fastapi import HTTPException  # noqa: E402
+from lib.academic_year import in_year  # noqa: E402
+
+CLOSED = {"enrolled", "completed"}
+ADMIN_ROLES = {"super_admin", "office_admin"}
+
+
+def _admin_only(user: dict) -> None:
+    if user.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admins only")
+
+
+def _top(counter: Counter, people: dict) -> Optional[dict]:
+    if not counter:
+        return None
+    name, count = counter.most_common(1)[0]
+    return {"name": name, "count": count, "faces": people.get(name, [])[:4]}
+
+
+@router.get("/trending")
+async def trending(user: dict = Depends(get_current_user), year: Optional[int] = None):
+    """Top course, top college and best closer (staff or associate) for the year."""
+    _admin_only(user)
+    courses, colleges, closers = Counter(), Counter(), Counter()
+    course_people, college_people = {}, {}
+    async for s in db.students.find({"status": {"$in": list(CLOSED)}},
+                                    {"_id": 0, "name": 1, "course": 1, "college": 1, "user_id": 1, "enrollment_date": 1, "created_at": 1}):
+        if not in_year(s.get("enrollment_date") or s.get("created_at"), year):
+            continue
+        for key, counter, people in (("course", courses, course_people), ("college", colleges, college_people)):
+            val = (s.get(key) or "").strip()
+            if val:
+                counter[val] += 1
+                people.setdefault(val, []).append(s.get("name") or "")
+        if s.get("user_id"):
+            closers[s["user_id"]] += 1
+    best = None
+    if closers:
+        uid, count = closers.most_common(1)[0]
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "role": 1, "linked_client_id": 1}) or {"id": uid, "name": "Former user"}
+        from routers.auth import _resolve_user_photo_url
+        best = {"id": uid, "name": u.get("name"), "role": "associate" if u.get("role") == "user" else u.get("role"),
+                "count": count, "photo_url": await _resolve_user_photo_url(u) if u.get("role") else ""}
+    return {"top_course": _top(courses, course_people), "top_college": _top(colleges, college_people), "best_closer": best}
+
+
+@router.get("/team")
+async def team(user: dict = Depends(get_current_user), year: Optional[int] = None):
+    """Team members (staff + admins) with photo and admissions closed this year."""
+    _admin_only(user)
+    from routers.auth import _resolve_user_photo_url
+    closed = Counter()
+    async for s in db.students.find({"status": {"$in": list(CLOSED)}}, {"_id": 0, "user_id": 1, "enrollment_date": 1, "created_at": 1}):
+        if s.get("user_id") and in_year(s.get("enrollment_date") or s.get("created_at"), year):
+            closed[s["user_id"]] += 1
+    out = []
+    async for u in db.users.find({"deleted_at": {"$in": [None, ""]}, "role": {"$in": ["super_admin", "office_admin", "staff"]}},
+                                 {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "office": 1, "phone": 1, "linked_client_id": 1}).limit(60):
+        u["photo_url"] = await _resolve_user_photo_url(u)
+        u["admissions_closed"] = closed.get(u["id"], 0)
+        u.pop("linked_client_id", None)
+        out.append(u)
+    out.sort(key=lambda x: (-x["admissions_closed"], x.get("name") or ""))
+    return {"members": out}

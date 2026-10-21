@@ -366,3 +366,9 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
   It shows the user's pins (or the defaults Overview/Students/CRM/Messages/Attendance), then a menu button, Settings and Sign out.
   rail-menu-btn opens the rail-flyout (full SidebarContent, variant "flyout", testids prefixed "flyout-").
 - Dashboard hero (dashboard-hero): "Hi <name>." with an illustration at /illustrations/dashboard-hero.png and right-column hero-stat-* cards. PALETTES in dashboardUtils are monochrome.
+
+## 2026-06 — Overview: Trending row + Team strip; lead funnel removed (self-tested: curl + screenshots desktop/mobile)
+- GET /api/dashboard/trending?year (admins only) returns top_course, top_college (enrolled/completed students in the year, by enrollment_date or created_at) and best_closer (the student.user_id with the most closed admissions; staff or associate).
+- GET /api/dashboard/team?year (admins only) returns staff/admin members with photo_url and admissions_closed.
+- components/dashboard/OverviewHighlights.jsx: TrendingRow (trend-course / trend-college (black) / trend-closer) and TeamStrip (team-member-{id} opens team-profile-dialog; View all → /users or /employees). Rendered in Dashboard for super_admin and office_admin.
+- The LeadFunnel was removed from the Overview.

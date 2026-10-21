@@ -20,6 +20,7 @@ import { Link, useNavigate } from "react-router-dom";
 import OfficeDashboard from "./OfficeDashboard";
 import StaffDashboard from "./StaffDashboard";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import { TrendingRow, TeamStrip } from "@/components/dashboard/OverviewHighlights";
 import {
   rangeFor, withinFilter, monthlyBuckets, allTimeMonthlyBuckets, todayISO,
   FILTER_OPTIONS, LEDGER_TYPE_LABEL, LEDGER_TYPE_COLOR, PALETTES,
@@ -29,7 +30,6 @@ import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
 import { ChartTooltip, activePieShape, usePieActive, CHART_CURSOR, CHART_CURSOR_LINE } from "@/components/dashboard/ChartInteractions";
 import { TxList, StudentList, ClientList, LedgerList } from "@/components/dashboard/OverviewLists";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
-import LeadFunnel from "@/components/leads/LeadFunnel";
 
 const TILES = [
   { key: "transactions", label: "Accounts", icon: Receipt, palette: "amber" },
@@ -208,6 +208,15 @@ function SuperAdminDashboard() {
           ))}
         </div>
       </section>
+      {(role === "super_admin" || role === "office_admin") && (
+        <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="overview-highlights">
+          <div>
+            <div className="flex items-center justify-between mb-3"><p className="font-display text-sm font-semibold">Trending</p></div>
+            <TrendingRow />
+          </div>
+          <div className="lg:pt-8"><TeamStrip role={role} /></div>
+        </section>
+      )}
       <OnboardingChecklist />
 
       {/* Inline tile tabs — gradient highlight slides to the active tile */}
@@ -337,7 +346,6 @@ function SuperAdminDashboard() {
         </Card>
       </section>
 
-      {role === "super_admin" && <div className="dash-reveal"><LeadFunnel /></div>}
       </>
       )}
     </div>
