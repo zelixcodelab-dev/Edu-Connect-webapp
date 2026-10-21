@@ -1,0 +1,41 @@
+{
+  "summary": "Tested trial-end reminders, the expiry actions (keep/read_only/block) and the forced sign-out notice, on both backend and frontend. Backend: 10 of 10 pytest pass (tests/test_iteration5_trial_expiry.py). Frontend: almost everything works. Owner Subscription tab: the sub-expiry-action select has 3 options, Save works and survives a reload, and the sub-trial-state badge is red 'in 2 days · 2026-10-23'. Clients list: trial-edu-connect badge is red and hidden on mobile. The slug is 'edu-connect', so the testid is trial-edu-connect, not trial-edu-crm-hub-15. Platform Home attention shows 'ZELIX VENTURES: trial ends in 2 days' and clicking it opens the client page. Admin banner: 2 days red, 6/20/0 days show the correct text. Dismiss hides it and it stays hidden after reload. Staff never see the banner. Read-only: the banner has no dismiss button, pages load, Create user fails with 403 and the 'Didn't go through' modal shows the read-only message. Block: login shows auth-error 'Your trial has ended. Contact your platform provider...'. Revoke via the Security confirm dialog: in-app navigation redirects to /login with auth-notice data-kind='revoked', the notice is gone after reload, and re-login works. ONE BUG: the auth-notice (trial/revoked/expired) is lost when the first request after sign-out comes from a full page load (refresh, deep link, new tab) instead of in-app navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "auth_lib._resolve_user_from_token revoke check", "issue": "`float(iat) < int(revoked)`: a token issued in the same second as the revoke (before it) survives. Edge case only; consider comparing iat against floor(revoked)+1, or storing the revoke time as an int and using <=."},
+      {"endpoint": "403 trial-block / 401 revoked responses", "issue": "The httpOnly access_token cookie is never cleared. Frontend only clears localStorage. After a block, once the owner restores access, the old cookie silently signs the user back in. Visiting /login redirects to / (seen in the test). Consider deleting the cookie on these responses or calling /auth/logout in handleSessionEnd."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AuthPage auth-notice + api.js handleSessionEnd", "issue": "The notice is lost on a full page load. Repro: admin logged in → owner sets expiry_action=block (or revokes sessions) → admin refreshes or opens /students directly. Result: /login with NO auth-notice. In-app navigation works. RCA (confirmed by sessionStorage instrumentation): on bootstrap, /auth/me 403/401 → handleSessionEnd writes sessionStorage 'auth.notice' and calls window.location.assign('/login'). The same rejection makes auth.js setUser(false), so Protected <Navigate to='/login'> mounts AuthPage client-side first. Its useState initializer reads and REMOVES the key. Then the hard reload from location.assign lands on a fresh /login with no key. Fix: don't remove the key in the initializer (clear it in a useEffect on successful login, or with a short setTimeout). Or skip location.assign when already routing to /login, or when the 401/403 came from the bootstrap /auth/me call.", "selector": "[data-testid='auth-notice']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Platform Clients list (1920px)", "issues": ["The new 'Trial ends' column makes the table wider than the container. The 'Actions' header is clipped ('Actio') and the last action icon is cut off, so you have to scroll sideways. Consider narrower columns or dropping 'Created' below xl."]},
+      {"screen": "Subscription tab", "issues": ["'Trial ends' uses the browser's native <input type=date> instead of the shadcn Calendar/Popover date picker."]},
+      {"screen": "Platform Home attention", "issues": ["The backend sends icon:'clock' for trial items, but AttentionCard picks the icon by severity, so trial items show a shield icon. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration5_trial_expiry.py", "/app/test_reports/pytest/iteration5.xml"],
+  "action_items": [
+    "HIGH: Fix the auth-notice race on full page load (AuthPage consumes the sessionStorage key during the client-side Navigate, then the hard reload from window.location.assign shows /login with no notice). Affects the trial, revoked and expired kinds.",
+    "Clear the httpOnly access_token cookie when a session is force-ended (block/revoke), so the old cookie can't silently sign the user back in.",
+    "Fix the Clients table overflow (Actions column clipped) caused by the new Trial ends column.",
+    "Optional: tighten the revoke iat comparison to cover tokens issued in the same second; use the shadcn date picker for Trial ends; use the clock icon for trial attention items."
+  ],
+  "critical_code_review_comments": [
+    "api.js handleSessionEnd: returns early when there's no stored token. For cookie-only sessions (localStorage blocked) no notice is ever shown. Acceptable but worth knowing.",
+    "The TrialBanner dismiss key uses the UTC date (toISOString) while the end date shows in local time. Users far from UTC see the dismissal reset at UTC midnight, not local midnight.",
+    "subscription.REVOKED_MSG ('by the administrator') is matched by substring in the frontend. If either side changes wording, the notice silently breaks. Consider a machine-readable error code (e.g. a detail object or a header) instead."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration5_trial_expiry.py"],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "From /app/memory/test_credentials.md: owner@educonnect.app/Owner@12345, admin@educonnect.app/Admin@12345, TEST_att_staff_1@educonnect.app/Staff@12345 (all worked)",
+  "seed_data_creation": "None. Read-only create attempts (TEST_ro lead/user) were rejected with 403, so nothing was persisted. ZELIX sessions were revoked twice (expected).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Server date is 2026-10-21 (UTC). ZELIX tenant id 3b5e3f1f-dba9-4a89-a201-c2fdb24372ef, slug 'edu-connect' (list testid trial-edu-connect), Trial plan id 521ba5cc-cce7-4324-856c-4b849989870b. Run: pytest tests/test_iteration5_trial_expiry.py -n 0. It restores the subscription to trial / +30d / keep / seat 50 in teardown. To reproduce the notice bug, use page.goto(<protected url>) after setting block, not a sidebar click. The admin's old httpOnly cookie persists after block, so clear cookies before re-login tests. The hydration warning '<span> cannot be a child of <option>' comes from visual-editor instrumentation attributes, not app code. The security-revoke-sessions button uses a native confirm(); register page.on('dialog') with asyncio imported. Subscription restored at the end: trial, 2026-11-20, keep, seat_limit 50.",
+  "rca of the issue": "Notice lost on full page load: bootstrap GET /auth/me → 403/401 → (1) the interceptor stores auth.notice and starts a hard navigation to /login, (2) the promise rejects → setUser(false) → <Navigate to='/login'> mounts AuthPage, whose useState initializer reads and removes auth.notice, (3) the hard navigation finishes and the reloaded AuthPage finds no key. Mitigation: keep the key until the user signs in or dismisses the notice, or avoid the double navigation."
+}

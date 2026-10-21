@@ -248,15 +248,29 @@ function handleSessionEnd(err) {
   const status = err?.response?.status;
   const detail = String(err?.response?.data?.detail || "").toLowerCase();
   const url = String(err?.config?.url || "");
-  if (!getStoredToken() || url.includes("/auth/login")) return;
+  if (!getStoredToken() || url.includes("/auth/login") || url.includes("/auth/logout")) return;
   let notice = null;
   if (status === 401 && detail.includes(REVOKED)) notice = { kind: "revoked", text: "Your session was ended by your administrator. Please sign in again." };
   else if (status === 401 && detail === "token expired") notice = { kind: "expired", text: "Your session expired. Please sign in again." };
   else if (status === 403 && detail.includes(TRIAL_BLOCKED)) notice = { kind: "trial", text: "Your workspace trial has ended. Contact your provider to upgrade and restore access." };
   if (!notice) return;
-  try { sessionStorage.setItem(AUTH_NOTICE_KEY, JSON.stringify(notice)); } catch { /* no-op */ }
+  try { sessionStorage.setItem(AUTH_NOTICE_KEY, JSON.stringify({ ...notice, at: Date.now() })); } catch { /* no-op */ }
   setStoredToken(null);
-  if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
+  // Drop the httpOnly cookie too so the dead session can't silently come back.
+  api.post("/auth/logout").catch(() => {}).finally(() => {
+    if (!window.location.pathname.startsWith("/login")) window.location.assign("/login");
+  });
+}
+
+export function readAuthNotice() {
+  try {
+    const n = JSON.parse(sessionStorage.getItem(AUTH_NOTICE_KEY) || "null");
+    return n && Date.now() - (n.at || 0) < 120000 ? n : null;
+  } catch { return null; }
+}
+
+export function clearAuthNotice() {
+  try { sessionStorage.removeItem(AUTH_NOTICE_KEY); } catch { /* no-op */ }
 }
 
 export function formatApiError(detail) {

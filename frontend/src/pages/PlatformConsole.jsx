@@ -256,7 +256,7 @@ export default function PlatformConsole() {
                     <TableHead className="hidden xl:table-cell">Tour</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Trial ends</TableHead>
-                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="hidden 2xl:table-cell">Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -289,7 +289,7 @@ export default function PlatformConsole() {
                       </TableCell>
                       <TableCell><StatusBadge status={t.status} /></TableCell>
                       <TableCell className="hidden md:table-cell" data-testid={`trial-${t.slug}`}><TrialBadge trial={t.trial} /></TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{fmtDate(t.created_at)}</TableCell>
+                      <TableCell className="hidden 2xl:table-cell text-sm text-muted-foreground">{fmtDate(t.created_at)}</TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="inline-flex items-center gap-1">
                           <Button size="sm" variant="ghost" onClick={() => openEdit(t)} data-testid={`edit-${t.slug}`} className="h-8 px-2"><PencilSimple size={15} /></Button>

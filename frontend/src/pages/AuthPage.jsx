@@ -1,4 +1,4 @@
-import { AUTH_NOTICE_KEY } from "@/lib/api";
+import { readAuthNotice, clearAuthNotice } from "@/lib/api";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
@@ -18,13 +18,8 @@ export default function AuthPage({ mode }) {
   const nav = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [notice] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(AUTH_NOTICE_KEY);
-      sessionStorage.removeItem(AUTH_NOTICE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
+  // Read (not consume) so a hard reload right after the redirect still shows it; cleared on sign-in.
+  const [notice] = useState(readAuthNotice);
 
   const handle = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -34,7 +29,7 @@ export default function AuthPage({ mode }) {
     setError("");
     const ok = await login(form.email, form.password);
     setSubmitting(false);
-    if (ok) nav("/");
+    if (ok) { clearAuthNotice(); nav("/"); }
   };
 
   const passkeySubmit = async () => {
@@ -45,7 +40,7 @@ export default function AuthPage({ mode }) {
       const { passkeyLogin } = await import("@/lib/webauthn");
       const token = await passkeyLogin(form.email.trim());
       const ok = await loginWithPasskey(token);
-      if (ok) nav("/");
+      if (ok) { clearAuthNotice(); nav("/"); }
     } catch (err) {
       setError(err?.response?.data?.detail || "Passkey sign-in failed. Use your password instead.");
     } finally {

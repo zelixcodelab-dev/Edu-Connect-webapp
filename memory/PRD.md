@@ -336,3 +336,12 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
   Logs (platform_audit filtered on meta.app_id).
 ## Backlog
 - AlertDialog instead of window.confirm across the console; show an explanation on /login after a forced sign-out.
+
+## 2026-06 — Trial reminders and expiry handling + forced sign-out notice (tested: iteration_5.json, BE 10/10; FE race fixed and re-verified)
+- lib/subscription.trial_info(sub) returns days_left, expired (the day after trial_ends_at), near (7 days or less) and expiry_action. The setting is subscription.expiry_action: keep | read_only | block.
+  auth_lib enforces it through the cached tenant_access: block → 403 on every request and at login; read_only → 403 on non-GET requests except /api/auth/*.
+- /auth/me and login return `trial`. TrialBanner.jsx shows for super_admin/office_admin: sky colour, amber at 7 days or less, red at 3 or less or expired.
+  It can be dismissed for the day, except when expired and read-only.
+- Console: "Trial ends" column (TrialBadge), Subscription tab has the "On trial expiry" select, and Home attention lists trials that are expired or end within 7 days.
+- api.js handleSessionEnd: a revoked session (401), an expired token (401) or a trial block (403) stores sessionStorage auth.notice {kind, text, at}, calls /auth/logout to clear the cookie, then redirects to /login.
+  AuthPage reads the notice without consuming it (valid for 2 minutes) and clears it on sign-in, so it survives a hard reload.
