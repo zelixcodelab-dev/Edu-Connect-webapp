@@ -283,3 +283,24 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
   S3 (file upload), WhatsApp. Currently mocked/bypassed.
 - P2: External DB capacity — user's Railway free-tier MongoDB is out of disk space
   (infrastructure limit, not a code issue). User must upgrade/clean up for full functionality.
+
+## 2026-06 — Full KMConnect sync + per-company module switches + Product Tour (tested: iteration_2.json, BE 100%, FE fixed)
+- 3-way merge (base = finflow archive, ours = /app, theirs = latest kmconnect zip 95185e0e…) of every changed file; conflicts resolved by hand.
+  db.py, auth_lib core, multi-tenant login and platform routes were kept. 20+ new KM files copied in: MoneyOutFields (Payout/Expense/Income),
+  ClientTxnDialog, InvoiceCreateDialog, SCReport (/sc-report), accountStatementPdf, CelebrationOverlay + celebrate/feedbackSound,
+  PIN lock (components/auth/*, PinSettingsSection), SoundHapticsSettings, Campaign Sheets import/sync, StageChangeDialog,
+  StudentBulkUploadDialog, Reveal/Shimmer, and the dashboard AnimatedNumber/LivePulse/ChartInteractions.
+- PIN verify made tenant-aware (find_tenant_for_email → tenant JWT + branding/modules). The sweep loops (follow-ups, late attendance,
+  sheet sync) now run per tenant via _sweep_all_tenants, skipping companies that have the module off.
+- New modules in MODULE_CATALOG: academic_year, google_sheets, passkeys, pin_lock, sc_report, celebrations, product_tour.
+  Each new module is switched ON once for existing companies (tracked in tenant.modules_backfilled). This also fixes the old attendance backfill, which turned attendance back on at every restart.
+  Backend gate: auth_lib.MODULE_API_PREFIXES → 403 when a module is off. Frontend gate: lib/perm.hasModule (nav, settings cards, year selector,
+  PinLockGate, CelebrationGate, the SC Report button, the Sheets import button).
+- Product Tour (components/ProductTour.jsx): starts on a tenant user's first login and waits until the PIN-setup prompt is closed.
+  Spotlight, "N of M", Next/Back/Skip/Esc. POST /api/auth/tour saves users.tour_status. Replay from profile menu → "Take the tour" (profile-take-tour).
+  Role- and module-aware. Never shown on /platform.
+- /leave redirects to /attendance?tab=leave. The Staff Dashboard leave tile already points there.
+- Branding strings brought in by the merge were replaced (KM Foundation → company wording; FinFlow emails/PDF → EduConnect Pro).
+## Backlog
+- P1: owner-editable tour steps per company; short per-page tours; onboarding checklist; tour completion stats in the console.
+- P2: short TTL cache for tenant_has_module; clean up stale DB test_database_t_3b5e3f1f… (full-length name).

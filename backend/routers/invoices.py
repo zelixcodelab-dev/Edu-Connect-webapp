@@ -294,7 +294,6 @@ async def open_credits(
 
 @router.get("")
 async def list_invoices(user: dict = Depends(get_current_user), year: Optional[int] = None):
-    from lib.academic_year import with_year
     q = with_year({"user_id": user["id"]}, "issue_date", year)
     return await db.invoices.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
 

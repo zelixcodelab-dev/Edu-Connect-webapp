@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
-from lib.academic_year import in_year
+from lib.academic_year import in_year, with_year
 from routers.notifications import notify_super_admins
 
 

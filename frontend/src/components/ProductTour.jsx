@@ -57,8 +57,8 @@ function useTargetRect(step, tick) {
 }
 
 function cardStyle(rect) {
-  if (!rect) return { left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
   const W = Math.min(340, window.innerWidth - 24);
+  if (!rect) return { left: (window.innerWidth - W) / 2, top: Math.max(12, window.innerHeight / 2 - 110), width: W };
   const below = rect.bottom + 12 + 190 < window.innerHeight;
   const rightSide = rect.right + 16 + W < window.innerWidth && rect.width < 320;
   if (rightSide) return { left: rect.right + 16, top: Math.max(12, Math.min(rect.top, window.innerHeight - 220)), width: W };
@@ -67,7 +67,7 @@ function cardStyle(rect) {
 }
 
 export default function ProductTour() {
-  const { user, refresh } = useAuth();
+  const { user, refresh, setupPinPromptOpen } = useAuth();
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
   const [tick, setTick] = useState(0);
@@ -81,12 +81,12 @@ export default function ProductTour() {
   }, [open, user]);
 
   useEffect(() => {
-    if (enabled && !user.tour_status) {
+    if (enabled && !user.tour_status && !setupPinPromptOpen) {
       const t = setTimeout(() => { setIdx(0); setOpen(true); }, 900);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [enabled, user?.tour_status]);
+  }, [enabled, user?.tour_status, setupPinPromptOpen]);
 
   useEffect(() => {
     const start = () => { setIdx(0); setOpen(true); setTick((n) => n + 1); };
@@ -109,7 +109,7 @@ export default function ProductTour() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, finish]);
 
-  if (!enabled || !open || !step) return null;
+  if (!enabled || !open || !step || setupPinPromptOpen) return null;
   const last = idx === steps.length - 1;
   const pad = 6;
 

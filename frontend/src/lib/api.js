@@ -185,7 +185,7 @@ api.interceptors.request.use((config) => {
   // Clients / Employees (/clients) and Messages (/messages) are exempt.
   const method = (config.method || "get").toLowerCase();
   const url = config.url || "";
-  const yearExempt = /(^|\/)(clients|messages|academic-years|platform)(\/|$|\?)/.test(url);
+  const yearExempt = /(^|\/)(clients|messages|academic-years|platform|auth|branding|notifications)(\/|$|\?)/.test(url);
   if (method === "get" && !yearExempt && selectedYear && selectedYear !== "all") {
     if (config.params == null) config.params = {};
     if (config.params.year == null) config.params.year = selectedYear;

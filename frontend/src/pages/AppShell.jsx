@@ -236,10 +236,12 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
       {/* Academic year — scopes the whole app; lives in the menu for both
           desktop sidebar and the mobile slide-out drawer. */}
-      <div className="px-4 pt-4 pb-1">
-        <p className="px-1 mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--sidebar-muted))] font-semibold">Academic year</p>
-        <AcademicYearSelect className="!w-full !justify-start !rounded-lg" />
-      </div>
+      {hasModule(user, "academic_year") && (
+        <div className="px-4 pt-4 pb-1">
+          <p className="px-1 mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--sidebar-muted))] font-semibold">Academic year</p>
+          <AcademicYearSelect className="!w-full !justify-start !rounded-lg" />
+        </div>
+      )}
 
       {/* Nav */}
       <nav ref={navRef} className="relative px-3 py-6 flex-1 space-y-0.5 overflow-y-auto" data-testid="sidebar-nav">

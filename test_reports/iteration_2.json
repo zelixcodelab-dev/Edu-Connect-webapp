@@ -1,0 +1,45 @@
+{
+  "summary": "Tested the KMConnect port, per-company module switches and the Product Tour, on backend and frontend. Backend: 18/18 pytest passed. Covered: tenant/owner/staff login, /auth/me enabled_modules + pin_enabled + biometric_enabled + scope, POST /auth/tour validation and saving, sc-payouts, sc-by-college, attendance, academic-years and regression GETs, and module-off giving 403 for attendance/sc_report/academic_year (google_sheets also 403 via curl). Frontend: the tour works on desktop. It shows 1 of 10, every step has a spotlight, and Next, Back, Finish, Skip, Esc and replay from the profile menu all work. It does not start again after a reload, does not appear for the owner on /platform, and is hidden when product_tour is off. Module toggle through the Platform Console UI saved (200). With 8 modules off, nav-attendance, the academic-year-select, the 4 Settings cards (passkeys/Sheets/sound/PIN) and Take the tour were all hidden, and /attendance redirected to /. Ported features that work: Quick Entry Payout/Expense/Income, no Quick entry in the desktop sidebar, the /sc-report page, the account detail popup with PDF statement download, the client Add Transaction and New Invoice popups, the 4 Student filters, lead cards visible in list view, campaign-import-sheets-btn, the profile menu theme toggle, /leave redirecting to /attendance?tab=leave, and the staff-stat-leave tile. Regression pages loaded with no console errors, and the year selector adds ?year=. Two real bugs found: (1) on mobile the PIN-setup dialog opens at the same time as the tour and blocks every click on the tour; (2) the centred tour steps (Welcome / All set) are not centred and get cut off on mobile because the platform-pop animation overrides the translate(-50%,-50%) transform. All modules were restored to the full list of 28.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Module gate (auth_lib._resolve_user_from_token)", "issue": "The gate only runs inside get_current_user. Public or unauthenticated routes under the gated prefixes (for example a passkey login / webauthn auth-begin, or the Google OAuth callback if it is public) are not module-gated. Unknown paths under a gated prefix return 404/405 before the gate runs, which is harmless."},
+      {"endpoint": "frontend api.js year injection", "issue": "?year=2026 is added to /api/auth/me, /api/branding and /api/notifications/unread-count. These should be added to the yearExempt regex (auth|branding|notifications)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ProductTour + PinLockGate (mobile 390px)", "issue": "On first mobile login the 'Set a 4-digit PIN' dialog (pin-setup-dialog, a modal Radix Dialog) opens at the same time as the tour. The Radix modal sets pointer-events:none on the body, so product-tour-next and product-tour-skip cannot be clicked: the click times out because pin-setup-dialog intercepts it. The user is stuck until they find 'Skip for now' under the tour card. Fix: delay the tour until setupPinPromptOpen is false (or show the PIN prompt after the tour finishes), or do not start the tour while any [role=dialog] is open.", "selector": "[data-testid=product-tour-next], [data-testid=pin-setup-dialog]", "priority": "HIGH"},
+      {"component": "ProductTour cardStyle (steps with no target: welcome/done)", "issue": "The card has the class platform-pop, whose animation ends with 'transform: none' using fill-mode both. This overrides the inline transform translate(-50%,-50%), so the card's top-left corner sits at the centre of the screen. On desktop the card is pushed right and down. On mobile at 390px it is shown at left=195 with width 196 and is cut off at the right edge. Fix: centre it with a flex wrapper (fixed inset-0 flex items-center justify-center), or use an animation without transform for these steps, and give it a width (min(340px, 100vw-24px)) when rect is null.", "selector": "[data-testid=product-tour-card]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AppShell sidebar", "issues": ["When academic_year is off, the 'Academic year' label in the sidebar (AppShell.jsx ~line 240) is still shown above an empty slot. Wrap the whole block in hasModule(user,'academic_year')."]},
+      {"screen": "Topbar profile button", "issues": ["The subtitle under the name falls back to the currency: staff with no business_name see 'INR' (AppShell.jsx:531). It should fall back to the tenant/company name."]},
+      {"screen": "Dark mode sidebar", "issues": ["The tenant logo in the sidebar is almost invisible (dark logo on a dark background)."]},
+      {"screen": "Platform Console > Edit company dialog", "issues": ["The logo 'Remove' link overflows the dialog's right edge."]},
+      {"screen": "Quick Entry / Client Add Transaction", "issues": ["Date fields use the browser's own date picker (input type=date) instead of the shadcn Calendar/Popover.", "On the Client detail page the topbar title shows 'EduConnect Pro' instead of the page or client name."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration2_module_switches_tour.py", "/app/backend/tests/_toggle_modules.py", "/app/test_reports/pytest/pytest_iter2.xml"],
+  "action_items": [
+    "HIGH: Stop the mobile PIN-setup prompt and the Product Tour from opening together (the tour is unclickable under the Radix modal). Sequence them.",
+    "MEDIUM: Fix the centring of the welcome/done tour card (platform-pop transform overrides translate(-50%,-50%)). Use a flex-centred wrapper and a fixed width.",
+    "Hide the sidebar 'Academic year' label when the academic_year module is off.",
+    "Add auth/branding/notifications to the yearExempt regex in lib/api.js.",
+    "Topbar subtitle: fall back to the tenant name instead of the currency."
+  ],
+  "critical_code_review_comments": [
+    "ProductTour steps are memoised on [open, user] and filtered by findTarget at open time. Targets inside collapsed sidebar groups are filtered out silently, so the step count changes from page to page (10 on desktop, 8 on mobile, 9 for staff). This is acceptable but worth knowing.",
+    "tenant_has_module does a gdb.tenants find_one on every gated request. Consider caching it briefly (for example a TTL of a few seconds).",
+    "A stale DB test_database_t_3b5e3f1fdba94a89a201c2fdb24372ef (the full-length name) still exists with an admin user. The live tenant DB is the hashed test_database_t_8286d28c6b04042a. Consider cleaning it up so nobody debugs the wrong DB.",
+    "The go-sc-report-btn inside Admission Revenue sits behind the Admission Revenue PIN unlock screen, so it was not clicked in the UI. The code is checked (it is gated by hasModule sc_report), and /sc-report loads directly."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration2_module_switches_tour.py", "/app/backend/tests/_toggle_modules.py"],
+  "success_rate": {"backend": "100%", "frontend": "~90% (2 tour bugs)"},
+  "test_credentials": "Owner owner@educonnect.app/Owner@12345, tenant admin admin@educonnect.app/Admin@12345, staff TEST_att_staff_1@educonnect.app/Staff@12345, all working.",
+  "seed_data_creation": "Temporarily created TEST_lead_iter2 and TEST_campaign_iter2 (both deleted afterwards). The admin and staff users now have tour_status='skipped'.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The tenant DB for ZELIX VENTURES is test_database_t_8286d28c6b04042a (hashed name), and the platform DB is test_database_platform. To reset the tour: db.users.updateMany({email:'admin@educonnect.app'},{$unset:{tour_status:''}}). Toggle modules with: REACT_APP_BACKEND_URL=... python /app/backend/tests/_toggle_modules.py off k1,k2 | restore. Run pytest with -n0 (pytest.ini uses xdist, and the module-toggle tests must not run in parallel). Retest: mobile first login with tour + PIN prompt, and centring of the tour welcome/done card."
+}
