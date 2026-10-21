@@ -588,3 +588,7 @@ h1, h2, h3, h4, h5, h6, .font-display {
     .shimmer::after { animation: none !important; display: none; }
 }
 
+
+/* Sidebar nav: thin scrollbar that never shifts the icon rail */
+.sidebar-scroll { scrollbar-width: none; }
+.sidebar-scroll::-webkit-scrollbar { width: 0; height: 0; }

@@ -22,8 +22,9 @@ import {
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
   Target, IdentificationBadge, Handshake, UserCircle, CaretRight, CaretDown, FolderSimplePlus,
-  ClockCounterClockwise, Clock, ChartBar, SidebarSimple, Palette, Compass,
+  ClockCounterClockwise, Clock, ChartBar, SidebarSimple, Palette, Compass, CaretLeft, CalendarBlank,
 } from "@phosphor-icons/react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 // Sidebar nav with role gating.
 //   roles: array of roles that can see this item. Omitting `roles` means all.
@@ -145,18 +146,39 @@ function buildSections(navItems, role) {
   ].filter((s) => s.items.length > 0);
 }
 
-function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile" }) {
+function Avatar({ user, size = 40 }) {
+  return (
+    <div className="rounded-full bg-[hsl(var(--primary))] text-white text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-[hsl(var(--primary))]/20" style={{ width: size, height: size }}>
+      {user?.photo_url ? (
+        <AuthedImage url={user.photo_url} alt={user?.name || "profile"} className="w-full h-full object-cover" fallback={initialsOf(user?.name).toUpperCase()} />
+      ) : initialsOf(user?.name).toUpperCase()}
+    </div>
+  );
+}
+
+// Hover label for icon-only rail mode (portalled so the scrolling nav can't clip it).
+function RailTip({ show, label, children }) {
+  if (!show) return children;
+  return (
+    <Tooltip delayDuration={80}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={10} className="text-xs font-medium">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile", rail = false, onToggleRail }) {
   const role = user?.role;
   const { branding } = useBranding();
+  const { theme, toggle: toggleTheme } = useTheme();
   const enabled = user?.enabled_modules;
+  const [query, setQuery] = React.useState("");
   const alertFor = (to) => {
     if (to === "/messages") return alerts?.messages || 0;
     if (to === "/expense-requests" && role === "super_admin") return alerts?.approvals || 0;
     return 0;
   };
-  // Groups start COLLAPSED — click the header to expand. The group that
-  // contains the current page opens automatically so the active link is
-  // never hidden.
+  // Groups start collapsed; the group holding the current page opens automatically.
   const [collapsed, setCollapsed] = React.useState(() => {
     const path = typeof window !== "undefined" ? window.location.pathname : "";
     const init = {};
@@ -178,162 +200,173 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     return i;
   });
 
-  const linkClass = (indent) => ({ isActive }) =>
-    `relative z-[1] flex items-center gap-3 ${indent ? "pl-11 pr-4" : "px-4"} py-2.5 rounded-lg text-sm transition-all ${
-      isActive
-        ? "bg-amber-gradient text-white font-medium shadow-md shadow-orange-500/25"
-        : "text-[hsl(var(--sidebar-fg))] hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400 hover:translate-x-0.5"
-    }`;
+  const q = query.trim().toLowerCase();
+  const sections = q
+    ? [{ type: "items", label: "Results", items: navItems.filter((i) => i.label.toLowerCase().includes(q)) }]
+    : buildSections(navItems, role);
 
-  // Animated sidebar: a highlight rail that slides to the active menu item.
-  const navRef = React.useRef(null);
-  const location = useLocation();
-  const [rail, setRail] = React.useState({ top: 0, height: 0, show: false });
-
-  React.useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return undefined;
-    const measure = () => {
-      const active = nav.querySelector('a[aria-current="page"]');
-      if (!active) { setRail((r) => ({ ...r, show: false })); return; }
-      const navRect = nav.getBoundingClientRect();
-      const aRect = active.getBoundingClientRect();
-      setRail({ top: aRect.top - navRect.top + nav.scrollTop, height: aRect.height, show: true });
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [location.pathname, collapsed, role]);
+  const linkClass = (indent) => ({ isActive }) => [
+    "group relative z-[1] flex items-center gap-3 rounded-xl text-sm transition-[background-color,color,transform] duration-200",
+    rail ? "justify-center h-11 w-11 mx-auto" : `${indent ? "pl-10 pr-3" : "px-3"} py-2.5`,
+    isActive
+      ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-semibold"
+      : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--primary))]",
+    !rail && !isActive ? "hover:translate-x-0.5" : "",
+  ].join(" ");
 
   const renderLink = (item, indent) => {
     const count = alertFor(item.to);
     return (
-      <NavLink key={item.to} to={item.to} end={item.end} data-testid={item.tid} onClick={onItemClick} className={linkClass(indent)}>
-        <item.icon size={18} weight="regular" />
-        <span>{item.label}</span>
-        {count > 0 && (
-          <span
-            data-testid={`nav-alert-${item.tid}`}
-            title={`${count} ${item.to === "/messages" ? "unread" : "pending"}`}
-            className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-semibold flex items-center justify-center shrink-0 shadow-sm"
-          >
-            {count > 9 ? "9+" : count}
-          </span>
+      <RailTip key={item.to} show={rail} label={`${item.label}${count > 0 ? ` · ${count}` : ""}`}>
+      <NavLink to={item.to} end={item.end} data-testid={item.tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
+        {({ isActive }) => (
+          <>
+            {isActive && !rail && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[hsl(var(--primary))]" aria-hidden />}
+            <item.icon size={19} weight={isActive ? "fill" : "regular"} className="shrink-0" />
+            {!rail && <span className="truncate">{item.label}</span>}
+            {count > 0 && (
+              <span
+                data-testid={`nav-alert-${item.tid}`}
+                title={`${count} ${item.to === "/messages" ? "unread" : "pending"}`}
+                className={rail
+                  ? "absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[hsl(var(--sidebar-bg))]"
+                  : "ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-semibold flex items-center justify-center shrink-0"}
+              >
+                {rail ? "" : count > 9 ? "9+" : count}
+              </span>
+            )}
+          </>
         )}
       </NavLink>
+      </RailTip>
     );
   };
 
+  const label = (text) => (rail || !text
+    ? <div className={`${rail ? "mx-auto w-6" : "mx-3"} my-2 border-t border-[hsl(var(--sidebar-border))]`} aria-hidden />
+    : <p className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.2em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
+
+  const isMobile = variant === "mobile";
+
   return (
     <>
-      {/* Brand */}
-      <div className="px-6 py-5 flex items-center gap-3 border-b border-[hsl(var(--sidebar-border))]">
-        <BrandMark size={44} className="shadow-sm" />
-        <div className="flex flex-col min-w-0">
-          <span className="font-display text-base font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate">{branding?.app_name || "EduConnect Pro"}</span>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-muted))] truncate">{branding?.company_line || ""}</span>
-        </div>
+      {/* Brand + collapse */}
+      <div className={`flex items-center gap-3 pt-5 pb-4 ${rail ? "px-3 flex-col" : "px-5"}`}>
+        <BrandMark size={rail ? 38 : 40} className="shadow-sm shrink-0" />
+        {!rail && (
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="font-display text-[15px] font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate">{branding?.app_name || "EduConnect Pro"}</span>
+            <span className="text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-muted))] truncate">{branding?.company_line || ""}</span>
+          </div>
+        )}
+        {onToggleRail && (
+          <button type="button" onClick={onToggleRail} data-testid="sidebar-collapse-btn" aria-label={rail ? "Expand menu" : "Collapse menu"} title={rail ? "Expand menu" : "Collapse menu"}
+            className="w-8 h-8 rounded-lg border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/40 flex items-center justify-center shrink-0 transition-colors">
+            <CaretLeft size={14} weight="bold" className={`transition-transform duration-300 ${rail ? "rotate-180" : ""}`} />
+          </button>
+        )}
       </div>
 
-      {/* Academic year — scopes the whole app; lives in the menu for both
-          desktop sidebar and the mobile slide-out drawer. */}
-      {hasModule(user, "academic_year") && (
-        <div className="px-4 pt-4 pb-1">
-          <p className="px-1 mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--sidebar-muted))] font-semibold">Academic year</p>
-          <AcademicYearSelect className="!w-full !justify-start !rounded-lg" />
+      {/* Profile card */}
+      <div className={rail ? "px-3 pb-3 flex justify-center" : "px-4 pb-3"}>
+        {rail ? (
+          <RailTip show label={user?.name}><div className="relative" data-testid="sidebar-profile"><Avatar user={user} size={36} /></div></RailTip>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.04] border border-[hsl(var(--sidebar-border))] px-3 py-2.5" data-testid="sidebar-profile">
+            <Avatar user={user} size={38} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[hsl(var(--sidebar-fg))] truncate" data-testid={isMobile ? "drawer-user-name" : "sidebar-user-name"}>{user?.name}</p>
+              <p className="text-[11px] font-medium capitalize text-[hsl(var(--primary))] truncate">{(user?.role || "").replace("_", " ")}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Search + academic year */}
+      {!rail && (
+        <div className="px-4 space-y-2">
+          <div className="relative">
+            <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu" data-testid="sidebar-search"
+              className="w-full h-9 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] border border-transparent focus:border-[hsl(var(--primary))]/40 focus:bg-[hsl(var(--sidebar-bg))] pl-9 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-colors" />
+          </div>
+          {hasModule(user, "academic_year") && <AcademicYearSelect className="!w-full !justify-start !rounded-xl !h-9" />}
+        </div>
+      )}
+      {rail && (
+        <div className="px-3 space-y-1.5 flex flex-col items-center">
+          <RailTip show label="Search menu"><button type="button" onClick={onToggleRail} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-search" aria-label="Search menu">
+            <MagnifyingGlass size={18} />
+          </button></RailTip>
+          {hasModule(user, "academic_year") && (
+            <RailTip show label="Academic year"><button type="button" onClick={onToggleRail} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-year" aria-label="Academic year">
+              <CalendarBlank size={18} />
+            </button></RailTip>
+          )}
         </div>
       )}
 
       {/* Nav */}
-      <nav ref={navRef} className="relative px-3 py-6 flex-1 space-y-0.5 overflow-y-auto" data-testid="sidebar-nav">
-        <span
-          className="nav-rail"
-          aria-hidden="true"
-          style={{ transform: `translateY(${rail.top}px)`, height: rail.height, opacity: rail.show ? 1 : 0 }}
-        />
-        {buildSections(navItems, role).map((section, idx) => {
-          if (section.type === "group") {
+      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
+        {sections.map((section, idx) => {
+          if (q && section.items.length === 0) {
+            return <p key="none" className="px-3 py-6 text-sm text-center text-[hsl(var(--sidebar-muted))]" data-testid="sidebar-search-empty">No menu items match "{query}"</p>;
+          }
+          if (section.type === "group" && !rail) {
             const open = !collapsed[section.key];
             const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
             return (
-              <div key={section.key} className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))}
-                  data-testid={`nav-group-${section.key}`}
-                  aria-expanded={open}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-[hsl(var(--sidebar-fg))] hover:bg-orange-500/10 transition-all"
-                >
-                  <CaretRight size={13} weight="bold" className={`shrink-0 text-[hsl(var(--sidebar-muted))] transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
-                  <section.icon size={17} weight="regular" className="shrink-0" />
+              <div key={section.key} className="pt-1">
+                <button type="button" onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))} data-testid={`nav-group-${section.key}`} aria-expanded={open}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors">
+                  <section.icon size={19} weight="regular" className="shrink-0" />
                   <span className="flex-1 text-left">{section.label}</span>
-                  {!open && groupAlert > 0 && (
-                    <span
-                      data-testid={`nav-group-alert-${section.key}`}
-                      title={`${groupAlert} need attention`}
-                      className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-sm"
-                    />
-                  )}
+                  {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
+                  <CaretDown size={13} weight="bold" className={`shrink-0 text-[hsl(var(--sidebar-muted))] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
                 </button>
-                {section.items.length > 0 && (
-                  <div className={`nav-collapse ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-                    <div className="overflow-hidden min-h-0">
-                      <div className="mt-0.5 space-y-0.5">
-                        {section.items.map((item) => renderLink(item, true))}
-                      </div>
+                <div className={`nav-collapse ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                  <div className="overflow-hidden min-h-0">
+                    <div className="mt-0.5 space-y-0.5 relative before:absolute before:left-[21px] before:top-1 before:bottom-1 before:w-px before:bg-[hsl(var(--sidebar-border))]">
+                      {section.items.map((item) => renderLink(item, true))}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           }
           return (
-            <div key={`sec-${idx}`} className={idx > 0 ? "pt-3" : ""}>
-              {section.label ? (
-                <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--sidebar-muted))] font-semibold">{section.label}</p>
-              ) : (
-                <div className="mx-3 mb-2.5 border-t border-[hsl(var(--sidebar-border))]/60" aria-hidden />
-              )}
-              <div className="space-y-0.5">
-                {section.items.map((item) => renderLink(item, false))}
-              </div>
+            <div key={section.key || `sec-${idx}`} className={idx > 0 ? "pt-3" : ""}>
+              {section.label ? label(section.label) : idx > 0 ? label("") : null}
+              <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>{section.items.map((item) => renderLink(item, false))}</div>
             </div>
           );
         })}
       </nav>
 
-      {/* Footer: user info + sign out (mobile drawer only — hidden on desktop where topbar handles it) */}
-      {onLogout && (
-        <div className="md:hidden border-t border-[hsl(var(--sidebar-border))] p-3 space-y-2 shrink-0">
-          <div className="flex items-center gap-3 px-2 py-1.5">
-            <div className="w-9 h-9 rounded-full bg-amber-gradient text-white text-xs font-semibold flex items-center justify-center shrink-0 overflow-hidden">
-              {user?.photo_url ? (
-                <AuthedImage
-                  url={user.photo_url}
-                  alt={user?.name || "profile"}
-                  className="w-full h-full object-cover"
-                  fallback={initialsOf(user?.name).toUpperCase()}
-                />
-              ) : (
-                initialsOf(user?.name).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[hsl(var(--sidebar-fg))] truncate" data-testid="drawer-user-name">{user?.name}</p>
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--sidebar-muted))] truncate">{user?.role?.replace("_", " ")}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            data-testid="drawer-logout-btn"
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-medium transition-colors"
-          >
-            <SignOut size={16} weight="bold" />
-            Sign out
+      {/* Bottom: theme switch + sign out */}
+      <div className={`border-t border-[hsl(var(--sidebar-border))] p-3 space-y-1 shrink-0 ${rail ? "flex flex-col items-center" : ""}`}>
+        <RailTip show={rail} label={theme === "dark" ? "Light mode" : "Dark mode"}>
+        <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode"
+          className={`group relative flex items-center gap-3 rounded-xl text-sm text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors ${rail ? "w-11 h-11 justify-center" : "w-full px-3 py-2.5"}`}>
+          {theme === "dark" ? <Sun size={19} className="shrink-0 text-amber-400" /> : <Moon size={19} className="shrink-0" />}
+          {!rail && <span className="flex-1 text-left">{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
+          {!rail && (
+            <span className={`relative w-9 h-5 rounded-full transition-colors ${theme === "dark" ? "bg-[hsl(var(--primary))]" : "bg-[hsl(var(--sidebar-fg))]/20"}`} aria-hidden>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${theme === "dark" ? "translate-x-4" : ""}`} />
+            </span>
+          )}
+        </button>
+        </RailTip>
+        {onLogout && (
+          <RailTip show={rail} label="Sign out">
+          <button type="button" onClick={onLogout} data-testid={isMobile ? "drawer-logout-btn" : "sidebar-logout-btn"} aria-label="Sign out"
+            className={`group relative flex items-center gap-3 rounded-xl text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors ${rail ? "w-11 h-11 justify-center" : "w-full px-3 py-2.5"}`}>
+            <SignOut size={19} className="shrink-0" />
+            {!rail && <span>Sign out</span>}
           </button>
-        </div>
-      )}
+          </RailTip>
+        )}
+      </div>
     </>
   );
 }
@@ -345,11 +378,11 @@ export default function AppShell() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(() => {
-    try { return localStorage.getItem("sidebarHidden") === "1"; } catch { return false; }
+    try { return localStorage.getItem("sidebarRail") === "1"; } catch { return false; }
   });
   const toggleSidebar = () => setSidebarHidden((v) => {
     const next = !v;
-    try { localStorage.setItem("sidebarHidden", next ? "1" : "0"); } catch { /* ignore */ }
+    try { localStorage.setItem("sidebarRail", next ? "1" : "0"); } catch { /* ignore */ }
     return next;
   });
   const [alerts, setAlerts] = useState({ messages: 0, approvals: 0 });
@@ -405,25 +438,28 @@ export default function AppShell() {
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex">
       {/* Desktop Sidebar */}
-      {!sidebarHidden && (
-      <aside
-        className="hidden md:flex w-64 shrink-0 flex-col border-r bg-[hsl(var(--sidebar-bg))] border-[hsl(var(--sidebar-border))] sticky top-0 h-screen"
-        data-testid="desktop-sidebar"
-      >
-        <SidebarContent user={user} alerts={alerts} variant="desktop" />
-      </aside>
-      )}
+      <TooltipProvider>
+      <div className={`hidden md:block shrink-0 sticky top-0 h-screen p-3 pr-0 transition-[width] duration-300 ease-out ${sidebarHidden ? "w-[92px]" : "w-[284px]"}`}>
+        <aside
+          className="h-full flex flex-col rounded-2xl border bg-[hsl(var(--sidebar-bg))] border-[hsl(var(--sidebar-border))] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden"
+          data-testid="desktop-sidebar"
+          data-collapsed={sidebarHidden ? "true" : "false"}
+        >
+          <SidebarContent user={user} alerts={alerts} variant="desktop" rail={sidebarHidden} onToggleRail={toggleSidebar} onLogout={handleLogout} />
+        </aside>
+      </div>
+      </TooltipProvider>
 
       {/* Mobile Drawer */}
       {mobileOpen && (
         <>
           <div
-            className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            className="md:hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
             data-testid="mobile-drawer-overlay"
           />
           <aside
-            className="md:hidden fixed top-0 left-0 z-50 w-72 h-full bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-border))] flex flex-col animate-fade-in"
+            className="md:hidden fixed top-0 left-0 z-[70] w-[84vw] max-w-[300px] h-full bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-border))] rounded-r-2xl shadow-2xl flex flex-col animate-fade-in"
             style={{
               paddingTop: "env(safe-area-inset-top)",
               paddingBottom: "env(safe-area-inset-bottom)",
@@ -449,8 +485,8 @@ export default function AppShell() {
               type="button"
               onClick={toggleSidebar}
               data-testid="desktop-sidebar-toggle"
-              title={sidebarHidden ? "Show menu" : "Hide menu"}
-              aria-label={sidebarHidden ? "Show menu" : "Hide menu"}
+              title={sidebarHidden ? "Expand menu" : "Collapse menu"}
+              aria-label={sidebarHidden ? "Expand menu" : "Collapse menu"}
               className="hidden md:flex w-10 h-10 rounded-lg bg-muted/60 text-foreground items-center justify-center hover:bg-muted transition-colors"
             >
               <SidebarSimple size={20} weight={sidebarHidden ? "fill" : "regular"} />
