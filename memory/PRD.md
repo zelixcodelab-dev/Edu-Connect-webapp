@@ -304,3 +304,15 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## Backlog
 - P1: owner-editable tour steps per company; short per-page tours; onboarding checklist; tour completion stats in the console.
 - P2: short TTL cache for tenant_has_module; clean up stale DB test_database_t_3b5e3f1f… (full-length name).
+
+## 2026-06 — Custom Tour Steps, Onboarding Checklist, Tour Insights (tested: iteration_3.json, BE 13/13, FE 100%)
+- lib/tour.py holds DEFAULT_TOUR_STEPS plus resolve/clean/tour_stats (one aggregate). Each company's override is stored in tenant.tour_steps.
+- Platform: GET/PUT/DELETE /api/platform/tenants/{id}/tour and POST /tour/reset-users ("replay for all"). _tenant_stats.tour gives the list column.
+  UI: PlatformClientDetail → "Product Tour" tab (components/platform/TourEditor.jsx: edit, enable, reorder, add/remove custom messages, reset, insights).
+  PlatformConsole table has a Tour column (tour-stats-{slug}).
+- Tenant: GET /api/onboarding/tour returns the enabled steps in saved order. ProductTour.jsx combines them with META (selectors/module/roles); custom steps show centred.
+- Onboarding checklist: GET /api/onboarding/checklist, POST /checklist/dismiss (users.onboarding_dismissed). Items are role-filtered:
+  admins see 6 items, staff see student, lead and payment. The flags are company-wide. Shown on Dashboard and StaffDashboard. Module "onboarding" (backfilled ON).
+## Backlog
+- Choose whether staff checklist ticks should count only that staff member's own records (right now they are company-wide).
+- Swap window.confirm in TourEditor for AlertDialog; warn about unsaved tour edits.

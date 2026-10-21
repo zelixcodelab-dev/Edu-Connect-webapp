@@ -471,6 +471,6 @@ async def reset_tenant_tour(tenant_id: str, request: Request, owner: dict = Depe
 @router.post("/tenants/{tenant_id}/tour/reset-users")
 async def reset_tour_users(tenant_id: str, request: Request, owner: dict = Depends(require_permission("client.edit"))):
     t = await _tenant_or_404(tenant_id)
-    r = await tenant_database(tenant_id).users.update_many({}, {"$unset": {"tour_status": "", "tour_done_at": ""}})
+    r = await tenant_database(tenant_id).users.update_many({"deleted_at": {"$exists": False}}, {"$unset": {"tour_status": "", "tour_done_at": ""}})
     await record_audit(owner, "client.tour.replay", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
     return {"ok": True, "reset": r.modified_count}

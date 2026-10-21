@@ -53,7 +53,10 @@ def clean_tour_steps(steps: List[dict]) -> List[dict]:
 
 
 async def tour_stats(tdb) -> dict:
-    users = await tdb.users.count_documents({"deleted_at": {"$exists": False}})
-    completed = await tdb.users.count_documents({"deleted_at": {"$exists": False}, "tour_status": "completed"})
-    skipped = await tdb.users.count_documents({"deleted_at": {"$exists": False}, "tour_status": "skipped"})
+    counts = {r["_id"]: r["n"] async for r in tdb.users.aggregate([
+        {"$match": {"deleted_at": {"$exists": False}}},
+        {"$group": {"_id": "$tour_status", "n": {"$sum": 1}}},
+    ])}
+    users = sum(counts.values())
+    completed, skipped = counts.get("completed", 0), counts.get("skipped", 0)
     return {"completed": completed, "skipped": skipped, "not_started": max(0, users - completed - skipped), "total": users}

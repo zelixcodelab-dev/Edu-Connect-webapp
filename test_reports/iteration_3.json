@@ -1,0 +1,31 @@
+{
+  "summary": "Tested Custom Tour Steps, the Onboarding Checklist, Tour Insights and the module switches, on both backend and frontend. Backend: 13/13 pytest pass in /app/backend/tests/test_iteration3_onboarding_tour.py. Covered: tour GET/PUT/DELETE, replay for all (reset-users), validation (400/422/404), tenant admin blocked from the platform endpoint, onboarding/tour returning only enabled steps in saved order, the admin and staff checklist items and links, and 403 when onboarding or product_tour is off. Also checked by hand that creating a lead ticks first_lead. Frontend: all features work end to end. Owner clients table shows the Tour column. Tour editor: 10 steps; edit/disable/move/add/remove/save; save persists after reload; reset and replay work; insights update. The Overview tab has the Product tour row. Tenant admin sees the custom title, the disabled 'messages' step is gone, the custom step shows centred with no spotlight, and Next/Back/Finish/Skip work with no auto-start after skip. Admin checklist: 3/6 done, correct data-done flags and links (branding goes to /branding). Hide checklist sends dismiss (200) and stays hidden after reload. Staff sees only 3 items. Module off hides the checklist and the profile-take-tour item. On mobile (390px) the tour waits behind the PIN setup prompt. The Edit dialog has module-onboarding and module-product_tour checkboxes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Platform Clients > Edit company dialog", "issues": ["The logo 'Remove' link is clipped at the dialog's right edge", "Module labels are cut off ('Getting-started Che...', 'Success Animations ...', 'Passkey (Biometric) L...'). Add a title tooltip or allow wrapping"]},
+      {"screen": "TourEditor", "issues": ["Reset and Replay use the browser's window.confirm instead of the shadcn AlertDialog, which doesn't match the rest of the console", "Edits are not saved anywhere until 'Save tour'. There is no unsaved-changes warning, so leaving the tab loses them", "If the GET fails, the tab stays on LoadingState forever (a toast shows but there is no retry or error state)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration3_onboarding_tour.py", "/app/test_reports/pytest/pytest_iter3.xml"],
+  "action_items": [
+    "Optional: checklist done-flags are company-wide. Staff see 'Create your first lead' ticked even when they have 0 leads of their own (StaffDashboard shows 'My leads 0'). Decide if this is intended, or scope staff flags to their own records",
+    "Optional: fix the clipped 'Remove' link and the cut-off module labels in the Edit company dialog",
+    "Optional: replace window.confirm in TourEditor with AlertDialog; add an error/retry state if loading fails"
+  ],
+  "critical_code_review_comments": [
+    "platform._tenant_stats now runs 3 extra count_documents per tenant (tour_stats) on every clients-list load. This is an N+1 per tenant and will slow down with many tenants; one aggregate on tour_status would be cheaper",
+    "clean_tour_steps silently drops steps with duplicate ids or empty titles and still returns 200. Return 400 or show which steps were dropped",
+    "reset-users update_many also touches soft-deleted users. Harmless, but filter on deleted_at to match tour_stats",
+    "Module gating relies on the path prefix '/api/onboarding/checklist', which also gates /checklist/dismiss (correct, returns 403)",
+    "The review request gave the testid tour-stats-edu-crm-hub-15, but the tenant slug is 'edu-connect', so the real testid is tour-stats-edu-connect. Not a bug"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration3_onboarding_tour.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created a TEST_onboard lead to check that first_lead ticks off, then deleted it. Restored afterwards: the tour is reset to default (no tour_steps), enabled_modules is back to the full 29 including onboarding and product_tour, the admin's onboarding_dismissed is $unset, and the admin's tour_status is set to completed (staff is not_started after replay).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run test_iteration3_onboarding_tour.py with '-n 0' (serial). Its module-toggle tests race under xdist parallel runs. The tenant slug is edu-connect, so the client-list testid is tour-stats-edu-connect. The ZELIX tenant DB (test_database_t_8286d28c6b04042a) has 0 students and 0 leads, so first_student/first_payment are not done. invite_staff and branding are done. During one browser run, a checklist dismiss POST was recorded without the hide button being clicked. Dedicated runs (login, open the tour from the profile menu, skip, reload) did not reproduce it, and no app code other than onboarding-hide-btn calls dismiss, so it is most likely an automation artefact."
+}

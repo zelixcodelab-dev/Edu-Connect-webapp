@@ -55,13 +55,14 @@ export default function TourEditor({ clientId }) {
   const [data, setData] = useState(null);
   const [steps, setSteps] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     const r = await api.get(`/platform/tenants/${clientId}/tour`);
     setData(r.data);
     setSteps(r.data.steps);
   }, [clientId]);
-  useEffect(() => { load().catch(() => toast.error("Failed to load tour")); }, [load]);
+  useEffect(() => { load().catch(() => setFailed(true)); }, [load]);
 
   const update = (i, patch) => setSteps((p) => p.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i, d) => setSteps((p) => { const n = [...p]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -83,6 +84,14 @@ export default function TourEditor({ clientId }) {
   const reset = () => window.confirm("Reset this company's tour to the default steps?") && run(() => api.delete(`/platform/tenants/${clientId}/tour`), "Tour reset to default");
   const replay = () => window.confirm("Show the tour again to every user in this company on their next visit?") && run(() => api.post(`/platform/tenants/${clientId}/tour/reset-users`), "Tour will replay for all users");
 
+  if (failed && !data) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 text-sm flex items-center justify-between" data-testid="tour-load-error">
+        <span className="text-muted-foreground">Couldn't load this company's tour.</span>
+        <Button size="sm" variant="outline" onClick={() => { setFailed(false); load().catch(() => setFailed(true)); }} data-testid="tour-retry">Retry</Button>
+      </div>
+    );
+  }
   if (!data) return <LoadingState />;
 
   return (

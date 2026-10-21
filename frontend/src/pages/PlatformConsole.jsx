@@ -379,8 +379,8 @@ export default function PlatformConsole() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Logo (PNG/SVG, under 500KB)</Label>
-                  <div className="flex items-center gap-3">
-                    <input type="file" accept="image/*" onChange={onLogo} className="text-sm" data-testid="brand-logo" />
+                  <div className="flex flex-wrap items-center gap-3 min-w-0">
+                    <input type="file" accept="image/*" onChange={onLogo} className="text-sm max-w-full" data-testid="brand-logo" />
                     {form.logo_url && (
                       <div className="flex items-center gap-2">
                         <img src={form.logo_url} alt="logo" className="w-9 h-9 object-contain rounded border border-border bg-card" />
@@ -416,7 +416,7 @@ export default function PlatformConsole() {
                   return (
                     <label key={m.key} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${checked ? "border-orange-500/40 bg-orange-500/5" : "border-border"} ${m.locked ? "opacity-70 cursor-not-allowed" : ""}`}>
                       <input type="checkbox" checked={checked} disabled={m.locked} onChange={() => toggleModule(m.key)} data-testid={`module-${m.key}`} />
-                      <span className="truncate">{m.label}</span>
+                      <span className="leading-tight" title={m.label}>{m.label}</span>
                     </label>
                   );
                 })}
