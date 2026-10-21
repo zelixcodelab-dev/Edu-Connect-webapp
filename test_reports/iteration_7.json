@@ -1,0 +1,34 @@
+{
+  "summary": "Tested Pinned Favourites (backend PUT /api/auth/pins + /auth/me nav_pins; frontend pin/unpin, navigate, drag reorder, 8 limit, cross-context persistence, module gating, rail, mobile drawer, staff independence) and removal of desktop-sidebar-toggle. All requested flows pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/auth/pins", "issue": "Any '/'-prefixed string is accepted (e.g. '/p0'), and paths are not checked against known nav routes. This is harmless because the UI filters unknown paths, but junk pins still use up the 8-pin limit."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile drawer (390px)", "issues": ["The pin button is opacity-0 until hover, so on touch devices the pin affordance for unpinned items is invisible (it only works if the user taps the hidden right edge).", "Drag reorder uses HTML5 DnD (draggable/onDragStart), which does not fire on iOS/Android touch, so users can't reorder pins on mobile."]},
+      {"screen": "Sidebar pinned section", "issues": ["Pins hidden because a module or permission is off still count toward the 8 limit and can't be seen or unpinned. A user could hit 'You can pin up to 8 pages' while seeing fewer than 8 pins. pinned-row-{idx} uses the index in the pins array, so testids skip numbers when a pin is hidden."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration7_nav_pins.py", "/app/test_reports/pytest/pytest_iter7.xml"],
+  "action_items": [
+    "Optional: count only visible pins toward the limit (or prune hidden ones on save) so module-off pins don't block new pins silently",
+    "Optional: on touch or the mobile variant, always show the pin button (e.g. use @media (hover:none) or variant==='mobile') and consider touch-friendly reordering (up/down buttons)"
+  ],
+  "critical_code_review_comments": [
+    "savePins captures `pins` from the closure. Rapid successive toggles before re-render could race (last write wins), but this is low risk.",
+    "Backend PinsIn does not validate pins against the known route list. This is acceptable, but consider rejecting unknown paths.",
+    "AppShell.jsx is 681 lines, close to the 700-line split guideline. Consider extracting SidebarContent and the pin logic into their own module or hook."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration7_nav_pins.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None persisted. Pins for admin@educonnect.app and TEST_att_staff_1 were cleared to []. Tenant ZELIX VENTURES modules restored (28 enabled).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login testids: auth-email-input / auth-password-input / auth-submit-btn. The token is in localStorage 'finflow_access_token'. The Office group (nav-group-office) starts collapsed, so check aria-expanded before hovering nav-attendance (Playwright treats collapsed grid rows as visible). The limit toast shows as a centred 'Didn't go through' modal, not a sonner toast. Verified: drag_to(pinned-row-2 -> pinned-row-0) reorders and persists; module off hides the pinned item; rail centred with tooltips; desktop-sidebar-toggle count=0 and the collapse state persists across reload.",
+  "rca of the issue": ""
+}

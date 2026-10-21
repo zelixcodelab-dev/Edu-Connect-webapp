@@ -23,7 +23,7 @@ import {
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
   Target, IdentificationBadge, Handshake, UserCircle, CaretRight, CaretDown, FolderSimplePlus,
-  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CalendarBlank, PushPin,
+  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CaretUp, CalendarBlank, PushPin,
 } from "@phosphor-icons/react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -126,7 +126,7 @@ function initialsOf(name) {
 // Office / Add details). Every other role keeps a single flat list.
 const GROUP_ROUTES = {
   accounts: ["/accounts", "/transactions", "/agents", "/invoices"],
-  office: ["/office-overview", "/employees", "/leads", "/staff", "/attendance"],
+  office: ["/office-overview", "/employees", "/leads", "/staff", "/attendance", "/expense-requests", "/activity"],
   details: ["/colleges", "/categories"],
 };
 
@@ -143,7 +143,7 @@ function buildSections(navItems, role) {
     { type: "items", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "office", label: "Office", icon: Buildings, items: pick(GROUP_ROUTES.office) },
     { type: "group", key: "details", label: "Add details", icon: FolderSimplePlus, items: pick(GROUP_ROUTES.details) },
-    { type: "items", items: pick(["/users", "/branding", "/expense-requests", "/activity", "/settings"]) },
+    { type: "items", items: pick(["/users", "/branding", "/settings"]) },
   ].filter((s) => s.items.length > 0);
 }
 
@@ -185,19 +185,22 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     try { await api.put("/auth/pins", { pins: next }); refreshMe?.(); }
     catch (e) { setPins(prev); toast.error(e?.response?.data?.detail || "Couldn't save pins"); }
   };
+  // Only pins the user can still see count; hidden ones are pruned on the next save.
+  const visiblePins = () => pinnedItems.map((i) => i.to);
   const togglePin = (to) => {
-    if (pins.includes(to)) { savePins(pins.filter((p) => p !== to)); return; }
-    if (pins.length >= 8) { toast.error("You can pin up to 8 pages. Unpin one first."); return; }
-    savePins([...pins, to]);
+    const cur = visiblePins();
+    if (cur.includes(to)) { savePins(cur.filter((p) => p !== to)); return; }
+    if (cur.length >= 8) { toast.error("You can pin up to 8 pages. Unpin one first."); return; }
+    savePins([...cur, to]);
   };
-  const dropPin = (target) => {
-    if (dragIdx === null || dragIdx === target) { setDragIdx(null); return; }
-    const next = [...pins];
-    const [moved] = next.splice(dragIdx, 1);
+  const movePin = (from, target) => {
+    if (from === null || from === target || target < 0) return;
+    const next = visiblePins();
+    const [moved] = next.splice(from, 1);
     next.splice(target, 0, moved);
-    setDragIdx(null);
     savePins(next);
   };
+  const dropPin = (target) => { movePin(dragIdx, target); setDragIdx(null); };
   React.useEffect(() => { if (rail) setQuery(""); }, [rail]);
   const expandAndFocus = () => { onToggleRail?.(); setTimeout(() => searchRef.current?.focus(), 320); };
   const alertFor = (to) => {
@@ -227,6 +230,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     return i;
   });
 
+  const isMobile = variant === "mobile";
   const pinnedItems = pins.map((to) => navItems.find((i) => i.to === to)).filter(Boolean);
   const q = query.trim().toLowerCase();
   const sections = q
@@ -264,9 +268,20 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
           data-testid={`${inPinned ? "unpin" : "nav-pin"}-${item.tid}`}
           aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label}`}
           title={isPinned ? "Unpin" : "Pin to top"}
-          className={`absolute right-2 top-1/2 -translate-y-1/2 z-[2] w-6 h-6 rounded-md flex items-center justify-center transition-[opacity,color,background-color] duration-150 hover:bg-[hsl(var(--sidebar-fg))]/10 ${isPinned ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))]"} ${inPinned || !isPinned ? "opacity-0 group-hover/pin:opacity-100 focus:opacity-100" : "opacity-100"} ${count > 0 ? "hidden group-hover/pin:flex" : ""}`}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 z-[2] w-6 h-6 rounded-md flex items-center justify-center transition-[opacity,color,background-color] duration-150 hover:bg-[hsl(var(--sidebar-fg))]/10 ${isPinned ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))]"} ${isMobile || (isPinned && !inPinned) ? "opacity-100" : "opacity-0 group-hover/pin:opacity-100 focus:opacity-100"} ${count > 0 ? "hidden group-hover/pin:flex" : ""}`}
         >
           <PushPin size={13} weight={isPinned ? "fill" : "regular"} />
+        </button>
+      )}
+      {!rail && inPinned && isMobile && pinIdx > 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); movePin(pinIdx, pinIdx - 1); }}
+          data-testid={`pin-up-${item.tid}`}
+          aria-label={`Move ${item.label} up`}
+          className="absolute right-9 top-1/2 -translate-y-1/2 z-[2] w-6 h-6 rounded-md flex items-center justify-center text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-fg))]/10"
+        >
+          <CaretUp size={12} weight="bold" />
         </button>
       )}
       <NavLink to={item.to} end={item.end} data-testid={tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
@@ -297,8 +312,6 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   const label = (text) => (rail || !text
     ? <div className={`${rail ? "mx-auto w-6" : "mx-3"} my-2 border-t border-[hsl(var(--sidebar-border))]`} aria-hidden />
     : <p className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.2em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
-
-  const isMobile = variant === "mobile";
 
   return (
     <>
@@ -368,7 +381,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
               </p>
             )}
             <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>
-              {pinnedItems.map((item) => renderLink(item, false, pins.indexOf(item.to)))}
+              {pinnedItems.map((item, i) => renderLink(item, false, i))}
             </div>
             {label("")}
           </div>

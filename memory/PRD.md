@@ -352,3 +352,9 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Rail mode is about 80px, with centred icons, Radix tooltips, badge dots, and search/year icons that expand the sidebar (search also gets focus). It's saved in localStorage sidebarRail, and the topbar toggle does the same.
   NavLink is wrapped in a span inside TooltipTrigger asChild, because Slot breaks NavLink's function className.
 - The mobile drawer uses the same design: a rounded right edge, z-[70] so it sits above the bottom nav, width 84vw (max 300px). The Platform Console sidebar is unchanged.
+
+## 2026-06 — Pinned Favourites + sidebar tweaks (tested: iteration_7.json, BE 8/8, FE 100%)
+- PUT /api/auth/pins saves users.nav_pins (max 8, unique, must start with "/"). /me returns it.
+  AppShell has a "Pinned" section (pinned-section, pinned-{tid}), hover pin/unpin buttons (nav-pin-/unpin-{tid}), HTML5 drag reorder (pinned-row-{i}) and a mobile up-arrow (pin-up-{tid}).
+  Only visible pins count toward the limit; pins hidden by permissions or modules are pruned on the next save. On mobile the pin buttons are always visible.
+- Removed the top-bar desktop-sidebar-toggle (collapse is only via sidebar-collapse-btn). Approvals and Activity moved into the Office group.
