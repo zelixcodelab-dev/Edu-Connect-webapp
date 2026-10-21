@@ -92,6 +92,7 @@ class UserOut(BaseModel):
     # WebAuthn passkey biometric — derived from webauthn_credentials count > 0.
     biometric_enabled: Optional[bool] = False
     tour_status: Optional[str] = None
+    nav_pins: Optional[List[str]] = None
     created_at: str
 
 

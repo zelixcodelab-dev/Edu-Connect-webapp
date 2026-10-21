@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { useBranding } from "@/lib/branding";
@@ -22,7 +23,7 @@ import {
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
   Target, IdentificationBadge, Handshake, UserCircle, CaretRight, CaretDown, FolderSimplePlus,
-  ClockCounterClockwise, Clock, ChartBar, SidebarSimple, Palette, Compass, CaretLeft, CalendarBlank,
+  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CalendarBlank, PushPin,
 } from "@phosphor-icons/react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -174,6 +175,29 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   const enabled = user?.enabled_modules;
   const [query, setQuery] = React.useState("");
   const searchRef = React.useRef(null);
+  const { refresh: refreshMe } = useAuth();
+  const [pins, setPins] = React.useState(() => user?.nav_pins || []);
+  const [dragIdx, setDragIdx] = React.useState(null);
+  React.useEffect(() => { setPins(user?.nav_pins || []); }, [user?.nav_pins]);
+  const savePins = async (next) => {
+    const prev = pins;
+    setPins(next);
+    try { await api.put("/auth/pins", { pins: next }); refreshMe?.(); }
+    catch (e) { setPins(prev); toast.error(e?.response?.data?.detail || "Couldn't save pins"); }
+  };
+  const togglePin = (to) => {
+    if (pins.includes(to)) { savePins(pins.filter((p) => p !== to)); return; }
+    if (pins.length >= 8) { toast.error("You can pin up to 8 pages. Unpin one first."); return; }
+    savePins([...pins, to]);
+  };
+  const dropPin = (target) => {
+    if (dragIdx === null || dragIdx === target) { setDragIdx(null); return; }
+    const next = [...pins];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(target, 0, moved);
+    setDragIdx(null);
+    savePins(next);
+  };
   React.useEffect(() => { if (rail) setQuery(""); }, [rail]);
   const expandAndFocus = () => { onToggleRail?.(); setTimeout(() => searchRef.current?.focus(), 320); };
   const alertFor = (to) => {
@@ -203,6 +227,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     return i;
   });
 
+  const pinnedItems = pins.map((to) => navItems.find((i) => i.to === to)).filter(Boolean);
   const q = query.trim().toLowerCase();
   const sections = q
     ? [{ type: "items", label: "Results", items: navItems.filter((i) => i.label.toLowerCase().includes(q)) }]
@@ -217,12 +242,34 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     !rail && !isActive ? "hover:translate-x-0.5" : "",
   ].join(" ");
 
-  const renderLink = (item, indent) => {
+  const renderLink = (item, indent, pinIdx = -1) => {
     const count = alertFor(item.to);
+    const inPinned = pinIdx >= 0;
+    const tid = inPinned ? `pinned-${item.tid}` : item.tid;
+    const isPinned = pins.includes(item.to);
+    const dragProps = inPinned && !rail ? {
+      draggable: true,
+      onDragStart: (e) => { setDragIdx(pinIdx); e.dataTransfer.effectAllowed = "move"; },
+      onDragOver: (e) => e.preventDefault(),
+      onDrop: (e) => { e.preventDefault(); dropPin(pinIdx); },
+      onDragEnd: () => setDragIdx(null),
+    } : {};
     return (
-      <RailTip key={item.to} show={rail} label={`${item.label}${count > 0 ? ` · ${count}` : ""}`}>
-      <span className={rail ? "flex justify-center w-full" : "block"}>
-      <NavLink to={item.to} end={item.end} data-testid={item.tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
+      <RailTip key={`${inPinned ? "pin-" : ""}${item.to}`} show={rail} label={`${item.label}${count > 0 ? ` · ${count}` : ""}`}>
+      <span className={`${rail ? "flex justify-center w-full" : "block relative group/pin"} ${dragIdx === pinIdx && inPinned ? "opacity-40" : ""}`} {...dragProps} data-testid={inPinned ? `pinned-row-${pinIdx}` : undefined}>
+      {!rail && (
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.to); }}
+          data-testid={`${inPinned ? "unpin" : "nav-pin"}-${item.tid}`}
+          aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label}`}
+          title={isPinned ? "Unpin" : "Pin to top"}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 z-[2] w-6 h-6 rounded-md flex items-center justify-center transition-[opacity,color,background-color] duration-150 hover:bg-[hsl(var(--sidebar-fg))]/10 ${isPinned ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))]"} ${inPinned || !isPinned ? "opacity-0 group-hover/pin:opacity-100 focus:opacity-100" : "opacity-100"} ${count > 0 ? "hidden group-hover/pin:flex" : ""}`}
+        >
+          <PushPin size={13} weight={isPinned ? "fill" : "regular"} />
+        </button>
+      )}
+      <NavLink to={item.to} end={item.end} data-testid={tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
         {({ isActive }) => (
           <>
             {isActive && !rail && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[hsl(var(--primary))]" aria-hidden />}
@@ -313,6 +360,19 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
       {/* Nav */}
       <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
+        {!q && pinnedItems.length > 0 && (
+          <div className="pb-3 mb-1" data-testid="pinned-section">
+            {rail ? null : (
+              <p className="px-3 mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[hsl(var(--primary))] font-semibold">
+                <PushPin size={11} weight="fill" /> Pinned
+              </p>
+            )}
+            <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>
+              {pinnedItems.map((item) => renderLink(item, false, pins.indexOf(item.to)))}
+            </div>
+            {label("")}
+          </div>
+        )}
         {sections.map((section, idx) => {
           if (q && section.items.length === 0) {
             return <p key="none" className="px-3 py-6 text-sm text-center text-[hsl(var(--sidebar-muted))]" data-testid="sidebar-search-empty">No menu items match "{query}"</p>;
@@ -486,16 +546,6 @@ export default function AppShell() {
         >
           <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              data-testid="desktop-sidebar-toggle"
-              title={sidebarHidden ? "Expand menu" : "Collapse menu"}
-              aria-label={sidebarHidden ? "Expand menu" : "Collapse menu"}
-              className="hidden md:flex w-10 h-10 rounded-lg bg-muted/60 text-foreground items-center justify-center hover:bg-muted transition-colors"
-            >
-              <SidebarSimple size={20} weight={sidebarHidden ? "fill" : "regular"} />
-            </button>
             <button
               type="button"
               onClick={() => setMobileOpen(true)}

@@ -4,6 +4,7 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field
@@ -213,6 +214,22 @@ async def update_settings(payload: SettingsUpdate, user: dict = Depends(require_
     fresh["pin_enabled"] = bool(fresh.get("pin_hash"))
     fresh["biometric_enabled"] = await _resolve_biometric_enabled(fresh["id"])
     return fresh
+
+
+class PinsIn(BaseModel):
+    pins: List[str] = Field(default_factory=list, max_length=8)
+
+
+@router.put("/pins")
+async def save_nav_pins(payload: PinsIn, user: dict = Depends(get_current_user)):
+    """Save the user's pinned side-menu pages (ordered, unique, app paths only)."""
+    pins = []
+    for p in payload.pins:
+        p = str(p).strip()[:80]
+        if p.startswith("/") and not p.startswith("//") and p not in pins:
+            pins.append(p)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"nav_pins": pins}})
+    return {"pins": pins}
 
 
 class TourIn(BaseModel):
