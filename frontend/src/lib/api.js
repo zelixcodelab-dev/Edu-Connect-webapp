@@ -29,6 +29,10 @@ function milestoneFor(method, url) {
 // Some successful mutations aren't a "save" at all — give them their own
 // welcoming wording instead of the generic "Saved successfully!".
 function customFor(method, url) {
+  const review = url.match(/\/dashboard\/applications\/[^/]+\/review$/);
+  if (review) {
+    return { caption: "Application reviewed", title: "Application reviewed", subtitle: "The list has been updated." };
+  }
   if (/\/pin\/verify$/.test(url)) {
     return { caption: "Unlocked!", title: "Unlocked!", subtitle: "You're in — here's your confidential revenue." };
   }

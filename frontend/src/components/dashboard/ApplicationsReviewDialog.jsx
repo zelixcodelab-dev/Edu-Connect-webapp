@@ -38,7 +38,7 @@ function AppCard({ s, onDone }) {
   const review = async (decision) => {
     setBusy(true);
     try {
-      await api.post(`/dashboard/applications/${s.id}/review`, { decision, reason });
+      await api.post(`/dashboard/applications/${s.id}/review`, { decision, reason: decision === "rejected" ? reason : "" });
       toast.success(decision === "approved" ? `${s.name} marked as reviewed` : `${s.name} rejected`);
       onDone(s.id);
     } catch (e) { toast.error(e?.response?.data?.detail || "Action failed"); } finally { setBusy(false); }
@@ -86,7 +86,7 @@ function AppCard({ s, onDone }) {
         ) : (
           <>
             <Button size="sm" onClick={() => review("rejected")} disabled={busy} className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white" data-testid={`app-review-confirm-reject-${s.id}`}>Confirm reject</Button>
-            <Button size="sm" variant="ghost" onClick={() => setRejecting(false)} className="rounded-xl">Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setRejecting(false); setReason(""); }} className="rounded-xl" data-testid={`app-review-cancel-reject-${s.id}`}>Cancel</Button>
           </>
         )}
         <div className="flex-1" />

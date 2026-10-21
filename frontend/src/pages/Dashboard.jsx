@@ -191,7 +191,7 @@ function SuperAdminDashboard() {
           </div>
           <img src="/illustrations/dashboard-hero.png" alt="" aria-hidden className="hidden sm:block absolute right-4 lg:right-10 bottom-0 h-[92%] max-h-[260px] w-auto object-contain pointer-events-none select-none animate-fade-in" />
         </div>
-        <HeroInbox />
+        <HeroInbox role={role} />
       </section>
       {(role === "super_admin" || role === "office_admin") && (
         <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="overview-highlights">

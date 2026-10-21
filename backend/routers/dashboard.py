@@ -323,13 +323,13 @@ async def team(user: dict = Depends(get_current_user), year: Optional[int] = Non
 
 @router.get("/inbox")
 async def inbox(user: dict = Depends(get_current_user)):
-    """Hero side cards: follow-ups due, new applications (7 days), unread messages."""
+    """Hero side cards: follow-ups due, pending applications (admins only), unread messages."""
     now = datetime.now(timezone.utc)
     due = await db.leads.count_documents({
         "status": {"$in": ["new", "not_connected", "interested", "follow_up"]},
         "next_follow_up": {"$ne": None, "$lte": now.isoformat()},
     })
-    apps = await db.students.count_documents(PENDING_APP_FILTER)
+    apps = await db.students.count_documents(PENDING_APP_FILTER) if user.get("role") in ADMIN_ROLES else 0
     unread = 0
     async for m in db.messages.find({"recipient_ids": user["id"], "parent_id": None}, {"_id": 0, "acks": 1}).limit(500):
         if not ((m.get("acks") or {}).get(user["id"]) or {}).get("read_at"):
@@ -357,9 +357,11 @@ class ReviewIn(BaseModel):
 async def review_application(student_id: str, payload: ReviewIn, user: dict = Depends(get_current_user)):
     """Approve = mark reviewed (status stays Inquiry). Reject = Cancelled with reason in notes."""
     _admin_only(user)
-    s = await db.students.find_one({"id": student_id, "application": {"$exists": True}}, {"_id": 0, "notes": 1})
+    s = await db.students.find_one({"id": student_id, "application": {"$exists": True}}, {"_id": 0, "notes": 1, "application_review": 1})
     if not s:
         raise HTTPException(status_code=404, detail="Application not found")
+    if s.get("application_review"):
+        raise HTTPException(status_code=409, detail="This application has already been reviewed")
     from auth_lib import now_iso
     review = {"status": payload.decision, "reason": (payload.reason or "").strip(), "by": user["id"], "by_name": user.get("name"), "at": now_iso()}
     patch = {"application_review": review}

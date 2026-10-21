@@ -130,14 +130,14 @@ export function TeamStrip({ role }) {
 }
 
 // Right of the greeting card: what needs attention now.
-export function HeroInbox() {
+export function HeroInbox({ role }) {
   const [d, setD] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const load = () => api.get("/dashboard/inbox").then((r) => setD(r.data)).catch(() => setD({}));
   useEffect(() => { load(); }, []);
   const rows = [
     { k: "reminders", label: "Follow-up reminders", hint: "due now", value: d?.followups_due, to: "/leads", Icon: BellRinging },
-    { k: "applications", label: "New applications", hint: "pending review", value: d?.new_applications, Icon: FileText, onClick: () => setReviewOpen(true) },
+    ...(["super_admin", "office_admin"].includes(role) ? [{ k: "applications", label: "New applications", hint: "pending review", value: d?.new_applications, Icon: FileText, onClick: () => setReviewOpen(true) }] : []),
     { k: "messages", label: "New messages", hint: "unread", value: d?.unread_messages, to: "/messages", Icon: ChatCircleDots },
   ];
   return (

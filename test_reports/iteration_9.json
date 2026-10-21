@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the Application Preview review popup (backend and UI) for tenant ZELIX VENTURES (DB test_database_t_8286d28c6b04042a). I seeded TEST_app_1..4 directly into students. Backend: 10/10 pytest pass. pending-applications is newest first with no _id; inbox new_applications equals the pending count; staff gets 403 on list and review (and the DB is unchanged); 'maybe' returns 422; unknown id returns 404; reason over 500 chars returns 422. Approve keeps status 'inquiry' and sets application_review {status:'approved', by, by_name, at}. Reject sets 'cancelled' and appends '\\n[Application rejected] <reason>' to the existing notes; reject without a reason leaves notes unchanged. UI as admin (1920x1080): hero-inbox-applications count 3 opens applications-review-dialog with cards in order 3,2,1. Each card shows name, course · college, phone, email, city, 'Referred by' and the submitted time. The toggle expands the details (contrast is fine). PDF downloads 'TEST Applicant 3 - Application - <date>.pdf' with no errors. Approve and Confirm reject (with a reason) remove the card, and the hero count drops to 1 and then 0. Open goes to /students/TEST_app_1 and closes the dialog. The empty state shows 'You're all caught up'. Regression: hero-inbox-reminders goes to /leads, hero-inbox-messages goes to /messages, topbar-search is absent, there are no console errors after login, and the mobile 390px layout stacks the 3 inbox cards without horizontal overflow. Found 1 functional gap (office_admin cannot reach the popup) and 2 minor issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/dashboard/applications/{id}/review", "issue": "No guard against re-reviewing: an already approved or rejected application can be reviewed again, and application_review is overwritten. Consider 409 when application_review exists, or allow it on purpose."},
+      {"endpoint": "GET /api/dashboard/inbox", "issue": "Docstring still says 'new applications (7 days)', but it now counts PENDING_APP_FILTER, with no time window. Also, non-admins get new_applications counts they can't act on."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dashboard.jsx role routing", "issue": "office_admin is routed to <OfficeDashboard/>, which does not render HeroInbox or ApplicationsReviewDialog. So office admins cannot approve or reject from the Overview, even though the requirement (and the backend) allows office_admin.", "selector": "[data-testid=hero-inbox-applications]", "priority": "HIGH"},
+      {"component": "ApplicationsReviewDialog AppCard", "issue": "The reason state is not cleared on Cancel. If you click Reject, type a reason, click Cancel and then Approve, the stale reason is sent and saved (verified: application_review.reason='stale reason' on an approved app). Clear reason on Cancel, or send reason only for 'rejected'.", "selector": "[data-testid^=app-review-approve-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Approve/Reject success feedback", "issue": "The specific toasts ('<name> marked as reviewed' / '<name> rejected') never show. The global axios celebration interceptor (lib/api.js maybeCelebrate) shows a generic 'Saved successfully!' overlay, and celebrate.js suppresses the following toast.success. Consider adding customFor() wording for /dashboard/applications/*/review (e.g. 'Application approved' / 'Application rejected'), or pass skipCelebration so the toast shows.", "affected_selectors": ["[data-sonner-toast]"]},
+      {"flow": "Dialog for non-admin roles", "issue": "SuperAdminDashboard (and therefore HeroInbox) also renders for role 'user' without linked_client_id. For them, pending-applications returns 403, and the dialog's catch sets items=[], so it shows 'You're all caught up' while the card count shows N>0. Hide the applications card for non-admins, or show an error state.", "affected_selectors": ["[data-testid=applications-review-empty]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration9_app_review.py", "/app/test_reports/pytest/pytest_iteration9.xml"],
+  "action_items": [
+    "HIGH: Render HeroInbox (or at least the applications card + ApplicationsReviewDialog) on OfficeDashboard so office_admin can review from the Overview.",
+    "Clear the reject reason on Cancel, or only send reason when decision === 'rejected'.",
+    "Give the review mutation specific success wording (customFor in lib/api.js) instead of the generic 'Saved successfully!' overlay.",
+    "Hide or disable the 'New applications' card for non-admin roles that can reach SuperAdminDashboard, or show an error instead of the empty state on 403.",
+    "Optional: return 409 when re-reviewing an already reviewed application; fix the inbox docstring."
+  ],
+  "critical_code_review_comments": [
+    "dashboard.py: PENDING_APP_FILTER is defined after inbox() uses it. That works at runtime but is fragile; move it above inbox().",
+    "pending-applications caps at to_list(100) while inbox counts everything, so the counts can disagree beyond 100.",
+    "There is no office scoping: an office_admin would see all tenant applications. This is fine if 'company admins' is intended.",
+    "ApplicationsReviewDialog load() swallows every error into an empty list, so network or 403 errors look like 'all caught up'."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration9_app_review.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "~85% (all requested flows work; office_admin access gap, stale reason, generic success feedback)"},
+  "test_credentials": "admin@educonnect.app/Admin@12345 (super_admin) and TEST_att_staff_1@educonnect.app/Staff@12345 (staff), both in tenant DB test_database_t_8286d28c6b04042a. Both valid.",
+  "seed_data_creation": "Inserted TEST_app_1..4 into test_database_t_8286d28c6b04042a.students (pytest fixture plus /tmp/seed.js for the UI). All deleted afterwards; the pytest fixture also cleans up on teardown.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run the new test with `pytest test_iteration9_app_review.py -n 0` from /app/backend/tests. pytest.ini enables xdist, which breaks the module-scoped seed fixture. The tenant DB is test_database_t_8286d28c6b04042a; the staff email is stored lowercase. Successful POSTs show a full-screen 'Saved successfully!' celebration overlay, not a sonner toast. The product tour did not appear. On mobile, a 'Skip for now' PIN dialog may appear.",
+  "rca of the issue": "Office admin gap: Dashboard() returns <OfficeDashboard/> for office_admin before SuperAdminDashboard, and only SuperAdminDashboard renders <HeroInbox/>. Missing toast: lib/api.js maybeCelebrate fires a celebration on every successful POST, and celebrate.js overrides toast.success to return early if recentlyCelebrated(), so the dialog's toast.success is dropped. Stale reason: AppCard keeps the `reason` state after the Cancel button sets rejecting=false, and review('approved') posts { decision, reason }."
+}

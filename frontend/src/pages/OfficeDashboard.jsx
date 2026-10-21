@@ -18,6 +18,7 @@ import {
 import StaffPickerDialog from "@/components/office-dashboard/StaffPickerDialog";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
 import CrmAnalytics from "@/components/office-dashboard/CrmAnalytics";
+import { TrendingRow, TeamStrip, HeroInbox } from "@/components/dashboard/OverviewHighlights";
 
 const OFFICE_LABEL = { HEAD_OFFICE: "HEAD OFFICE", BRANCH_EKM: "BRANCH EKM", BRANCH_TVM: "BRANCH TVM" };
 
@@ -162,6 +163,16 @@ export default function OfficeDashboard({ superView = false }) {
           ))}
         </div>
       </header>
+      <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="office-highlights">
+        <div>
+          <p className="font-display text-sm font-semibold mb-3">Trending</p>
+          <TrendingRow />
+        </div>
+        <div className="space-y-3 lg:pt-8">
+          <HeroInbox role={user?.role} />
+          <TeamStrip role={user?.role} />
+        </div>
+      </section>
 
       <div key={tab} className="view-enter">
       {tab === "crm" ? (

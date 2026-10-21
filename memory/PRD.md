@@ -374,3 +374,11 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - The LeadFunnel was removed from the Overview.
 - 2026-06: The hero right column is now HeroInbox (GET /api/dashboard/inbox returns followups_due = open leads whose next_follow_up is past; new_applications = students with an `application` field in the last 7 days; unread_messages).
   Cards are hero-inbox-{reminders|applications|messages}. Removed the non-functional top-bar search (topbar-search).
+
+## 2026-06 — Application Preview (tested: iteration_9.json, BE 10/10, FE flows pass; follow-ups fixed)
+- GET /api/dashboard/pending-applications (admins only) lists students with an `application`, status inquiry and no application_review, newest first.
+- POST /api/dashboard/applications/{id}/review {decision: approved|rejected, reason}:
+  approved sets application_review and keeps status Inquiry; rejected sets status cancelled and appends "[Application rejected] reason" to notes. A second review returns 409.
+- The inbox new_applications count is now the pending count (0 for non-admins).
+- ApplicationsReviewDialog opens from hero-inbox-applications (admins only) and has expand, approve, reject (with reason, cleared on cancel), PDF and open-record actions. Celebration copy reads "Application reviewed".
+- OfficeDashboard (office_admin) now also shows Trending, HeroInbox and TeamStrip.
