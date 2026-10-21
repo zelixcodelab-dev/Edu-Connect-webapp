@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, AppWindow, Users, Boxes, Rocket, GitBranch, ScrollText, KeyRound, Server, Database, Settings2 } from "lucide-react";
+import { ArrowLeft, AppWindow, Users, Boxes, Rocket, GitBranch } from "lucide-react";
 import api from "@/lib/api";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState } from "@/components/platform/PlatformKit";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AppDeployments, AppVersions, AppApiKeys, AppServer, AppDatabases, AppLogs } from "@/components/platform/AppTabs";
 
 const ENV_TONE = { production: "bg-emerald-500/10 text-emerald-600", staging: "bg-amber-500/10 text-amber-600", development: "bg-sky-500/10 text-sky-600" };
 
@@ -73,13 +74,13 @@ export default function PlatformAppDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview" data-testid="app-tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="deployments">Deployments</TabsTrigger>
+          <TabsTrigger value="deployments" data-testid="app-tab-deployments">Deployments</TabsTrigger>
           <TabsTrigger value="clients" data-testid="app-tab-clients">Clients</TabsTrigger>
-          <TabsTrigger value="database">Database</TabsTrigger>
-          <TabsTrigger value="api">API</TabsTrigger>
-          <TabsTrigger value="server">Server</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
-          <TabsTrigger value="versions">Versions</TabsTrigger>
+          <TabsTrigger value="database" data-testid="app-tab-database">Database</TabsTrigger>
+          <TabsTrigger value="api" data-testid="app-tab-api">API</TabsTrigger>
+          <TabsTrigger value="server" data-testid="app-tab-server">Server</TabsTrigger>
+          <TabsTrigger value="logs" data-testid="app-tab-logs">Logs</TabsTrigger>
+          <TabsTrigger value="versions" data-testid="app-tab-versions">Versions</TabsTrigger>
           <TabsTrigger value="settings" data-testid="app-tab-settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -125,12 +126,12 @@ export default function PlatformAppDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="deployments" className="pt-6"><EmptyState icon={Rocket} title="Deployments" desc="Connect your CI/CD or deploy provider to stream real deployment history here." /></TabsContent>
-        <TabsContent value="database" className="pt-6"><EmptyState icon={Database} title="Database" desc="View live connections and collections in the Database module." action={<Button variant="ghost" onClick={() => nav('/platform/database')}>Open Database</Button>} /></TabsContent>
-        <TabsContent value="api" className="pt-6"><EmptyState icon={KeyRound} title="API keys" desc="Issue and rotate API keys once the API gateway is connected." /></TabsContent>
-        <TabsContent value="server" className="pt-6"><EmptyState icon={Server} title="Server" desc="Link this app to a server in the VPS module to see runtime health." action={<Button variant="ghost" onClick={() => nav('/platform/vps-server')}>Open VPS</Button>} /></TabsContent>
-        <TabsContent value="logs" className="pt-6"><EmptyState icon={ScrollText} title="Logs" desc="Live application logs stream here once a log source is connected." /></TabsContent>
-        <TabsContent value="versions" className="pt-6"><EmptyState icon={GitBranch} title="Versions" desc={`Current: v${app.version}. Full release history appears when a version source is connected.`} /></TabsContent>
+        <TabsContent value="deployments" className="pt-6"><AppDeployments app={app} onChange={load} /></TabsContent>
+        <TabsContent value="database" className="pt-6"><AppDatabases app={app} /></TabsContent>
+        <TabsContent value="api" className="pt-6"><AppApiKeys app={app} /></TabsContent>
+        <TabsContent value="server" className="pt-6"><AppServer app={app} onChange={load} /></TabsContent>
+        <TabsContent value="logs" className="pt-6"><AppLogs app={app} /></TabsContent>
+        <TabsContent value="versions" className="pt-6"><AppVersions app={app} /></TabsContent>
       </Tabs>
     </PlatformShell>
   );

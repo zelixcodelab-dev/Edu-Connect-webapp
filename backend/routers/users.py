@@ -1,4 +1,5 @@
 """User management — super_admin only. Approve / reject office-admin signups."""
+from lib.subscription import enforce_seat_limit
 from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
@@ -372,6 +373,7 @@ async def create_user(payload: CreateUserIn, user: dict = Depends(get_current_us
         if linked_client_id:
             perms["students"] = "view"
         doc["permissions"] = perms
+    await enforce_seat_limit()
     await db.users.insert_one(doc)
     created = await db.users.find_one({"id": doc["id"]}, {"_id": 0, "password_hash": 0})
     await log_user_event(

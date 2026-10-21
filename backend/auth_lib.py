@@ -58,6 +58,7 @@ def create_access_token(user_id: str, email: str, tenant_id=None, scope: str = "
         "tenant": tenant_id,
         "scope": scope,
         "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        "iat": int(datetime.now(timezone.utc).timestamp()),
         "type": "access",
     }
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
@@ -171,6 +172,10 @@ async def _resolve_user_from_token(token: str, path: str = "") -> dict:
         raise HTTPException(status_code=401, detail="Account has been removed")
     user["tenant_id"] = tenant_id
     user["scope"] = "tenant"
+    from lib.subscription import tenant_revoked_at
+    revoked = await tenant_revoked_at(tenant_id)
+    if revoked and float(payload.get("iat") or 0) < int(revoked):
+        raise HTTPException(status_code=401, detail="Your session was ended by the administrator. Please sign in again.")
     mod = module_for_path(path)
     if mod and not await tenant_has_module(tenant_id, mod):
         raise HTTPException(status_code=403, detail="This feature is not enabled for your workspace.")

@@ -5,6 +5,7 @@ companies (tenants): branding, theme colour, enabled modules, admin
 credentials, and activation status. Each company is an isolated database.
 """
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
@@ -474,3 +475,144 @@ async def reset_tour_users(tenant_id: str, request: Request, owner: dict = Depen
     r = await tenant_database(tenant_id).users.update_many({"deleted_at": {"$exists": False}}, {"$unset": {"tour_status": "", "tour_done_at": ""}})
     await record_audit(owner, "client.tour.replay", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
     return {"ok": True, "reset": r.modified_count}
+
+
+# ─────────────────────── Client detail: applications / database / subscription / security ───────────────────────
+@router.get("/tenants/{tenant_id}/applications")
+async def tenant_applications(tenant_id: str, owner: dict = Depends(require_permission("client.view"))):
+    await _tenant_or_404(tenant_id)
+    apps = []
+    async for a in gdb.apps.find({}, {"_id": 0, "id": 1, "name": 1, "version": 1, "environment": 1, "status": 1, "category": 1, "logo_url": 1, "assigned_client_ids": 1}).sort("created_at", 1):
+        a["assigned"] = tenant_id in (a.pop("assigned_client_ids", None) or [])
+        apps.append(a)
+    return {"apps": apps}
+
+
+class AssignIn(BaseModel):
+    assigned: bool
+
+
+@router.put("/tenants/{tenant_id}/applications/{app_id}")
+async def set_tenant_application(tenant_id: str, app_id: str, payload: AssignIn, request: Request,
+                                 owner: dict = Depends(require_permission("app.manage"))):
+    t = await _tenant_or_404(tenant_id)
+    a = await gdb.apps.find_one({"id": app_id}, {"_id": 0, "name": 1})
+    if not a:
+        raise HTTPException(status_code=404, detail="Application not found")
+    op = "$addToSet" if payload.assigned else "$pull"
+    await gdb.apps.update_one({"id": app_id}, {op: {"assigned_client_ids": tenant_id}})
+    await record_audit(owner, "app.assign" if payload.assigned else "app.unassign", f"{a['name']} → {t.get('name')}", request,
+                       meta={"tenant_id": tenant_id, "app_id": app_id})
+    return {"ok": True, "assigned": payload.assigned}
+
+
+@router.get("/tenants/{tenant_id}/database")
+async def tenant_database_info(tenant_id: str, owner: dict = Depends(require_permission("database.view"))):
+    await _tenant_or_404(tenant_id)
+    name = tenant_db_name(tenant_id)
+    tdb = tenant_database(tenant_id)
+    out = {"name": name, "status": "unknown", "size_mb": 0, "storage_mb": 0, "index_mb": 0, "objects": 0, "collections": []}
+    try:
+        st = await tdb.command("dbstats")
+        mb = lambda n: round((n or 0) / (1024 * 1024), 2)  # noqa: E731
+        out.update(status="online", size_mb=mb(st.get("dataSize")), storage_mb=mb(st.get("storageSize")),
+                   index_mb=mb(st.get("indexSize")), objects=st.get("objects", 0))
+        for c in sorted(await tdb.list_collection_names()):
+            out["collections"].append({"name": c, "count": await tdb[c].estimated_document_count()})
+    except Exception:
+        log.exception("[platform] dbstats failed for %s", name)
+    bk = await gdb.db_backups.find_one({"db_name": name}, {"_id": 0}, sort=[("created_at", -1)])
+    out["last_backup"] = (bk or {}).get("created_at")
+    return out
+
+
+class SubscriptionIn(BaseModel):
+    plan_id: str
+    status: str
+    trial_ends_at: Optional[str] = None
+    seat_limit: Optional[int] = Field(default=None, ge=1, le=100000)
+    notes: Optional[str] = Field(default="", max_length=500)
+
+
+async def _subscription_view(t: dict) -> dict:
+    from lib.subscription import seat_usage
+    sub = dict(t.get("subscription") or {})
+    sub.setdefault("status", "trial" if (t.get("plan") or "trial") == "trial" else "active")
+    sub.setdefault("plan_name", (t.get("plan") or "trial").title())
+    sub["seats_used"] = await seat_usage(tenant_database(t["id"]))
+    plans = [p async for p in gdb.plans.find({}, {"_id": 0}).sort("price", 1)]
+    return {"subscription": sub, "plans": plans}
+
+
+@router.get("/tenants/{tenant_id}/subscription")
+async def get_subscription(tenant_id: str, owner: dict = Depends(require_permission("client.view"))):
+    return await _subscription_view(await _tenant_or_404(tenant_id))
+
+
+@router.put("/tenants/{tenant_id}/subscription")
+async def put_subscription(tenant_id: str, payload: SubscriptionIn, request: Request,
+                           owner: dict = Depends(require_permission("client.edit"))):
+    from lib.subscription import SUB_STATUSES
+    t = await _tenant_or_404(tenant_id)
+    if payload.status not in SUB_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of {', '.join(SUB_STATUSES)}")
+    plan = await gdb.plans.find_one({"id": payload.plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=400, detail="Pick a plan from Settings → Plans")
+    seat_limit = payload.seat_limit or ((plan.get("limits") or {}).get("users")) or None
+    sub = {
+        "plan_id": plan["id"], "plan_name": plan["name"], "price": plan.get("price", 0),
+        "status": payload.status, "trial_ends_at": payload.trial_ends_at or None,
+        "seat_limit": int(seat_limit) if seat_limit else None, "notes": payload.notes or "",
+        "updated_at": now_iso(), "updated_by": owner.get("email"),
+    }
+    await gdb.tenants.update_one({"id": tenant_id}, {"$set": {"subscription": sub, "plan": plan["name"].lower()}})
+    await record_audit(owner, "client.subscription", t.get("name", "client"), request,
+                       meta={"tenant_id": tenant_id, "plan": plan["name"], "status": payload.status, "seat_limit": sub["seat_limit"]})
+    return await _subscription_view(await _tenant_or_404(tenant_id))
+
+
+@router.get("/tenants/{tenant_id}/security")
+async def tenant_security(tenant_id: str, owner: dict = Depends(require_permission("client.view"))):
+    from lib.subscription import since_iso
+    t = await _tenant_or_404(tenant_id)
+    events = [e async for e in gdb.login_events.find({"tenant_id": tenant_id}, {"_id": 0}).sort("at", -1).limit(50)]
+    day = since_iso(24)
+    failed_24h = await gdb.login_events.count_documents({"tenant_id": tenant_id, "success": False, "at": {"$gte": day}})
+    success_24h = await gdb.login_events.count_documents({"tenant_id": tenant_id, "success": True, "at": {"$gte": day}})
+    emails = [u["email"] async for u in tenant_database(tenant_id).users.find({}, {"_id": 0, "email": 1}) if u.get("email")]
+    now = datetime.now(timezone.utc).isoformat()
+    lockouts = [r async for r in gdb.login_attempts.find(
+        {"email": {"$in": emails}, "$or": [{"locked_until": {"$gt": now}}, {"fails": {"$gte": 1}}]}, {"_id": 0})]
+    audit = [a async for a in gdb.platform_audit.find({"meta.tenant_id": tenant_id}, {"_id": 0}).sort("timestamp", -1).limit(30)]
+    revoked = t.get("sessions_revoked_at")
+    return {
+        "events": events, "failed_24h": failed_24h, "success_24h": success_24h,
+        "lockouts": lockouts, "audit": audit,
+        "sessions_revoked_at": datetime.fromtimestamp(revoked, timezone.utc).isoformat() if revoked else None,
+    }
+
+
+@router.post("/tenants/{tenant_id}/security/revoke-sessions")
+async def revoke_sessions(tenant_id: str, request: Request, owner: dict = Depends(require_permission("client.edit"))):
+    from lib.subscription import forget_revoked
+    t = await _tenant_or_404(tenant_id)
+    await gdb.tenants.update_one({"id": tenant_id}, {"$set": {"sessions_revoked_at": datetime.now(timezone.utc).timestamp()}})
+    forget_revoked(tenant_id)
+    await record_audit(owner, "client.sessions.revoke", t.get("name", "client"), request, meta={"tenant_id": tenant_id})
+    return {"ok": True}
+
+
+class UnlockIn(BaseModel):
+    email: EmailStr
+
+
+@router.post("/tenants/{tenant_id}/security/unlock")
+async def unlock_login(tenant_id: str, payload: UnlockIn, request: Request, owner: dict = Depends(require_permission("client.edit"))):
+    t = await _tenant_or_404(tenant_id)
+    email = payload.email.lower()
+    if not await tenant_database(tenant_id).users.find_one({"email": email}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="No such user in this company")
+    await gdb.login_attempts.delete_one({"email": email})
+    await record_audit(owner, "client.login.unlock", t.get("name", "client"), request, meta={"tenant_id": tenant_id, "email": email})
+    return {"ok": True}

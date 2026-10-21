@@ -13,6 +13,7 @@ Scope:
   - super_admin  → all staff (optionally filtered by ?office=)
 """
 from __future__ import annotations
+from lib.subscription import enforce_seat_limit
 
 from typing import Optional
 
@@ -159,6 +160,7 @@ async def create_member(payload: StaffMemberIn, user: dict = Depends(get_current
 
     name = payload.name.strip()
     uid = gen_id()
+    await enforce_seat_limit()
     await db.users.insert_one({
         "id": uid,
         "email": email,
@@ -285,6 +287,7 @@ async def add_login_to_profile(client_id: str, payload: AddLoginIn, user: dict =
     if not office:
         raise HTTPException(400, "This profile has no office set")
     uid = gen_id()
+    await enforce_seat_limit()
     await db.users.insert_one({
         "id": uid,
         "email": email,

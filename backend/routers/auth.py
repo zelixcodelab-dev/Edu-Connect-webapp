@@ -18,6 +18,7 @@ from models import RegisterIn, LoginIn, UserOut, SettingsUpdate, DEFAULT_PERMISS
 from seed import seed_user_defaults
 from routers.notifications import notify_super_admins
 from lib.email_notifier import send_email, password_reset_email_html
+from lib.subscription import record_login_event
 from lib.whitelabel import (
     find_tenant_for_email, tenant_public, merged_branding, DEFAULT_APP_NAME,
 )
@@ -83,7 +84,7 @@ async def register(payload: RegisterIn):
 
 
 @router.post("/login")
-async def login(payload: LoginIn, response: Response):
+async def login(payload: LoginIn, response: Response, request: Request):
     email = payload.email.lower().strip()
     try:
         # Lockout check FIRST so bad actors can't keep guessing during a lock window
@@ -109,6 +110,8 @@ async def login(payload: LoginIn, response: Response):
         tenant, user = await find_tenant_for_email(email)
         if not user or not verify_password(payload.password, user["password_hash"]):
             await record_failed_attempt(email)
+            if tenant:
+                await record_login_event(request, email, tenant["id"], False, "wrong_password", user.get("id") if user else None)
             raise HTTPException(status_code=401, detail="Invalid email or password")
         if tenant.get("status") == "suspended":
             raise HTTPException(
@@ -132,6 +135,7 @@ async def login(payload: LoginIn, response: Response):
             )
         # Successful login → wipe the failed-attempt counter
         await clear_failed_attempts(email)
+        await record_login_event(request, email, tenant["id"], True, "password", user["id"])
         set_current_tenant(tenant["id"])
         token = create_access_token(user["id"], email, tenant_id=tenant["id"], scope="tenant")
         set_auth_cookie(response, token)

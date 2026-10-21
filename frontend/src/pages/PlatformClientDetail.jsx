@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Boxes, Activity as ActivityIcon, LifeBuoy, ShieldCheck, CreditCard, Database, Settings2 } from "lucide-react";
+import { ArrowLeft, Users, Boxes, Activity as ActivityIcon, LifeBuoy } from "lucide-react";
 import api from "@/lib/api";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState, Avatar } from "@/components/platform/PlatformKit";
 import { MODULE_BY_KEY } from "@/lib/platformModules";
 import TourEditor from "@/components/platform/TourEditor";
+import { ClientApplications, ClientDatabase, ClientSubscription, ClientSecurity } from "@/components/platform/ClientTabs";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -69,12 +70,12 @@ export default function PlatformClientDetail() {
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
           <TabsTrigger value="tour" data-testid="tab-tour">Product Tour</TabsTrigger>
-          <TabsTrigger value="applications">Applications</TabsTrigger>
-          <TabsTrigger value="database">Database</TabsTrigger>
-          <TabsTrigger value="subscription">Subscription</TabsTrigger>
+          <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
+          <TabsTrigger value="database" data-testid="tab-database">Database</TabsTrigger>
+          <TabsTrigger value="subscription" data-testid="tab-subscription">Subscription</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
           <TabsTrigger value="tickets" data-testid="tab-tickets">Support Tickets</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6">
@@ -147,13 +148,10 @@ export default function PlatformClientDetail() {
           )}
         </TabsContent>
 
-        {["applications", "database", "subscription", "security"].map((k) => (
-          <TabsContent key={k} value={k} className="pt-6">
-            <EmptyState icon={{ applications: Boxes, database: Database, subscription: CreditCard, security: ShieldCheck }[k]}
-              title={`${k[0].toUpperCase()}${k.slice(1)}`}
-              desc="Detailed data appears here once the related module is fully built." />
-          </TabsContent>
-        ))}
+        <TabsContent value="applications" className="pt-6"><ClientApplications clientId={clientId} /></TabsContent>
+        <TabsContent value="database" className="pt-6"><ClientDatabase clientId={clientId} /></TabsContent>
+        <TabsContent value="subscription" className="pt-6"><ClientSubscription clientId={clientId} /></TabsContent>
+        <TabsContent value="security" className="pt-6"><ClientSecurity clientId={clientId} /></TabsContent>
       </Tabs>
     </PlatformShell>
   );

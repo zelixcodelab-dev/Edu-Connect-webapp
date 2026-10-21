@@ -53,6 +53,7 @@ class AppPatch(BaseModel):
     status: Optional[str] = None
     category: Optional[str] = None
     assigned_client_ids: Optional[List[str]] = None
+    server_id: Optional[str] = None
 
 
 async def _seed_default_app():
@@ -127,7 +128,7 @@ async def patch_app(app_id: str, payload: AppPatch, request: Request, owner: dic
         patch["updated_at"] = now_iso()
         await gdb.apps.update_one({"id": app_id}, {"$set": patch})
         await record_audit(owner, "app.manage", a.get("name", app_id), request,
-                           meta={"changed": list(patch.keys())})
+                           meta={"changed": list(patch.keys()), "app_id": app_id})
     return await get_app(app_id, owner)
 
 
@@ -680,3 +681,165 @@ async def container_action(server_id: str, name: str, action: str, request: Requ
     await record_audit(owner, f"container.{action}", f"{name}@{s.get('name')}", request,
                        meta={"server_id": server_id})
     return res
+
+
+# ─────────────────────── App detail: deployments / versions / API keys / server / db / logs ───────────────────────
+import hashlib  # noqa: E402
+import secrets  # noqa: E402
+
+DEPLOY_STATUSES = ["success", "failed", "in_progress", "rolled_back"]
+
+
+async def _app_or_404(app_id: str) -> dict:
+    a = await gdb.apps.find_one({"id": app_id}, {"_id": 0})
+    if not a:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return a
+
+
+class DeploymentIn(BaseModel):
+    version: str = Field(min_length=1, max_length=40)
+    environment: str = "production"
+    status: str = "success"
+    notes: Optional[str] = Field(default="", max_length=1000)
+
+
+@router.get("/apps/{app_id}/deployments")
+async def list_deployments(app_id: str, owner: dict = Depends(require_permission("app.view"))):
+    await _app_or_404(app_id)
+    items = [d async for d in gdb.app_deployments.find({"app_id": app_id}, {"_id": 0}).sort("created_at", -1).limit(100)]
+    return {"deployments": items, "statuses": DEPLOY_STATUSES, "environments": ENVIRONMENTS}
+
+
+@router.post("/apps/{app_id}/deployments", status_code=201)
+async def create_deployment(app_id: str, payload: DeploymentIn, request: Request, owner: dict = Depends(require_permission("app.manage"))):
+    a = await _app_or_404(app_id)
+    if payload.status not in DEPLOY_STATUSES or payload.environment not in ENVIRONMENTS:
+        raise HTTPException(status_code=400, detail="Invalid status or environment")
+    doc = {"id": gen_id(), "app_id": app_id, **payload.model_dump(), "by": owner.get("email"), "created_at": now_iso()}
+    await gdb.app_deployments.insert_one(doc)
+    if payload.status == "success" and payload.environment == a.get("environment"):
+        await gdb.apps.update_one({"id": app_id}, {"$set": {"version": payload.version, "updated_at": now_iso()}})
+    await record_audit(owner, "app.deploy", f"{a['name']} v{payload.version}", request,
+                       meta={"app_id": app_id, "environment": payload.environment, "status": payload.status})
+    doc.pop("_id", None)
+    return doc
+
+
+class VersionIn(BaseModel):
+    version: str = Field(min_length=1, max_length=40)
+    title: Optional[str] = Field(default="", max_length=120)
+    notes: Optional[str] = Field(default="", max_length=4000)
+    released_at: Optional[str] = None
+
+
+@router.get("/apps/{app_id}/versions")
+async def list_versions(app_id: str, owner: dict = Depends(require_permission("app.view"))):
+    await _app_or_404(app_id)
+    return {"versions": [v async for v in gdb.app_versions.find({"app_id": app_id}, {"_id": 0}).sort("released_at", -1).limit(200)]}
+
+
+@router.post("/apps/{app_id}/versions", status_code=201)
+async def create_version(app_id: str, payload: VersionIn, request: Request, owner: dict = Depends(require_permission("app.manage"))):
+    a = await _app_or_404(app_id)
+    if await gdb.app_versions.find_one({"app_id": app_id, "version": payload.version}):
+        raise HTTPException(status_code=409, detail="That version already exists")
+    doc = {"id": gen_id(), "app_id": app_id, **payload.model_dump(), "by": owner.get("email"), "created_at": now_iso()}
+    doc["released_at"] = payload.released_at or now_iso()
+    await gdb.app_versions.insert_one(doc)
+    await record_audit(owner, "app.version", f"{a['name']} v{payload.version}", request, meta={"app_id": app_id})
+    doc.pop("_id", None)
+    return doc
+
+
+@router.delete("/apps/{app_id}/versions/{version_id}")
+async def delete_version(app_id: str, version_id: str, request: Request, owner: dict = Depends(require_permission("app.manage"))):
+    a = await _app_or_404(app_id)
+    r = await gdb.app_versions.delete_one({"app_id": app_id, "id": version_id})
+    if not r.deleted_count:
+        raise HTTPException(status_code=404, detail="Version not found")
+    await record_audit(owner, "app.version.delete", a["name"], request, meta={"app_id": app_id})
+    return {"ok": True}
+
+
+class KeyIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+
+
+def _hash_key(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+@router.get("/apps/{app_id}/keys")
+async def list_keys(app_id: str, owner: dict = Depends(require_permission("app.view"))):
+    await _app_or_404(app_id)
+    return {"keys": [k async for k in gdb.app_api_keys.find({"app_id": app_id}, {"_id": 0, "key_hash": 0}).sort("created_at", -1)]}
+
+
+@router.post("/apps/{app_id}/keys", status_code=201)
+async def create_key(app_id: str, payload: KeyIn, request: Request, owner: dict = Depends(require_permission("app.manage"))):
+    a = await _app_or_404(app_id)
+    raw = "ecp_" + secrets.token_urlsafe(32)
+    doc = {"id": gen_id(), "app_id": app_id, "name": payload.name.strip(), "prefix": raw[:12],
+           "key_hash": _hash_key(raw), "revoked": False, "created_at": now_iso(), "last_used_at": None, "by": owner.get("email")}
+    await gdb.app_api_keys.insert_one(doc)
+    await record_audit(owner, "app.key.create", f"{a['name']} · {doc['name']}", request, meta={"app_id": app_id})
+    out = {k: v for k, v in doc.items() if k not in ("_id", "key_hash")}
+    out["key"] = raw
+    return out
+
+
+@router.delete("/apps/{app_id}/keys/{key_id}")
+async def revoke_key(app_id: str, key_id: str, request: Request, owner: dict = Depends(require_permission("app.manage"))):
+    a = await _app_or_404(app_id)
+    r = await gdb.app_api_keys.update_one({"app_id": app_id, "id": key_id}, {"$set": {"revoked": True, "revoked_at": now_iso()}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Key not found")
+    await record_audit(owner, "app.key.revoke", a["name"], request, meta={"app_id": app_id})
+    return {"ok": True}
+
+
+@router.get("/app-api/whoami")
+async def app_key_whoami(request: Request):
+    """Public check for integrations: send X-App-Key and get the app it belongs to."""
+    raw = request.headers.get("x-app-key", "")
+    k = await gdb.app_api_keys.find_one({"key_hash": _hash_key(raw), "revoked": False}, {"_id": 0}) if raw else None
+    if not k:
+        raise HTTPException(status_code=401, detail="Invalid or revoked API key")
+    await gdb.app_api_keys.update_one({"id": k["id"]}, {"$set": {"last_used_at": now_iso()}})
+    a = await gdb.apps.find_one({"id": k["app_id"]}, {"_id": 0, "id": 1, "name": 1, "version": 1, "environment": 1, "status": 1})
+    return {"app": a, "key": {"name": k["name"], "prefix": k["prefix"]}}
+
+
+@router.get("/apps/{app_id}/server")
+async def app_server(app_id: str, owner: dict = Depends(require_permission("app.view"))):
+    a = await _app_or_404(app_id)
+    servers = []
+    async for s in gdb.servers.find({}, {"_id": 0, "agent_key": 0}).sort("created_at", 1):
+        s["has_agent"] = bool(s.get("agent_url"))
+        servers.append(s)
+    linked = next((s for s in servers if s["id"] == a.get("server_id")), None)
+    return {"server": linked, "servers": servers}
+
+
+@router.get("/apps/{app_id}/databases")
+async def app_databases(app_id: str, owner: dict = Depends(require_permission("database.view"))):
+    a = await _app_or_404(app_id)
+    out = []
+    async for t in gdb.tenants.find({"id": {"$in": a.get("assigned_client_ids") or []}}, {"_id": 0, "id": 1, "name": 1}):
+        name = tenant_db_name(t["id"])
+        entry = {"client_id": t["id"], "client": t["name"], "name": name, "status": "unknown", "collections": 0, "size_mb": 0}
+        try:
+            st = await client[name].command("dbstats")
+            entry.update(status="online", collections=st.get("collections", 0), size_mb=_mb(st.get("dataSize")))
+        except Exception:
+            pass
+        out.append(entry)
+    return {"databases": out}
+
+
+@router.get("/apps/{app_id}/logs")
+async def app_logs(app_id: str, owner: dict = Depends(require_permission("app.view"))):
+    await _app_or_404(app_id)
+    entries = [e async for e in gdb.platform_audit.find({"meta.app_id": app_id}, {"_id": 0}).sort("timestamp", -1).limit(200)]
+    return {"entries": entries}
