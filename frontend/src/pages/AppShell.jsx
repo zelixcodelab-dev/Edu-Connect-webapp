@@ -647,15 +647,6 @@ export default function AppShell() {
 
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
             <AcademicYearSelect />
-            <div className="hidden lg:flex relative w-64 xl:w-80">
-              <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search…"
-                className="w-full h-10 pl-10 pr-3 rounded-full bg-muted/60 border border-transparent focus:border-primary focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm transition-all"
-                data-testid="topbar-search"
-              />
-            </div>
             {user?.role === "super_admin" && !!process.env.REACT_APP_APPLY_PUBLIC_URL && (
               <a
                 href={buildApplyUrl()}

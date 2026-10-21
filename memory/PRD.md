@@ -372,3 +372,5 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - GET /api/dashboard/team?year (admins only) returns staff/admin members with photo_url and admissions_closed.
 - components/dashboard/OverviewHighlights.jsx: TrendingRow (trend-course / trend-college (black) / trend-closer) and TeamStrip (team-member-{id} opens team-profile-dialog; View all → /users or /employees). Rendered in Dashboard for super_admin and office_admin.
 - The LeadFunnel was removed from the Overview.
+- 2026-06: The hero right column is now HeroInbox (GET /api/dashboard/inbox returns followups_due = open leads whose next_follow_up is past; new_applications = students with an `application` field in the last 7 days; unread_messages).
+  Cards are hero-inbox-{reminders|applications|messages}. Removed the non-functional top-bar search (topbar-search).

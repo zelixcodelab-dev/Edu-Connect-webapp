@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin } from "@phosphor-icons/react";
+import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin, BellRinging, FileText, ChatCircleDots } from "@phosphor-icons/react";
 import api from "@/lib/api";
 import AuthedImage from "@/components/AuthedImage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -124,6 +124,34 @@ export function TeamStrip({ role }) {
         </div>
       )}
       <ProfileDialog member={open} onClose={() => setOpen(null)} />
+    </div>
+  );
+}
+
+// Right of the greeting card: what needs attention now.
+export function HeroInbox() {
+  const [d, setD] = useState(null);
+  useEffect(() => { api.get("/dashboard/inbox").then((r) => setD(r.data)).catch(() => setD({})); }, []);
+  const rows = [
+    { k: "reminders", label: "Follow-up reminders", hint: "due now", value: d?.followups_due, to: "/leads", Icon: BellRinging },
+    { k: "applications", label: "New applications", hint: "last 7 days", value: d?.new_applications, to: "/students", Icon: FileText },
+    { k: "messages", label: "New messages", hint: "unread", value: d?.unread_messages, to: "/messages", Icon: ChatCircleDots },
+  ];
+  return (
+    <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-3" data-testid="hero-inbox">
+      {rows.map(({ k, label, hint, value, to, Icon }) => (
+        <Link key={k} to={to} data-testid={`hero-inbox-${k}`} className="group flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 hover:-translate-y-0.5 hover:shadow-lg transition-[transform,box-shadow] duration-200">
+          <span className="relative w-10 h-10 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm">
+            <Icon size={18} />
+            {value > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-card" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] text-muted-foreground">{label} · {hint}</span>
+            <span className="block font-display text-lg font-semibold tabular-nums" data-testid={`hero-inbox-${k}-count`}>{d ? value ?? 0 : "…"}</span>
+          </span>
+          <CaretRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      ))}
     </div>
   );
 }
