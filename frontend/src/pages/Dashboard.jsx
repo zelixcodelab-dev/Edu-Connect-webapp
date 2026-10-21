@@ -228,7 +228,7 @@ function SuperAdminDashboard() {
                     : "bg-transparent border-border hover:bg-muted/40"
                 }`}
               >
-                <div className={`stat-icon w-10 h-10 rounded-lg flex items-center justify-center ${active ? "bg-white/20 text-white" : p.icon}`}>
+                <div className={`stat-icon w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-300 ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-1 ring-white/20" : p.icon}`}>
                   <t.icon size={18} weight={active ? "fill" : "duotone"} />
                 </div>
                 <div className="flex-1 min-w-0">

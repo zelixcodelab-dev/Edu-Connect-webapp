@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useBranding, applyBranding, DEFAULT_BRANDING } from "@/lib/branding";
 import BrandMark from "@/components/BrandMark";
+import { BrandPreview } from "@/components/branding/BrandPreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,11 @@ export default function Branding() {
   const [form, setForm] = useState({ ...DEFAULT_BRANDING, ...branding });
   const [saving, setSaving] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
+
+  const savedRef = React.useRef(branding);
+  savedRef.current = branding;
+  // Drop any unsaved colour preview when leaving the page.
+  useEffect(() => () => applyBranding(savedRef.current), []);
 
   useEffect(() => {
     let mounted = true;
@@ -168,11 +174,14 @@ export default function Branding() {
               <div className="p-4 space-y-3 bg-card">
                 <button className="w-full h-10 rounded-lg btn-amber border-0 text-sm font-medium">Primary button</button>
                 <div className="flex gap-2">
-                  <span className="text-sm text-orange-600 font-medium">Accent link</span>
+                  <span className="text-sm text-primary font-medium">Accent link</span>
                   <span className="text-sm text-muted-foreground">Muted text</span>
                 </div>
               </div>
             </div>
+          </div>
+          <div className="card-premium p-5">
+            <BrandPreview color={form.brand_color || DEFAULT_BRANDING.brand_color} />
           </div>
         </div>
       </div>

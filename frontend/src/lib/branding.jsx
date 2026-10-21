@@ -62,6 +62,14 @@ export function prefersDarkText(hex) {
   return (L + 0.05) / 0.05 > 1.05 / (L + 0.05);
 }
 
+// Fill + text colour a brand gets on buttons, mirroring the theme rules below.
+export function brandSwatch(hex, dark = false) {
+  const hsl = hexToHsl(hex);
+  if (!hsl) return { bg: dark ? "#fafafa" : "#111111", fg: dark ? "#0f0f0f" : "#ffffff" };
+  if (dark && hsl.l < 15) return { bg: "#fafafa", fg: "#0f0f0f" };
+  return { bg: hex, fg: prefersDarkText(hex) ? "#121212" : "#ffffff" };
+}
+
 // Apply a branding object to the document: CSS brand variables, primary
 // colour, page title and favicon. Safe to call repeatedly.
 export function applyBranding(branding) {

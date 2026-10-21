@@ -388,3 +388,7 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Automatic black/white button text via WCAG contrast (prefersDarkText). Dark mode uses same brand; near-black brands (L<15%) invert to white so they stay visible.
 - Applies to: buttons, switches, checkboxes, link-style accents (a.text-orange-*), active tabs (underline), sidebar selected item (filled) and rail active icon (filled). Client app + login page; Platform Console unaffected.
 - Note: Workspace Admin tenant brand is #000000 (so it still looks black/white).
+
+## 2026-06 — Brand-coloured selected tile icon + Customize live preview (self-tested: screenshots)
+- Dashboard quick-nav tiles: selected tile's icon box fills with brand colour (Dashboard.jsx).
+- Customize page: new components/branding/BrandPreview.jsx mini-app mock (rail, tabs, link, switch, checkbox, primary button) with Light/Dark toggle; uses brandSwatch() in lib/branding.jsx. Unsaved colour preview is reverted when leaving the page.
