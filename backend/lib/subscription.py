@@ -12,7 +12,7 @@ _CACHE_TTL = 10
 
 
 async def seat_usage(tdb) -> int:
-    return await tdb.users.count_documents({"deleted_at": {"$exists": False}})
+    return await tdb.users.count_documents({"deleted_at": {"$in": [None, ""]}})
 
 
 async def enforce_seat_limit() -> None:

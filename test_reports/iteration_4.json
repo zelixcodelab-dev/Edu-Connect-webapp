@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the new Client-detail tabs (Applications, Database, Subscription, Security), seat-limit enforcement, the App-detail tabs (Deployments, Versions, API, Server, Database, Logs) and session revocation, on both backend and frontend. Backend: 12 of 13 pytest pass in /app/backend/tests/test_iteration4_client_app_tabs.py. The one failure is a real bug: re-creating a soft-deleted user bypasses the seat limit. Frontend: every requested flow works in the UI. Applications toggle persists after reload and the app's Clients tab reflects it. Database tab shows stats, collections and doc counts. Subscription: picking a plan pre-fills the seat limit (Starter gives 25), and with limit 2 of 2 the 'Seat limit reached' warning shows. As tenant admin, creating a user on the Team page returns 403 and the error modal shows 'Seat limit reached: 2 of 2 users on the Trial plan...'. Security: a wrong password adds a Failed row and a strike, and Unlock clears it. Sign out all users ends the admin's browser session (redirects to /login) and re-login works right away. Deploy 2.5.0 success to production updates the header version. Versions: add with the current tag, duplicate gives 409, delete works. API key: shown once, whoami 200 then 401 after revoke, key_hash never exposed. Server link/unlink works and the no-agent hint shows. App Database lists ZELIX. Logs show deploy/version/key events and refresh works. Regression: the Overview, Users, Product Tour, Activity and Tickets tabs load. Tenant admin /students, /users and /clients load.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/users (reactivation branch) + lib/subscription.seat_usage", "issue": "Seat limit bypass. (1) If the email belongs to a soft-deleted user, POST /api/users reactivates the row. That path returns before enforce_seat_limit() (users.py ~line 334), so it is never checked. Reproduced: with seat_limit = seats_used, re-creating a deleted TEST_ email returned 201. (2) Reactivation sets deleted_at: None, but seat_usage counts {deleted_at: {$exists: false}}. Reactivated users are never counted as seats, while _active_filter() uses {$in: [None, '']}. POST /api/users/{id}/reactivate likely has the same gap.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/platform/tenants/{id}/subscription", "issue": "seat_limit null/empty falls back to plan.limits.users, so the owner can't set 'Unlimited' on a plan that has a user limit. The UI placeholder says 'Unlimited'."},
+      {"endpoint": "auth_lib._resolve_user_from_token", "issue": "The revocation check is iat(int) < int(revoked). A token issued earlier in the same second as the revoke survives. Small edge case. Compare against the float, or store the revoke time ceil'd."},
+      {"endpoint": "get_current_user", "issue": "A revoked Bearer token falls back to the cookie token. If a browser holds a valid cookie for another identity (e.g. the owner), /api/auth/me returns 200 as that identity. This was a test artefact here, but the user can silently switch. Fine for most cases; just noting it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Client detail > Subscription", "issues": ["Plan options and the Price row show '$999/mo' and '$2999/mo', but the plans have currency INR. Use plan.currency (₹)"]},
+      {"screen": "App detail > Versions / Client Security / API", "issues": ["Release date: new Date('YYYY-MM-DD') is parsed as UTC midnight, so it shows as the previous day for users in negative-offset timezones", "Version delete, key revoke and 'Sign out all users' use window.confirm instead of shadcn AlertDialog"]},
+      {"screen": "Tenant session after revoke", "issues": ["The user is bounced to /login with no explanation. Consider showing the 401 detail ('Your session was ended by the administrator')"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration4_client_app_tabs.py", "/app/test_reports/pytest/pytest_iter4.xml"],
+  "action_items": [
+    "HIGH: In routers/users.py create_user, call enforce_seat_limit() before the soft-deleted reactivation branch as well. Do the same in POST /api/users/{id}/reactivate",
+    "HIGH: Make lib/subscription.seat_usage use the same active filter as the rest of the app ({deleted_at: {$in: [None, '']}}) so reactivated users count as seats",
+    "Optional: allow 'unlimited' seats explicitly (e.g. seat_limit 0 or a flag) instead of always falling back to plan.limits.users",
+    "Optional: show the plan currency instead of a hard-coded $; parse version-date as a local date"
+  ],
+  "critical_code_review_comments": [
+    "tenant_security builds the list of every tenant user email ($in over all users) on each load. Fine now, but it doesn't scale. login_attempts is keyed by email only (not tenant), so a strike on the same email in another tenant also shows here",
+    "tenant_database_info runs estimated_document_count per collection in sequence. Fine for about 20 collections",
+    "_revoked_cache is per-process with a 10s TTL. With uvicorn workers=1 that's fine. With more than one worker, a revoke takes up to 10s to apply on the other workers",
+    "PATCH /apps unlinking stores server_id '' instead of removing it. Harmless",
+    "Added data-testid='app-settings-version' to the Version input in the App Settings tab (it was missing)"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration4_client_app_tabs.py", "/app/frontend/src/pages/PlatformAppDetail.jsx (added data-testid only)"],
+  "success_rate": {"backend": "92% (12/13)", "frontend": "100%"},
+  "seed_data_creation": "None kept. Restored and cleaned up: seat_limit 50 (Trial, status trial, notes empty); app version 1.0.0; app assigned to ZELIX; server unlinked (server_id ''); hard-deleted the soft-deleted TEST_seat_*/TEST_react_* user rows from test_database_t_8286d28c6b04042a (2 users remain); deleted the TEST deployments and TEST API keys; test versions deleted via the API; login_attempts for admin cleared. Sessions for ZELIX were revoked several times, so old tenant tokens are invalid.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: pytest tests/test_iteration4_client_app_tabs.py -n 0 (pytest.ini adds xdist args). The TestSecurity class revokes ZELIX sessions, so keep it last. ZELIX tenant DB = test_database_t_8286d28c6b04042a; platform DB = test_database_platform. The app id is 65351708-1bd7-4100-89d2-75f28fc78c63. The Create user dialog role options are Office Admin, Super Admin and User; the default Office Admin with office KM BLR works. Errors show in a centred 'Didn't go through' modal, not a sonner toast. When checking revocation with page.request, note the cookie fallback: the owner cookie in the same context makes /auth/me return 200."
+}

@@ -73,7 +73,7 @@ export function AppVersions({ app }) {
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
   const add = async () => {
     if (!form.version.trim()) { toast.error("Version is required"); return; }
-    try { await api.post(`/platform/apps/${app.id}/versions`, { ...form, released_at: form.released_at ? new Date(form.released_at).toISOString() : null }); toast.success("Release added"); setForm({ version: "", title: "", notes: "", released_at: "" }); load(); }
+    try { await api.post(`/platform/apps/${app.id}/versions`, { ...form, released_at: form.released_at ? new Date(`${form.released_at}T12:00:00`).toISOString() : null }); toast.success("Release added"); setForm({ version: "", title: "", notes: "", released_at: "" }); load(); }
     catch (e) { toast.error(errMsg(e, "Failed")); }
   };
   const del = async (v) => {

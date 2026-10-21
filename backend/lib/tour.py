@@ -54,7 +54,7 @@ def clean_tour_steps(steps: List[dict]) -> List[dict]:
 
 async def tour_stats(tdb) -> dict:
     counts = {r["_id"]: r["n"] async for r in tdb.users.aggregate([
-        {"$match": {"deleted_at": {"$exists": False}}},
+        {"$match": {"deleted_at": {"$in": [None, ""]}}},
         {"$group": {"_id": "$tour_status", "n": {"$sum": 1}}},
     ])}
     users = sum(counts.values())

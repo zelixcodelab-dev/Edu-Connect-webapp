@@ -530,7 +530,7 @@ class SubscriptionIn(BaseModel):
     plan_id: str
     status: str
     trial_ends_at: Optional[str] = None
-    seat_limit: Optional[int] = Field(default=None, ge=1, le=100000)
+    seat_limit: Optional[int] = Field(default=None, ge=0, le=100000)
     notes: Optional[str] = Field(default="", max_length=500)
 
 
@@ -559,9 +559,10 @@ async def put_subscription(tenant_id: str, payload: SubscriptionIn, request: Req
     plan = await gdb.plans.find_one({"id": payload.plan_id}, {"_id": 0})
     if not plan:
         raise HTTPException(status_code=400, detail="Pick a plan from Settings → Plans")
-    seat_limit = payload.seat_limit or ((plan.get("limits") or {}).get("users")) or None
+    # 0 = explicitly unlimited; empty = plan default.
+    seat_limit = None if payload.seat_limit == 0 else (payload.seat_limit or ((plan.get("limits") or {}).get("users")) or None)
     sub = {
-        "plan_id": plan["id"], "plan_name": plan["name"], "price": plan.get("price", 0),
+        "plan_id": plan["id"], "plan_name": plan["name"], "price": plan.get("price", 0), "currency": plan.get("currency"),
         "status": payload.status, "trial_ends_at": payload.trial_ends_at or None,
         "seat_limit": int(seat_limit) if seat_limit else None, "notes": payload.notes or "",
         "updated_at": now_iso(), "updated_by": owner.get("email"),

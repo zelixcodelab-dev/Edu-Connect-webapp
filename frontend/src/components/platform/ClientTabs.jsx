@@ -102,6 +102,12 @@ export function ClientDatabase({ clientId }) {
   );
 }
 
+const money = (price, currency) => {
+  if (!price) return "Free";
+  const sym = { INR: "₹", USD: "$", EUR: "€", GBP: "£" }[currency || "USD"] || `${currency} `;
+  return `${sym}${Number(price).toLocaleString()}/mo`;
+};
+
 const SUB_STATUSES = [["trial", "Trial"], ["active", "Active"], ["past_due", "Past due"], ["cancelled", "Cancelled"]];
 
 function SubscriptionForm({ clientId, data, onSaved }) {
@@ -110,7 +116,7 @@ function SubscriptionForm({ clientId, data, onSaved }) {
     plan_id: s.plan_id || data.plans.find((p) => p.name.toLowerCase() === (s.plan_name || "").toLowerCase())?.id || data.plans[0]?.id || "",
     status: s.status || "trial",
     trial_ends_at: (s.trial_ends_at || "").slice(0, 10),
-    seat_limit: s.seat_limit || "",
+    seat_limit: s.seat_limit ?? (s.plan_id ? 0 : ""),
     notes: s.notes || "",
   });
   const [saving, setSaving] = useState(false);
@@ -126,7 +132,7 @@ function SubscriptionForm({ clientId, data, onSaved }) {
     try {
       const r = await api.put(`/platform/tenants/${clientId}/subscription`, {
         plan_id: form.plan_id, status: form.status, notes: form.notes,
-        trial_ends_at: form.trial_ends_at || null, seat_limit: form.seat_limit ? Number(form.seat_limit) : null,
+        trial_ends_at: form.trial_ends_at || null, seat_limit: form.seat_limit === "" ? null : Number(form.seat_limit),
       });
       onSaved(r.data); toast.success("Subscription updated");
     } catch (e) { toast.error(errMsg(e, "Save failed")); } finally { setSaving(false); }
@@ -137,7 +143,7 @@ function SubscriptionForm({ clientId, data, onSaved }) {
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5"><Label>Plan</Label>
           <select value={form.plan_id} onChange={pickPlan} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" data-testid="sub-plan">
-            {data.plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.price ? `$${p.price}/mo` : "Free"}</option>)}
+            {data.plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {money(p.price, p.currency)}</option>)}
           </select>
         </div>
         <div className="space-y-1.5"><Label>Status</Label>
@@ -146,8 +152,9 @@ function SubscriptionForm({ clientId, data, onSaved }) {
           </select>
         </div>
         <div className="space-y-1.5"><Label>Trial ends</Label><Input type="date" value={form.trial_ends_at} onChange={set("trial_ends_at")} data-testid="sub-trial-ends" /></div>
-        <div className="space-y-1.5"><Label>Seat limit (users)</Label><Input type="number" min={1} value={form.seat_limit} onChange={set("seat_limit")} placeholder={String(plan?.limits?.users || "Unlimited")} data-testid="sub-seat-limit" /></div>
+        <div className="space-y-1.5"><Label>Seat limit (users)</Label><Input type="number" min={0} value={form.seat_limit} onChange={set("seat_limit")} placeholder={plan?.limits?.users ? `Plan default: ${plan.limits.users}` : "Unlimited"} data-testid="sub-seat-limit" /></div>
       </div>
+      <p className="text-[11px] text-muted-foreground -mt-2">Leave seats empty for the plan default, or enter 0 for unlimited.</p>
       <div className="space-y-1.5"><Label>Internal notes</Label><Textarea rows={2} value={form.notes} onChange={set("notes")} data-testid="sub-notes" /></div>
       {plan?.features?.length > 0 && <p className="text-xs text-muted-foreground">Includes: {plan.features.join(" · ")}</p>}
       <Button onClick={save} disabled={saving} className="btn-amber border-0" data-testid="sub-save">{saving ? "Saving…" : "Save subscription"}</Button>
@@ -175,7 +182,7 @@ export function ClientSubscription({ clientId }) {
             </div>
             <div className="text-sm space-y-1.5">
               <div className="flex justify-between"><span className="text-muted-foreground">Trial ends</span><span>{s.trial_ends_at ? new Date(s.trial_ends_at).toLocaleDateString() : "—"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span>{s.price ? `$${s.price}/mo` : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span>{s.price ? money(s.price, s.currency) : "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Updated</span><span>{fmt(s.updated_at)}</span></div>
             </div>
           </div>

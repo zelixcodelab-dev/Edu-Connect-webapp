@@ -319,3 +319,20 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - 2026-06: Setup celebration. When a user's checklist is complete, the card is replaced by "Your workspace is ready!" (onboarding-complete)
   with the milestone celebrate() overlay and sound, but only if the celebrations module is on. "Got it" calls POST /api/onboarding/checklist/celebrated
   (users.onboarding_celebrated), so it shows once per user. Users who hid the checklist don't see it.
+
+## 2026-06 — Platform Console pending tabs (tested: iteration_4.json, BE 13/13 after fix, FE 100%)
+- Client detail (components/platform/ClientTabs.jsx):
+  Applications: assign/unassign apps (PUT /api/platform/tenants/{id}/applications/{appId}).
+  Database: dbstats plus collection counts.
+  Subscription: manual plan from Settings → Plans, status trial/active/past_due/cancelled, trial end date, seat limit (0 = unlimited, empty = plan default), notes; saved to tenant.subscription.
+  Security: login history (gdb.login_events written by /auth/login), failed/success counts for 24h, strikes and lockouts with Unlock, audit log, and "Sign out all users" (tenant.sessions_revoked_at checked against JWT iat in auth_lib, with a 10s cache).
+- Seat limit is enforced by lib/subscription.enforce_seat_limit in POST /api/users (including reactivation), /users/{id}/reactivate, and both staff login-creation paths. Error: "Seat limit reached: X of Y users on the <plan> plan…".
+- App detail (components/platform/AppTabs.jsx):
+  Deployments (gdb.app_deployments; a successful deploy to the app's own environment bumps app.version).
+  Versions/changelog (gdb.app_versions).
+  API keys (gdb.app_api_keys stores a sha256 hash; the key is shown once; public GET /api/platform/app-api/whoami with X-App-Key).
+  Server link (app.server_id, with live metrics when the server has an agent).
+  Databases of assigned clients.
+  Logs (platform_audit filtered on meta.app_id).
+## Backlog
+- AlertDialog instead of window.confirm across the console; show an explanation on /login after a forced sign-out.

@@ -33,7 +33,7 @@ def _on(mods, key):
 async def _done_flags(tenant: dict) -> dict:
     return {
         "first_student": await db.students.count_documents({}, limit=1) > 0,
-        "invite_staff": await db.users.count_documents({"deleted_at": {"$exists": False}}, limit=2) > 1,
+        "invite_staff": await db.users.count_documents({"deleted_at": {"$in": [None, ""]}}, limit=2) > 1,
         "first_lead": await db.leads.count_documents({}, limit=1) > 0,
         "first_payment": await db.students.count_documents({"payments.0": {"$exists": True}}, limit=1) > 0,
         "google_sheets": await db.google_connections.count_documents({"provider": "google_sheets"}, limit=1) > 0,

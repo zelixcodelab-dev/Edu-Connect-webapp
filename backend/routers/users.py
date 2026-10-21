@@ -296,6 +296,8 @@ async def create_user(payload: CreateUserIn, user: dict = Depends(get_current_us
         linked_client_id = client["id"]
         linked_client_name = client["name"]
 
+    await enforce_seat_limit()
+
     # ── Reactivation path: an existing soft-deleted row with the same email
     # gets brought back to life. Keeping the SAME `id` is critical so all
     # foreign keys (leads.assigned_to_user_id, students.referrer_user_id,
@@ -373,7 +375,6 @@ async def create_user(payload: CreateUserIn, user: dict = Depends(get_current_us
         if linked_client_id:
             perms["students"] = "view"
         doc["permissions"] = perms
-    await enforce_seat_limit()
     await db.users.insert_one(doc)
     created = await db.users.find_one({"id": doc["id"]}, {"_id": 0, "password_hash": 0})
     await log_user_event(
@@ -492,6 +493,7 @@ async def reactivate_user(user_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     if not _is_soft_deleted(target):
         raise HTTPException(status_code=400, detail="User is already active")
+    await enforce_seat_limit()
     await db.users.update_one(
         {"id": user_id},
         {

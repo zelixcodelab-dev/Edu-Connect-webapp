@@ -115,7 +115,7 @@ export default function PlatformAppDetail() {
             <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} data-testid="app-edit-name" /></div>
             <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={form.description || ""} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Version</Label><Input value={form.version || ""} onChange={(e) => setForm((p) => ({ ...p, version: e.target.value }))} /></div>
+              <div className="space-y-1.5"><Label>Version</Label><Input value={form.version || ""} onChange={(e) => setForm((p) => ({ ...p, version: e.target.value }))} data-testid="app-settings-version" /></div>
               <div className="space-y-1.5"><Label>Status</Label>
                 <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   {["online", "degraded", "offline", "maintenance"].map((x) => <option key={x} value={x} className="capitalize">{x}</option>)}
