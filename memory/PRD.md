@@ -396,3 +396,5 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Mobile "+" quick-entry button uses brand colour (BottomNav.jsx; self-tested via screenshot, computed bg matches brand)
 
 ## 2026-06 — Quick Entry: "New Expense Request" card hidden for super admin (QuickEntry.jsx; self-tested via screenshot)
+
+## 2026-06 — Deploy fix: requirements.txt had duplicate conflicting pins (google-auth 2.52.0 vs 2.56.2 etc). Regenerated from pip freeze (litellm==1.80.0 kept). Tested iteration_10.json. Added EMERGENT_LLM_KEY (object storage) + fixed WEBAUTHN_RP_ID to preview host.
