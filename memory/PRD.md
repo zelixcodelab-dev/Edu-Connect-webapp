@@ -394,3 +394,5 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Customize page: new components/branding/BrandPreview.jsx mini-app mock (rail, tabs, link, switch, checkbox, primary button) with Light/Dark toggle; uses brandSwatch() in lib/branding.jsx. Unsaved colour preview is reverted when leaving the page.
 
 ## 2026-06 — Mobile "+" quick-entry button uses brand colour (BottomNav.jsx; self-tested via screenshot, computed bg matches brand)
+
+## 2026-06 — Quick Entry: "New Expense Request" card hidden for super admin (QuickEntry.jsx; self-tested via screenshot)

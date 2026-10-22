@@ -171,7 +171,9 @@ export default function QuickEntry() {
         </header>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <HubCard testId="qe-add-transaction" icon={Receipt} palette="amber" title="Add Transaction" subtitle="Log a payout, expense or income" onClick={() => setView("transaction")} />
-          <HubCard testId="qe-request-expense" icon={ReceiptX} palette="rose" title={isOfficeAdmin ? "Request Expense" : "New Expense Request"} subtitle={isOfficeAdmin ? "Submit for super-admin approval" : "Review office submissions"} onClick={() => nav(isOfficeAdmin ? "/expense-requests?new=1" : "/expense-requests")} />
+          {!isSuper && (
+            <HubCard testId="qe-request-expense" icon={ReceiptX} palette="rose" title={isOfficeAdmin ? "Request Expense" : "New Expense Request"} subtitle={isOfficeAdmin ? "Submit for super-admin approval" : "Review office submissions"} onClick={() => nav(isOfficeAdmin ? "/expense-requests?new=1" : "/expense-requests")} />
+          )}
           <HubCard testId="qe-add-student" icon={StudentIcon} palette="emerald" title="Add Student" subtitle="Enrol with fees plan & schedule" onClick={() => nav("/students?new=1")} />
           <HubCard testId="qe-log-payment" icon={CurrencyInr} palette="violet" title="Log Payment" subtitle="Record a student fee receipt" onClick={() => nav("/students?action=log_payment")} />
           {isSuper && (
