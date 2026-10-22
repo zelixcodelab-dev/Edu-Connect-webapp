@@ -16,6 +16,7 @@ import {
   Receipt, ReceiptX, Student as StudentIcon, CurrencyInr, ClipboardText,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { StudentPickerDialog } from "@/components/StudentPickerDialog";
 
 function HubCard({ icon: Icon, palette, title, subtitle, onClick, testId }) {
   const PAL = {
@@ -57,6 +58,7 @@ export default function QuickEntry() {
   const isSuper = user?.role === "super_admin";
   const isLightUser = user?.role === "user";
   const linkedRef = linkedUserRef(user);
+  const [pickOpen, setPickOpen] = useState(false);
 
   useEffect(() => {
     if (isLightUser && linkedRef) navigateToApply(nav, linkedRef, { replace: true });
@@ -175,11 +177,13 @@ export default function QuickEntry() {
             <HubCard testId="qe-request-expense" icon={ReceiptX} palette="rose" title={isOfficeAdmin ? "Request Expense" : "New Expense Request"} subtitle={isOfficeAdmin ? "Submit for super-admin approval" : "Review office submissions"} onClick={() => nav(isOfficeAdmin ? "/expense-requests?new=1" : "/expense-requests")} />
           )}
           <HubCard testId="qe-add-student" icon={StudentIcon} palette="emerald" title="Add Student" subtitle="Enrol with fees plan & schedule" onClick={() => nav("/students?new=1")} />
-          <HubCard testId="qe-log-payment" icon={CurrencyInr} palette="violet" title="Log Payment" subtitle="Record a student fee receipt" onClick={() => nav("/students?action=log_payment")} />
+          <HubCard testId="qe-log-payment" icon={CurrencyInr} palette="violet" title="Log Payment" subtitle="Record a student fee receipt" onClick={() => setPickOpen(true)} />
           {isSuper && (
             <HubCard testId="qe-paste-application" icon={ClipboardText} palette="amber" title="Paste Application" subtitle="Auto-parse a pasted student detail blob" onClick={() => nav("/students?paste=1")} />
           )}
         </div>
+        <StudentPickerDialog open={pickOpen} onOpenChange={setPickOpen} currency={currency}
+          onPick={(st) => { setPickOpen(false); nav(`/students/${st.id}?pay=1`); }} />
       </div>
     );
   }

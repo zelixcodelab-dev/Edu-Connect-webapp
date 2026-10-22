@@ -628,23 +628,23 @@ export default function AppShell() {
           style={{ paddingTop: "env(safe-area-inset-top)" }}
           data-testid="topbar"
         >
-          <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
               data-testid="mobile-menu-btn"
-              className="md:hidden w-10 h-10 rounded-lg bg-muted text-foreground flex items-center justify-center hover:bg-muted/80"
+              className="md:hidden shrink-0 w-9 h-9 rounded-xl bg-muted text-foreground flex items-center justify-center hover:bg-muted/80"
             >
               <ListIcon size={20} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Workspace</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold truncate">Workspace</p>
               <h2 className="font-display text-base md:text-lg font-semibold tracking-tight truncate" data-testid="topbar-page-title">{pageTitle}</h2>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
             <AcademicYearSelect />
             {user?.role === "super_admin" && !!process.env.REACT_APP_APPLY_PUBLIC_URL && (
               <a
@@ -665,7 +665,7 @@ export default function AppShell() {
               onClick={() => nav("/messages")}
               data-testid="topbar-messages-btn"
               title="Messages"
-              className="md:hidden relative w-10 h-10 rounded-full bg-muted/60 hover:bg-muted text-foreground flex items-center justify-center transition-colors"
+              className="md:hidden relative w-9 h-9 rounded-full bg-muted/60 hover:bg-muted text-foreground flex items-center justify-center transition-colors"
             >
               <ChatCircleDots size={18} />
               {alerts.messages > 0 && (
@@ -674,7 +674,7 @@ export default function AppShell() {
                 </span>
               )}
             </button>
-            <div className="pl-2 sm:pl-3 ml-0.5 sm:ml-1 border-l border-border h-8 flex items-center">
+            <div className="pl-1.5 sm:pl-3 sm:ml-1 border-l border-border h-8 flex items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -699,7 +699,7 @@ export default function AppShell() {
                       <p className="text-xs font-medium leading-tight truncate max-w-[140px]" data-testid="topbar-user-name">{user?.name}</p>
                       <p className="text-[10px] text-muted-foreground leading-tight">{user?.business_name || user?.currency || "USD"}</p>
                     </div>
-                    <CaretDown size={13} className="text-muted-foreground shrink-0" />
+                    <CaretDown size={13} className="hidden sm:block text-muted-foreground shrink-0" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56" data-testid="profile-menu">
@@ -741,7 +741,7 @@ export default function AppShell() {
         </header>
         <TrialBanner />
 
-        <div className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8 pb-28 md:pb-12 max-w-[1500px] w-full mx-auto">
+        <div className="mobile-pad px-4 sm:px-6 lg:px-10 pt-5 sm:pt-8 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-12 max-w-[1500px] w-full mx-auto">
           <div key={location.pathname} className="route-enter">
             <Outlet />
           </div>

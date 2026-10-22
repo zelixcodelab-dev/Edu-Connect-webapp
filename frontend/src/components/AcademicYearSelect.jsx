@@ -32,10 +32,10 @@ export default function AcademicYearSelect({ className = "" }) {
     <Select value={value} onValueChange={(v) => setYear(v === "all" ? "all" : v)}>
       <SelectTrigger
         data-testid="academic-year-select"
-        className={`h-9 w-auto min-w-[120px] gap-1.5 rounded-full bg-muted/60 border-transparent px-3 text-xs font-medium hover:bg-muted focus:ring-2 focus:ring-primary/30 ${className}`}
+        className={`h-9 w-auto min-w-0 sm:min-w-[120px] gap-1 sm:gap-1.5 rounded-full bg-muted/60 border-transparent px-2.5 sm:px-3 text-xs font-medium hover:bg-muted focus:ring-2 focus:ring-primary/30 ${className}`}
         title="Academic year — scopes the whole app to an academic year"
       >
-        <CalendarBlank size={14} className="text-muted-foreground shrink-0" />
+        <CalendarBlank size={14} className="hidden sm:block text-muted-foreground shrink-0" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

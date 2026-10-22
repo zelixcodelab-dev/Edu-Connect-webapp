@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, formatDate } from "@/lib/format";
@@ -72,6 +72,14 @@ export default function StudentDetail() {
     (v) => setPayDlg((prev) => ({ ...prev, open: v })),
     [],
   );
+
+  const [sp, setSp] = useSearchParams();
+  const payFlag = sp.get("pay") === "1";
+  useEffect(() => {
+    if (!s || !payFlag) return;
+    setPayDlg({ open: true, editing: null, form: emptyPayment() });
+    setSp((prev) => { const n = new URLSearchParams(prev); n.delete("pay"); return n; }, { replace: true });
+  }, [s, payFlag, setSp]);
 
   if (!s) return <div className="p-8 text-sm text-muted-foreground" data-testid="loading">Loading…</div>;
 

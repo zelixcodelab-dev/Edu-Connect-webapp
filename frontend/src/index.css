@@ -736,3 +736,11 @@ html.theme-mono [role="tab"][data-state="active"] {
     box-shadow: inset 0 -2px 0 hsl(var(--primary));
 }
 html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { accent-color: hsl(var(--primary)); }
+
+/* Mobile: tighter, consistent card padding inside page content. */
+@media (max-width: 639px) {
+    :where(.mobile-pad) :is(.p-6, .p-7, .p-8):not([class*="px-"]):not([class*="py-"]):not([class*="pt-"]):not([class*="pb-"]) { padding: 1.25rem; }
+    :where(.mobile-pad) .p-10:not([class*="px-"]):not([class*="py-"]) { padding: 1.5rem; }
+    :where(.mobile-pad) :is(.px-6, .px-7, .px-8):not([class*="sm:px-"]) { padding-left: 1.25rem; padding-right: 1.25rem; }
+    :where(.mobile-pad) .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
+}
