@@ -186,9 +186,6 @@ function SuperAdminDashboard() {
               <Link to="/quick-entry" data-testid="quick-add-tx" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl btn-amber text-sm font-medium">
                 <Receipt size={16} /> Quick entry
               </Link>
-              <Link to="/students" data-testid="hero-view-details" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border border-foreground/15 text-sm font-medium hover:bg-foreground/5 transition-colors">
-                View details
-              </Link>
               {(role === "super_admin" || role === "office_admin") && (
                 <ApplyQrDialog url={buildApplyUrl()} name={user?.branding?.app_name || user?.business_name} logo={user?.branding?.logo_url}
                   color={user?.branding?.brand_color || "#111111"} testId="overview-apply-qr"
