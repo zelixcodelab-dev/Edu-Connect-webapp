@@ -411,5 +411,5 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Current tenant slug: zelix-ventures.
 
 ## 2026-06 — Application QR code (self-tested via screenshots)
-- components/ApplyQrDialog.jsx (qrcode.react): QR preview, A4 printable poster (logo, name, brand colour, Scan to apply, link; 1024px QR), PNG download.
+- components/ApplyQrDialog.jsx (qrcode.react): QR preview, A5 printable poster (headline 8mm, single line) (logo, name, brand colour, Scan to apply, link; 1024px QR), PNG download.
 - Available on Platform Console client Overview (ClientApplyLink "QR code") and tenant admin Overview hero ("Application QR").

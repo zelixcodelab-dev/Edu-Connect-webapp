@@ -12,20 +12,20 @@ function posterHtml({ qr, url, name, logo, color }) {
     : `<div class="logo mono" style="background:${esc(color)}">${esc((name || "?").charAt(0).toUpperCase())}</div>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>Apply · ${esc(name)}</title>
 <style>
-@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.page{margin:0 auto;width:210mm;height:297mm;padding:22mm 20mm;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:10mm solid ${esc(color)}}
-.logo{width:26mm;height:26mm;object-fit:contain;border-radius:5mm}.mono{display:flex;align-items:center;justify-content:center;color:#fff;font-size:14mm;font-weight:700}
-.name{font-size:9mm;font-weight:700;margin-top:6mm;letter-spacing:-.2mm}.eyebrow{margin-top:14mm;font-size:4mm;letter-spacing:1.2mm;text-transform:uppercase;color:#666}
-h1{font-size:17mm;line-height:1.02;margin:4mm 0 0;letter-spacing:-.6mm}.sub{font-size:5mm;color:#555;margin-top:5mm}
-.qr{margin-top:12mm;padding:6mm;border:1.2mm solid ${esc(color)};border-radius:8mm}.qr img{width:88mm;height:88mm;display:block}
-.cta{margin-top:9mm;font-size:7mm;font-weight:700;color:${esc(color)}}.url{margin-top:3mm;font-size:4.2mm;color:#444;word-break:break-all}
+@page{size:A5;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{margin:0 auto;width:148mm;height:210mm;padding:14mm 14mm;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:7mm solid ${esc(color)};overflow:hidden}
+.logo{width:18mm;height:18mm;object-fit:contain;border-radius:4mm}.mono{display:flex;align-items:center;justify-content:center;color:#fff;font-size:10mm;font-weight:700}
+.name{font-size:6.5mm;font-weight:700;margin-top:4mm;letter-spacing:-.15mm}.eyebrow{margin-top:8mm;font-size:3mm;letter-spacing:.9mm;text-transform:uppercase;color:#666}
+h1{font-size:8mm;line-height:1.1;margin:2.5mm 0 0;letter-spacing:-.2mm}.sub{font-size:3.6mm;color:#555;margin-top:3mm}
+.qr{margin-top:8mm;padding:4mm;border:1mm solid ${esc(color)};border-radius:6mm}.qr img{width:62mm;height:62mm;display:block}
+.cta{margin-top:6mm;font-size:5mm;font-weight:700;color:${esc(color)}}.url{margin-top:2mm;font-size:3.2mm;color:#444;word-break:break-all}
 </style></head><body><div class="page">${mark}<div class="name">${esc(name)}</div>
-<div class="eyebrow">Admissions open</div><h1>Apply online<br>in 5 minutes</h1><div class="sub">Scan the code with your phone camera to start your application.</div>
+<div class="eyebrow">Admissions open</div><h1>Apply online in 5 minutes</h1><div class="sub">Scan the code with your phone camera to start your application.</div>
 <div class="qr"><img src="${qr}" alt="QR code"></div><div class="cta">Scan to apply</div><div class="url">${esc(url)}</div></div>
 <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script></body></html>`;
 }
 
-// QR for a company's public application link, with A4 poster print + PNG download.
+// QR for a company's public application link, with A5 poster print + PNG download.
 export function ApplyQrDialog({ url, name, logo, color = "#111111", trigger, testId = "apply-qr" }) {
   const canvasRef = useRef(null);
   const dataUrl = () => canvasRef.current?.toDataURL("image/png");
