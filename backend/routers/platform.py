@@ -18,8 +18,9 @@ from db import (
 from auth_lib import get_platform_owner, hash_password, now_iso, gen_id
 from lib.whitelabel import (
     provision_tenant, tenant_public, merged_branding, normalize_modules,
-    MODULE_CATALOG, email_in_use,
+    MODULE_CATALOG, email_in_use, slugify,
 )
+from lib.public_tenant import RESERVED_SLUGS
 from lib.tour import resolve_tour_steps, clean_tour_steps, tour_stats
 from lib.subscription import trial_info
 
@@ -52,6 +53,7 @@ class TenantCreate(BaseModel):
 
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
+    slug: Optional[str] = None
     status: Optional[str] = None  # active | suspended
     plan: Optional[str] = None
     branding: Optional[BrandingIn] = None
@@ -371,6 +373,13 @@ async def update_tenant(tenant_id: str, payload: TenantUpdate, request: Request,
     patch = {}
     if payload.name is not None:
         patch["name"] = payload.name.strip()
+    if payload.slug is not None:
+        slug = slugify(payload.slug)
+        if len(slug) < 3 or slug in RESERVED_SLUGS:
+            raise HTTPException(status_code=400, detail="Pick a different link name (at least 3 letters, not a reserved word)")
+        if await gdb.tenants.find_one({"slug": slug, "id": {"$ne": tenant_id}}):
+            raise HTTPException(status_code=409, detail="Another client already uses this link name")
+        patch["slug"] = slug
     if payload.status is not None:
         if payload.status not in ("active", "suspended"):
             raise HTTPException(status_code=400, detail="status must be 'active' or 'suspended'")

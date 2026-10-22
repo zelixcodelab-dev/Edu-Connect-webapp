@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso
+from lib.public_tenant import bind_public_tenant
 
 
 router = APIRouter(prefix="/api/colleges", tags=["colleges"])
@@ -352,7 +353,7 @@ async def bulk_upload(
 
 # ---------- Public read-only endpoint for the /apply form ----------
 
-public_router = APIRouter(prefix="/api/public", tags=["public"])
+public_router = APIRouter(prefix="/api/public", tags=["public"], dependencies=[Depends(bind_public_tenant)])
 
 
 @public_router.get("/colleges")

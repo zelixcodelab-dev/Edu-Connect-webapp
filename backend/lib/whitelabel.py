@@ -138,6 +138,17 @@ def slugify(name: str) -> str:
     return s or "company"
 
 
+async def unique_slug(name: str) -> str:
+    from lib.public_tenant import RESERVED_SLUGS
+    base = slugify(name)
+    if base in RESERVED_SLUGS or len(base) < 3:
+        base = f"{base}-co"
+    slug, n = base, 2
+    while await gdb.tenants.find_one({"slug": slug}, {"_id": 1}):
+        slug, n = f"{base}-{n}", n + 1
+    return slug
+
+
 def tenant_public(doc: dict) -> dict:
     """Shape a tenant document for API responses (no secrets)."""
     return {
@@ -212,7 +223,7 @@ async def provision_tenant(
     doc = {
         "id": tid,
         "name": name,
-        "slug": slugify(name),
+        "slug": await unique_slug(name),
         "status": status,
         "admin_email": admin_email,
         "branding": b,

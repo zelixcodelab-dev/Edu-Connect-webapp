@@ -6,6 +6,7 @@ import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState, Avatar } from "@/components/platform/PlatformKit";
 import { MODULE_BY_KEY } from "@/lib/platformModules";
 import TourEditor from "@/components/platform/TourEditor";
+import { ClientApplyLink } from "@/components/platform/ClientApplyLink";
 import { ClientApplications, ClientDatabase, ClientSubscription, ClientSecurity } from "@/components/platform/ClientTabs";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -97,6 +98,7 @@ export default function PlatformClientDetail() {
               <Row k="Product tour" v={`${client.stats?.tour?.completed ?? 0} finished · ${client.stats?.tour?.skipped ?? 0} skipped · ${client.stats?.tour?.not_started ?? 0} not started`} />
             </div>
           </div>
+          <ClientApplyLink key={client.slug} client={client} onSaved={(d) => setClient((c) => ({ ...c, slug: d.slug }))} />
         </TabsContent>
 
         <TabsContent value="users" className="pt-6">

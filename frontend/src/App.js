@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { AcademicYearProvider } from "@/lib/academicYear";
 import { ThemeProvider } from "@/lib/theme";
 import { BrandingProvider, useBranding } from "@/lib/branding";
+import { setApplyTenantSlug } from "@/lib/applyUrl";
 import { Toaster } from "@/components/ui/sonner";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import { hasModule } from "@/lib/perm";
@@ -97,6 +98,8 @@ function PinLockGate({ children }) {
 function BrandingSync() {
   const { user } = useAuth();
   const { setBrandingData, resetBranding } = useBranding();
+  // Set during render so sibling pages build share links with the right company.
+  setApplyTenantSlug(user ? user.tenant_slug : "");
   useEffect(() => {
     if (user && user !== false) {
       if (user.branding) setBrandingData(user.branding, user.enabled_modules);
@@ -194,6 +197,7 @@ export default function App() {
         <BrowserRouter>
         <Routes>
           <Route path="/apply" element={<PublicApplication />} />
+          <Route path="/:tenantSlug/apply" element={<PublicApplication />} />
           <Route path="/login" element={<PublicOnly><AuthPage mode="login" /></PublicOnly>} />
           <Route path="/register" element={<PublicOnly><AuthPage mode="register" /></PublicOnly>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

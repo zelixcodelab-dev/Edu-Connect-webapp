@@ -12,6 +12,17 @@
  * a `useNavigate()` hook.
  */
 
+// Company slug of the signed-in workspace; set from the auth profile.
+let tenantSlug = "";
+export function setApplyTenantSlug(slug) { tenantSlug = slug || ""; }
+
+/** Root used for per-company links (e.g. https://educonnectpro.app). */
+function tenantBase() {
+  const b = (process.env.REACT_APP_APPLY_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (b) return /^https?:\/\//i.test(b) ? b : `https://${b}`;
+  return typeof window !== "undefined" ? window.location.origin : "";
+}
+
 function rawBase() {
   return (process.env.REACT_APP_APPLY_PUBLIC_URL || "").trim();
 }
@@ -47,6 +58,9 @@ export function linkedUserRef(user) {
  * Configured apply domain → `https://apply.example.com/ref=john-doe`.
  * Same-origin fallback → `https://<origin>/apply?ref=john-doe`. */
 export function buildApplyUrl(ref) {
+  if (tenantSlug) {
+    return `${tenantBase()}/${encodeURIComponent(tenantSlug)}/apply${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`;
+  }
   const base = normalizedBase();
   if (base) return ref ? `${base}/ref=${encodeURIComponent(ref)}` : `${base}/`;
   // Fallback: same-origin SPA route
@@ -58,7 +72,7 @@ export function buildApplyUrl(ref) {
  * the page that's currently rendering. Useful to decide between `nav(...)`
  * (client-side route) and `window.location.assign(...)` (full reload). */
 export function applyIsCrossOrigin() {
-  const base = normalizedBase();
+  const base = tenantSlug ? tenantBase() : normalizedBase();
   if (!base) return false;
   if (typeof window === "undefined") return false;
   try {

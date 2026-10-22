@@ -25,6 +25,7 @@ from lib.rate_limit import hit as rate_limit_hit, client_ip, mask_phone
 # Re-use the notifier so super-admins get pinged in real time.
 from routers.notifications import notify_super_admins
 from routers.leads import bump_lead_on_application
+from lib.public_tenant import bind_public_tenant
 
 log = logging.getLogger("finflow.applications")
 
@@ -38,7 +39,7 @@ def slugify(name: str) -> str:
     return s.strip("-")
 
 
-router = APIRouter(prefix="/api/public", tags=["public"])
+router = APIRouter(prefix="/api/public", tags=["public"], dependencies=[Depends(bind_public_tenant)])
 admin_router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 

@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast, Toaster } from "sonner";
 import axios from "axios";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
+import { hexToHsl, brandSwatch } from "@/lib/branding";
 import { API as ROOT_API } from "@/lib/api";
 import {
   User, GraduationCap, Phone, Books, Receipt, UserCircle,
@@ -25,7 +26,30 @@ const ICONS = { User, GraduationCap, Phone, Books, Receipt, UserCircle };
 // in REACT_APP_BACKEND_URL is recovered consistently across the app.
 const API = `${ROOT_API}/public`;
 
+// Company look for /:slug/apply links: CSS vars scoped to the form wrapper.
+function brandStyle(color) {
+  const hsl = hexToHsl(color);
+  if (!hsl) return undefined;
+  const tri = `${hsl.h} ${hsl.s}% ${hsl.l}%`;
+  return { "--brand-a": color, "--brand-b": color, "--primary": tri, "--ring": tri, "--primary-foreground": brandSwatch(color).fg === "#ffffff" ? "0 0% 100%" : "0 0% 7%" };
+}
+
+function InvalidLink() {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6 bg-muted/30" data-testid="apply-invalid-link">
+      <div className="max-w-sm text-center">
+        <h1 className="font-display text-2xl tracking-tight">This link isn't active</h1>
+        <p className="text-sm text-muted-foreground mt-2">The application link you opened is not valid or has been turned off. Please check the link with the institution that shared it.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function PublicApplication() {
+  const { tenantSlug } = useParams();
+  const reqOpts = useMemo(() => (tenantSlug ? { headers: { "X-Tenant-Slug": tenantSlug } } : {}), [tenantSlug]);
+  const [brand, setBrand] = useState(null);
+  const [invalidLink, setInvalidLink] = useState(false);
   const [searchParams] = useSearchParams();
   // Referral ref arrives either as a query (`/apply?ref=john-doe`) or, on the
   // dedicated apply domain, as a short path (`apply.example.com/ref=john-doe`).
@@ -73,13 +97,19 @@ export default function PublicApplication() {
       if (root.style.colorScheme !== "light") root.style.colorScheme = "light";
     });
     themeObserver.observe(root, { attributes: true, attributeFilter: ["class", "style"] });
-    axios.get(`${API}/courses`)
+    if (tenantSlug) {
+      axios.get(`${ROOT_API}/branding`, { params: { tenant: tenantSlug } })
+        .then((r) => setBrand(r.data?.branding || null))
+        .catch(() => {});
+    }
+    axios.get(`${API}/courses`, reqOpts)
       .then((r) => setCourses(r.data?.courses || []))
       .catch((err) => {
+        if (err?.response?.status === 404 || err?.response?.status === 403) setInvalidLink(true);
         console.error("[apply] courses fetch failed:", err?.message || err);
         setCourses([]);
       });
-    axios.get(`${API}/colleges`)
+    axios.get(`${API}/colleges`, reqOpts)
       .then((r) => setColleges(r.data?.colleges || []))
       .catch((err) => {
         console.error("[apply] colleges fetch failed:", err?.message || err);
@@ -93,15 +123,19 @@ export default function PublicApplication() {
       if (wasDark) root.classList.add("dark");
       root.style.colorScheme = prevColorScheme;
     };
-  }, []);
+  }, [tenantSlug, reqOpts]);
 
   // If the form was opened via a referral link (?ref=<client_id>), fetch the
   // referrer details and pre-fill (+ lock) the Reference section so the
   // applicant can't accidentally change attribution.
   useEffect(() => {
+    if (brand?.app_name) document.title = `Apply · ${brand.app_name}`;
+  }, [brand]);
+
+  useEffect(() => {
     if (!referrerId) return;
     let cancelled = false;
-    axios.get(`${API}/referrer/${encodeURIComponent(referrerId)}`)
+    axios.get(`${API}/referrer/${encodeURIComponent(referrerId)}`, reqOpts)
       .then(({ data }) => {
         if (cancelled) return;
         setReferrer(data);
@@ -119,7 +153,7 @@ export default function PublicApplication() {
         // Stay silent — applicant can still fill the form manually.
       });
     return () => { cancelled = true; };
-  }, [referrerId]);
+  }, [referrerId, reqOpts]);
 
   const stepKey = STEPS[step].key;
   const setField = (section, key, value) => setApp((prev) => ({
@@ -153,7 +187,7 @@ export default function PublicApplication() {
           registration_amount: parseFloat(app.payment.registration_amount) || 0,
         },
       };
-      const { data } = await axios.post(`${API}/applications`, payload);
+      const { data } = await axios.post(`${API}/applications`, payload, reqOpts);
       setSubmitted(data);
       toast.success("Application submitted!");
     } catch (err) {
@@ -165,16 +199,30 @@ export default function PublicApplication() {
     }
   };
 
+  if (invalidLink) return <InvalidLink />;
   if (submitted) return <SubmittedView submitted={submitted} app={app} onAgain={() => { setSubmitted(null); setApp(emptyApplication()); setStep(0); }} />;
 
   const submitDisabled = submitting || !app.declaration?.agreement_accepted;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/40 to-white dark:from-stone-950 dark:via-stone-950 dark:to-stone-900 py-6 sm:py-8 px-3 sm:px-4">
+    <div style={brand ? brandStyle(brand.brand_color) : undefined}
+      className={`min-h-screen py-6 sm:py-8 px-3 sm:px-4 ${brand ? "bg-gradient-to-b from-neutral-100 to-white" : "bg-gradient-to-br from-amber-50 via-orange-50/40 to-white dark:from-stone-950 dark:via-stone-950 dark:to-stone-900"}`}>
       <Toaster position="top-center" richColors />
       <div className="max-w-3xl mx-auto" data-testid="public-apply-page">
         <header className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100/60 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 text-xs font-medium mb-3">
+          {brand && (
+            <div className="flex items-center justify-center gap-3 mb-5" data-testid="apply-company-brand">
+              {brand.logo_url ? (
+                <img src={brand.logo_url} alt={brand.app_name} className="h-11 w-11 rounded-xl object-contain bg-white border border-border p-1" data-testid="apply-company-logo" />
+              ) : (
+                <span className="h-11 w-11 rounded-xl flex items-center justify-center font-display font-semibold text-lg" style={{ background: brand.brand_color, color: brandSwatch(brand.brand_color).fg }}>
+                  {(brand.app_name || "?").charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="font-display text-lg font-semibold tracking-tight text-foreground" data-testid="apply-company-name">{brand.app_name}</span>
+            </div>
+          )}
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-3 ${brand ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]" : "bg-amber-100/60 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400"}`}>
             <Sparkle size={12} weight="fill" /> Online Admission · 2026 intake
           </div>
           <h1 className="font-display text-2xl sm:text-4xl tracking-tight text-foreground leading-tight">Student Application Form</h1>

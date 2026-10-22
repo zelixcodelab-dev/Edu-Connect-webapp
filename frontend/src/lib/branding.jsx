@@ -21,7 +21,7 @@ const BrandingCtx = createContext({
   setBrandingData: () => {},
 });
 
-function hexToHsl(hex) {
+export function hexToHsl(hex) {
   if (!hex) return null;
   let h = hex.replace("#", "").trim();
   if (h.length === 3) h = h.split("").map((c) => c + c).join("");

@@ -153,6 +153,7 @@ async def login(payload: LoginIn, response: Response, request: Request):
             **user,
             "tenant_id": tenant["id"],
             "tenant_name": tenant["name"],
+            "tenant_slug": tenant.get("slug"),
             "scope": "tenant",
             "branding": tp["branding"],
             "enabled_modules": tp["enabled_modules"],
@@ -198,6 +199,7 @@ async def me(user: dict = Depends(get_current_user)):
             "branding": tp["branding"],
             "enabled_modules": tp["enabled_modules"],
             "tenant_name": tenant.get("name"),
+            "tenant_slug": tenant.get("slug"),
             "tenant_status": tenant.get("status", "active"),
             "trial": trial_info(tenant.get("subscription")),
         })
@@ -348,7 +350,7 @@ async def verify_pin(payload: VerifyPinIn, request: Request, response: Response)
         tp = tenant_public(tenant)
         return {
             **user, "access_token": token, "scope": "tenant",
-            "tenant_id": tenant["id"], "tenant_name": tenant.get("name"),
+            "tenant_id": tenant["id"], "tenant_name": tenant.get("name"), "tenant_slug": tenant.get("slug"),
             "branding": tp["branding"], "enabled_modules": tp["enabled_modules"],
         }
 
