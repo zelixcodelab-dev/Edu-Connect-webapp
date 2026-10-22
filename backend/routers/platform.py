@@ -5,6 +5,7 @@ companies (tenants): branding, theme colour, enabled modules, admin
 credentials, and activation status. Each company is an isolated database.
 """
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -374,7 +375,7 @@ async def update_tenant(tenant_id: str, payload: TenantUpdate, request: Request,
     if payload.name is not None:
         patch["name"] = payload.name.strip()
     if payload.slug is not None:
-        slug = slugify(payload.slug)
+        slug = slugify(payload.slug) if re.search(r"[a-z0-9]", payload.slug.lower()) else ""
         if len(slug) < 3 or slug in RESERVED_SLUGS:
             raise HTTPException(status_code=400, detail="Pick a different link name (at least 3 letters, not a reserved word)")
         if await gdb.tenants.find_one({"slug": slug, "id": {"$ne": tenant_id}}):

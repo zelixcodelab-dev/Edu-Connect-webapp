@@ -402,3 +402,10 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Log Payment student picker + mobile padding pass (iteration_11.json + self-verified fixes)
 - Quick Entry > Log Payment opens StudentPickerDialog (search name/college/course/reference, shows Due) -> /students/{id}?pay=1 auto-opens New Payment dialog.
 - Mobile: .mobile-pad wrapper tightens p-6/7/8 cards to 20px, safe-area bottom padding; compact topbar (year select shows All/26-27, no eyebrow/caret on mobile) so titles fit; Branding grid overflow fixed.
+
+## 2026-06 — Per-client public application links (iteration_12.json, fixes self-verified)
+- Path-based links `<origin>/<client-slug>/apply` (Emergent can't host wildcard subdomains). Optional env REACT_APP_APPLY_BASE_URL (e.g. https://educonnectpro.app) forces link domain; unset = current origin.
+- Backend: lib/public_tenant.bind_public_tenant reads X-Tenant-Slug on /api/public/* (applications + colleges routers) -> binds tenant; unknown 404, suspended 403, no header = default tenant.
+- Slug editable only by platform owner (PATCH /api/platform/tenants/{id} {slug}); unique, reserved words blocked; new companies get unique_slug(). auth/me returns tenant_slug.
+- Frontend: route /:tenantSlug/apply, branded header (logo/name/colour), invalid-link page; buildApplyUrl uses tenant slug (+ ?ref= referral). Platform Console client Overview: ClientApplyLink card.
+- Current tenant slug: zelix-ventures.

@@ -129,7 +129,14 @@ export default function PublicApplication() {
   // referrer details and pre-fill (+ lock) the Reference section so the
   // applicant can't accidentally change attribution.
   useEffect(() => {
-    if (brand?.app_name) document.title = `Apply · ${brand.app_name}`;
+    if (!brand?.app_name) return undefined;
+    const want = `Apply · ${brand.app_name}`;
+    document.title = want;
+    // Global branding sync may rewrite the title after us; keep ours.
+    const el = document.querySelector("title");
+    const obs = el ? new MutationObserver(() => { if (document.title !== want) document.title = want; }) : null;
+    obs?.observe(el, { childList: true });
+    return () => obs?.disconnect();
   }, [brand]);
 
   useEffect(() => {

@@ -1,0 +1,39 @@
+{
+  "summary": "Tested per-client public application links (/<slug>/apply). Backend: 22 pytest cases (X-Tenant-Slug binding on courses/colleges/referrer/applications, unknown slug 404, suspended 403, no-header default, case-insensitive slug, /auth/me tenant_slug, owner PATCH slug slugify/reserved/short/409 duplicate, tenant admin forbidden, cross-tenant isolation using a temporary second tenant). 21/22 pass; one minor bug: an all-symbol slug like '!!' becomes 'company' and is saved (200) instead of being rejected. Frontend: /zelix-ventures/apply?ref=suhail shows the company logo and name, the brand colour (#dd2424) on buttons and the referrer banner (Suhail, auto-tagged). A full 5-step submission sent X-Tenant-Slug=zelix-ventures and created the student in ZELIX VENTURES with reference=Suhail; the test student was deleted afterwards. /nope-co/apply shows apply-invalid-link. In the Platform Console, the client Overview has all client-apply-link controls. Changing the slug to zelix-test-link updated the URL; 'platform' returned 400 and showed the 'Didn't go through' error dialog; 'ab' disables Save; Copy works; slug restored to zelix-ventures. As tenant admin, Students 'Share application link' copies <origin>/zelix-ventures/apply and ClientDetail 'Copy referral link' copies <origin>/zelix-ventures/apply?ref=suhail. Temporary tenant deleted; only ZELIX VENTURES remains.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/platform/tenants/{id}", "issue": "lib/whitelabel.slugify() returns 'company' when the input has no letters or digits, so slug '!!' is saved as 'company' (200) instead of returning 400. Fix: in update_tenant use a slugify that does not fall back (e.g. routers/applications.slugify), or reject the raw input when it slugifies to empty."},
+      {"endpoint": "POST /api/platform/tenants (unique_slug)", "issue": "Auto-generated slugs on company creation do not check RESERVED_SLUGS, so a company named 'Admin', 'Login' or 'Platform' gets a reserved slug. Add the reserved check and a suffix in unique_slug."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublicApplication (branded /:slug/apply)", "issue": "document.title stays 'EduConnect Pro' even though /api/branding?tenant=zelix-ventures returns app_name 'ZELIX VENTURES'. The 'Apply · <app_name>' title is probably overwritten by the global branding/title effect.", "selector": "document.title", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Public apply form", "issues": ["Date of Birth uses the browser's native date picker (input type=date) instead of the shadcn calendar"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration12_tenant_apply_links.py", "/app/test_reports/pytest/pytest_iter12.xml"],
+  "action_items": [
+    "Reject slugs that slugify to empty in PATCH /platform/tenants/{id} (currently becomes 'company')",
+    "Make unique_slug skip RESERVED_SLUGS when creating a tenant",
+    "(Low) Make the branded apply page tab title show the company app_name",
+    "(Optional) Old links break with no redirect after the owner renames a slug; consider keeping previous slugs as aliases"
+  ],
+  "critical_code_review_comments": [
+    "bind_public_tenant is async, so set_current_tenant runs in the request context and binds the tenant correctly (confirmed by the isolation test). Keep it async: a sync dependency runs in the threadpool and would lose the ContextVar.",
+    "platform.update_tenant imports slugify from lib/whitelabel, which falls back to 'company'. Two different slugify functions exist (whitelabel and applications.py) with different fallback behaviour.",
+    "After the owner renames a slug, a logged-in tenant admin keeps the old slug in memory (setApplyTenantSlug from /auth/me) until the profile refreshes, so links they share in that window are dead.",
+    "Referral attribution in the public submission is stored only in the reference name ('Suhail'); referrer_user_id stays null for associate-type clients. This is existing behaviour, not a regression."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration12_tenant_apply_links.py"],
+  "success_rate": {"backend": "95% (21/22)", "frontend": "100% of requested flows"},
+  "test_credentials": "owner@educonnect.app / Owner@12345; admin@educonnect.app / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporary tenant 'TEST Isolation Co' created and deleted by the pytest fixture. One UI test student 'TEST_Zelix UI Student' created and deleted. Zelix slug restored to zelix-ventures.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Rate limit on public submit is 5/hour per IP; this run used 2 (1 pytest isolation submit, 1 UI). Zelix tenant id 3b5e3f1f-dba9-4a89-a201-c2fdb24372ef; Suhail client id 0da9c167-0a01-4833-9b46-fb87eb52e306. The public form has 5 steps (Payment & Reference combined). Platform console errors appear in a custom 'Didn't go through' dialog, not a sonner toast. The topbar public-form link only renders when REACT_APP_APPLY_PUBLIC_URL is set (it is not set)."
+}
