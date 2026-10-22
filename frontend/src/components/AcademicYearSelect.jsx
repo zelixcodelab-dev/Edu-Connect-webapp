@@ -36,7 +36,8 @@ export default function AcademicYearSelect({ className = "" }) {
         title="Academic year — scopes the whole app to an academic year"
       >
         <CalendarBlank size={14} className="hidden sm:block text-muted-foreground shrink-0" />
-        <SelectValue />
+        <div className="sm:hidden" data-testid="academic-year-short">{value === "all" ? "All" : academicYearLabel(value).slice(2)}</div>
+        <div className="hidden sm:block"><SelectValue /></div>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all" data-testid="academic-year-all">All years</SelectItem>

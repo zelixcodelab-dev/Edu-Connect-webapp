@@ -59,7 +59,7 @@ export function StudentPickerDialog({ open, onOpenChange, onPick, currency, titl
                 </span>
               </span>
               <span className="text-right shrink-0">
-                <span className="block text-[11px] text-muted-foreground">Balance</span>
+                <span className="block text-[11px] text-muted-foreground">Due</span>
                 <span className="block text-xs font-semibold tabular-nums">{formatMoney(s.balance_vs_scheduled || 0, currency)}</span>
               </span>
               <CaretRight size={14} className="text-muted-foreground shrink-0" />

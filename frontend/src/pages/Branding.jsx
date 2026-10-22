@@ -97,9 +97,9 @@ export default function Branding() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Form */}
-        <div className="lg:col-span-3 card-premium p-6 space-y-5" data-testid="branding-form">
+        <div className="min-w-0 lg:col-span-3 card-premium p-6 space-y-5" data-testid="branding-form">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>App name</Label>
@@ -126,10 +126,10 @@ export default function Branding() {
             </div>
             <div className="space-y-1.5">
               <Label>Logo (under 500KB)</Label>
-              <div className="flex items-center gap-3">
-                <input type="file" accept="image/*" onChange={onLogo} disabled={!canEdit} className="text-sm" data-testid="b-logo" />
+              <div className="flex flex-wrap items-center gap-3 min-w-0">
+                <input type="file" accept="image/*" onChange={onLogo} disabled={!canEdit} className="text-sm min-w-0 max-w-full" data-testid="b-logo" />
                 {form.logo_url && (
-                  <button type="button" onClick={() => setForm((p) => { const n = { ...p, logo_url: "" }; applyBranding(n); return n; })} className="text-xs text-rose-600">Remove</button>
+                  <button type="button" onClick={() => setForm((p) => { const n = { ...p, logo_url: "" }; applyBranding(n); return n; })} className="text-xs text-rose-600" data-testid="b-logo-remove">Remove</button>
                 )}
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function Branding() {
         </div>
 
         {/* Live preview */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="min-w-0 lg:col-span-2 space-y-4">
           <div className="card-premium p-5 space-y-4" data-testid="branding-preview">
             <p className="label-eyebrow">Preview</p>
             <div className="flex items-center gap-3">

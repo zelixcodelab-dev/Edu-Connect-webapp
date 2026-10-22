@@ -398,3 +398,7 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Quick Entry: "New Expense Request" card hidden for super admin (QuickEntry.jsx; self-tested via screenshot)
 
 ## 2026-06 — Deploy fix: requirements.txt had duplicate conflicting pins (google-auth 2.52.0 vs 2.56.2 etc). Regenerated from pip freeze (litellm==1.80.0 kept). Tested iteration_10.json. Added EMERGENT_LLM_KEY (object storage) + fixed WEBAUTHN_RP_ID to preview host.
+
+## 2026-06 — Log Payment student picker + mobile padding pass (iteration_11.json + self-verified fixes)
+- Quick Entry > Log Payment opens StudentPickerDialog (search name/college/course/reference, shows Due) -> /students/{id}?pay=1 auto-opens New Payment dialog.
+- Mobile: .mobile-pad wrapper tightens p-6/7/8 cards to 20px, safe-area bottom padding; compact topbar (year select shows All/26-27, no eyebrow/caret on mobile) so titles fit; Branding grid overflow fixed.

@@ -639,12 +639,12 @@ export default function AppShell() {
               <ListIcon size={20} />
             </button>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold truncate">Workspace</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold truncate hidden sm:block">Workspace</p>
               <h2 className="font-display text-base md:text-lg font-semibold tracking-tight truncate" data-testid="topbar-page-title">{pageTitle}</h2>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
             <AcademicYearSelect />
             {user?.role === "super_admin" && !!process.env.REACT_APP_APPLY_PUBLIC_URL && (
               <a
