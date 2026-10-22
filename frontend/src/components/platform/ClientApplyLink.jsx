@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ApplyQrDialog } from "@/components/ApplyQrDialog";
 
 const base = () => (process.env.REACT_APP_APPLY_BASE_URL || window.location.origin).replace(/\/+$/, "");
 
@@ -53,6 +54,8 @@ export function ClientApplyLink({ client, onSaved }) {
         <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid="client-apply-open">
           <ExternalLink size={13} /> Open
         </a>
+        <ApplyQrDialog url={url} name={client.branding?.app_name || client.name} logo={client.branding?.logo_url}
+          color={client.branding?.brand_color || "#111111"} testId="client-apply-qr" />
       </div>
     </div>
   );

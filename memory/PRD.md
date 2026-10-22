@@ -409,3 +409,7 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Slug editable only by platform owner (PATCH /api/platform/tenants/{id} {slug}); unique, reserved words blocked; new companies get unique_slug(). auth/me returns tenant_slug.
 - Frontend: route /:tenantSlug/apply, branded header (logo/name/colour), invalid-link page; buildApplyUrl uses tenant slug (+ ?ref= referral). Platform Console client Overview: ClientApplyLink card.
 - Current tenant slug: zelix-ventures.
+
+## 2026-06 — Application QR code (self-tested via screenshots)
+- components/ApplyQrDialog.jsx (qrcode.react): QR preview, A4 printable poster (logo, name, brand colour, Scan to apply, link; 1024px QR), PNG download.
+- Available on Platform Console client Overview (ClientApplyLink "QR code") and tenant admin Overview hero ("Application QR").

@@ -3,6 +3,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatMoney, formatDate, greetingForNow } from "@/lib/format";
 import { buildApplyUrl, linkedUserRef } from "@/lib/applyUrl";
+import { ApplyQrDialog } from "@/components/ApplyQrDialog";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import {
   ShoppingBag, ChartPie, UsersThree, Receipt, FileText, CalendarBlank,
   Student, Notebook, ArrowUpRight, ArrowDownRight,
   IdentificationBadge, Briefcase, Buildings, GraduationCap, Copy, CaretRight,
+  QrCode,
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "react-router-dom";
 import OfficeDashboard from "./OfficeDashboard";
@@ -187,6 +189,15 @@ function SuperAdminDashboard() {
               <Link to="/students" data-testid="hero-view-details" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border border-foreground/15 text-sm font-medium hover:bg-foreground/5 transition-colors">
                 View details
               </Link>
+              {(role === "super_admin" || role === "office_admin") && (
+                <ApplyQrDialog url={buildApplyUrl()} name={user?.branding?.app_name || user?.business_name} logo={user?.branding?.logo_url}
+                  color={user?.branding?.brand_color || "#111111"} testId="overview-apply-qr"
+                  trigger={(
+                    <button type="button" data-testid="overview-apply-qr-open" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border border-foreground/15 text-sm font-medium hover:bg-foreground/5 transition-colors">
+                      <QrCode size={16} /> Application QR
+                    </button>
+                  )} />
+              )}
             </div>
           </div>
           <img src="/illustrations/dashboard-hero.png" alt="" aria-hidden className="hidden sm:block absolute right-4 lg:right-10 bottom-0 h-[92%] max-h-[260px] w-auto object-contain pointer-events-none select-none animate-fade-in" />
