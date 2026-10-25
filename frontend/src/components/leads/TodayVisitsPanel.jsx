@@ -72,7 +72,7 @@ export default function TodayVisitsPanel({ user, officeOverride = "all" }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground flex items-center gap-1" data-testid="today-visits-date">
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1 whitespace-nowrap shrink-0" data-testid="today-visits-date">
             <Calendar size={13} /> {date || "—"}
           </span>
           <button

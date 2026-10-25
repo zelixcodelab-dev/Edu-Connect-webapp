@@ -413,3 +413,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Application QR code (self-tested via screenshots)
 - components/ApplyQrDialog.jsx (qrcode.react): QR preview, A5 printable poster (headline 8mm, single line) (logo, name, brand colour, Scan to apply, link; 1024px QR), PNG download.
 - Available on Platform Console client Overview (ClientApplyLink "QR code") and tenant admin Overview hero ("Application QR").
+
+## 2026-06 — Office admin layout/padding fixes (iteration_13.json + self-verified follow-ups)
+- OfficeDashboard + Dashboard highlight/hero grids: grid-cols-1 + min-w-0 (fixed mobile horizontal overflow). Team strip on left under Trending for office admin.
+- TeamStrip arrows only when scrollable (edge-aware). Bottom nav hides Clients for non-super-admin and respects company modules. Attendance + Messages tabs single scrollable row. Topbar subtitle falls back to tenant_name. Today visits date nowrap.
+- Note: "Staff on roster" counts staff records (Employees), Team strip shows login users — different by design.

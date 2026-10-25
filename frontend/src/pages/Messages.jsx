@@ -377,7 +377,7 @@ export default function Messages() {
       </header>
 
       {/* Folder + kind tabs */}
-      <div className="flex flex-wrap gap-2" data-testid="messages-tabs">
+      <div className="flex items-center gap-2 overflow-x-auto sidebar-scroll -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap [&>button]:shrink-0 [&>button]:whitespace-nowrap" data-testid="messages-tabs">
         {[
           { v: "inbox", label: "Inbox" },
           { v: "sent",  label: "Sent" },

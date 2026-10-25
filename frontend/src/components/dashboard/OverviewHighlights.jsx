@@ -91,7 +91,18 @@ export function TeamStrip({ role }) {
   const [members, setMembers] = useState(null);
   const [open, setOpen] = useState(null);
   const scroller = React.useRef(null);
+  const [edges, setEdges] = useState({ l: false, r: false });
   useEffect(() => { api.get("/dashboard/team").then((r) => setMembers(r.data.members)).catch(() => setMembers([])); }, []);
+  const measure = React.useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    setEdges({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  }, []);
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [members, measure]);
   const scroll = (dir) => scroller.current?.scrollBy({ left: dir * 220, behavior: "smooth" });
   return (
     <div className="rounded-[22px] bg-card p-4" data-testid="team-strip">
@@ -103,7 +114,7 @@ export function TeamStrip({ role }) {
         <p className="text-sm text-muted-foreground py-8 text-center">No team members yet.</p>
       ) : (
         <div className="relative">
-          <div ref={scroller} className="sidebar-scroll flex gap-2.5 overflow-x-auto scroll-smooth">
+          <div ref={scroller} onScroll={measure} className="sidebar-scroll flex gap-2.5 overflow-x-auto scroll-smooth">
             {members.map((m) => (
               <button key={m.id} type="button" onClick={() => setOpen(m)} data-testid={`team-member-${m.id}`}
                 className="group shrink-0 w-[92px] rounded-2xl overflow-hidden bg-background text-left transition-transform duration-200 hover:-translate-y-0.5">
@@ -116,11 +127,11 @@ export function TeamStrip({ role }) {
               </button>
             ))}
           </div>
-          {members.length > 3 && (
-            <>
-              <button type="button" onClick={() => scroll(-1)} aria-label="Scroll left" className="absolute left-0 top-[30px] w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center shadow" data-testid="team-scroll-left"><CaretLeft size={13} weight="bold" /></button>
-              <button type="button" onClick={() => scroll(1)} aria-label="Scroll right" className="absolute right-0 top-[30px] w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center shadow" data-testid="team-scroll-right"><CaretRight size={13} weight="bold" /></button>
-            </>
+          {edges.l && (
+            <button type="button" onClick={() => scroll(-1)} aria-label="Scroll left" className="absolute -left-2 top-[28px] w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center shadow-md ring-2 ring-card" data-testid="team-scroll-left"><CaretLeft size={13} weight="bold" /></button>
+          )}
+          {edges.r && (
+            <button type="button" onClick={() => scroll(1)} aria-label="Scroll right" className="absolute -right-2 top-[28px] w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center shadow-md ring-2 ring-card" data-testid="team-scroll-right"><CaretRight size={13} weight="bold" /></button>
           )}
         </div>
       )}

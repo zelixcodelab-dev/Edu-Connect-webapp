@@ -172,7 +172,7 @@ function SuperAdminDashboard() {
   return (
     <div className="space-y-7 animate-fade-in" data-testid="dashboard-page">
       <AnnouncementBanners />
-      <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="dashboard-hero">
+      <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="dashboard-hero">
         <div className="relative overflow-hidden rounded-[28px] bg-card px-7 py-8 sm:px-9 min-h-[230px] flex items-center">
           <div className="relative z-[1] max-w-[440px]">
             <p className="label-eyebrow">{greeting}</p>
@@ -202,12 +202,12 @@ function SuperAdminDashboard() {
         <HeroInbox role={role} />
       </section>
       {(role === "super_admin" || role === "office_admin") && (
-        <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="overview-highlights">
-          <div>
+        <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="overview-highlights">
+          <div className="min-w-0">
             <div className="flex items-center justify-between mb-3"><p className="font-display text-sm font-semibold">Trending</p></div>
             <TrendingRow />
           </div>
-          <div className="lg:pt-8"><TeamStrip role={role} /></div>
+          <div className="min-w-0 lg:pt-8"><TeamStrip role={role} /></div>
         </section>
       )}
       <OnboardingChecklist />

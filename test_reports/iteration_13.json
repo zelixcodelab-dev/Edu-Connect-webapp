@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only visual/layout testing of office admin (office@educonnect.app) at 390x844 and 1920x800 on /, /students, /leads, /attendance, /messages, /settings, plus a super admin regression check. Office admin: all requested fixes PASS. No horizontal overflow on any page (scrollWidth=390 on mobile, 1920 on desktop). On mobile, office-highlights spans 16-374px. Bottom nav = home, crm, add, students, messages (no Clients), and the sidebar has no Clients either. Attendance tabs sit in one left-aligned row that scrolls sideways (nowrap, flex-start, scrollWidth 443 > 358). The topbar subtitle shows 'ZELIX VENTURES', not 'INR'. On desktop, Trending + Team are on the left and the inbox cards are on the right, with no big gap under Trending, and the Admissions tab content is spaced properly. REGRESSION FOUND: on super admin mobile, the Overview scrolls sideways (scrollWidth 548 on a 390 viewport) and the Trending cards are cut off at the right edge. The Clients bottom nav item is still there and works. Console: only the expected 401 on /api/auth/me before login.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dashboard.jsx overview-highlights (super admin/admin Overview, mobile)", "issue": "Page scrolls sideways: scrollWidth 548px on a 390px viewport, and trending-row/team-strip extend to 548px. Root cause: the section at Dashboard.jsx line 205 has no grid-cols-1 and its children have no min-w-0, so the auto grid track grows to fit the TeamStrip carousel's content. Fix: use 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]' and add min-w-0 to both child divs (lines 206 and 210), the same fix already applied in OfficeDashboard. Applying minmax(0,1fr) + min-w-0 in the browser brought scrollWidth back to 390. Line 175 (dashboard-hero) should also get grid-cols-1.", "selector": "[data-testid='overview-highlights']", "priority": "HIGH"},
+      {"component": "TeamStrip (OverviewHighlights.jsx line 119-122)", "issue": "Scroll arrows appear whenever there are more than 3 members, even when nothing overflows. On office admin desktop, 5 cards fit easily and both arrows still show. The left arrow (absolute left-0 top-[30px]) also covers the first member card's avatar on both mobile and desktop. Fix: show the arrows only when scrollWidth > clientWidth, and add side padding (px-8) to the scroller or put the arrows outside the cards.", "selector": "[data-testid='team-scroll-left'], [data-testid='team-scroll-right']", "priority": "MEDIUM"},
+      {"component": "Office Overview stat card 'Staff on roster'", "issue": "Shows 0 while the Team strip on the same page lists 5 members (Adhish, Administrator, Blaise Jose, Office Admin, TEST Att Staff). The two numbers don't match. Check the staff_count source.", "selector": "Admissions & Incentive stat cards", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Attendance mobile (/attendance)", "issues": ["At first load, the bottom-nav FAB (+) sits on top of the large 'Check In / press & hold' button. The user has to scroll before they can press Check In comfortably.", "Topbar title is cut to 'Attendance ...'. Use the shorter title 'Attendance' on mobile."]},
+      {"screen": "Attendance desktop", "issues": ["Content is narrower (~940px) than other pages (~1160px), which leaves an uneven empty area on the right.", "Calendar day cells are very large (~125px squares), so the month grid runs far below the fold."]},
+      {"screen": "Messages mobile", "issues": ["The Inbox/Sent and All/Announcements/Reminders chips wrap onto 2 rows ('Reminders' sits alone on the second row). Use one horizontally scrollable row, like the Attendance tabs."]},
+      {"screen": "CRM (/leads) mobile", "issues": ["In the Today's Campus Visits header, the title is cut to 'Today's Campu...' and the date '2026-10-25' wraps onto 2 lines."]},
+      {"screen": "Settings desktop", "issues": ["The form card only fills the left ~550px and the right half of the content area is empty. Consider a 2-column layout or a centered max width."]},
+      {"screen": "All office admin pages, mobile", "issues": ["The topbar shows the office switcher 'All' for office_admin, who is limited to the KM_BLR office. Check whether it should be hidden or show the fixed office."]},
+      {"screen": "All desktop pages", "issues": ["Content starts at x=247 while the topbar title starts at x=111, so the page heading doesn't line up with the topbar 'Workspace / Overview' label. Minor."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH: Dashboard.jsx line 205-210: add grid-cols-1 and min-w-0 on the overview-highlights children to fix the super admin mobile overflow (548px)",
+    "TeamStrip: show the scroll arrows only when content overflows, and stop the left arrow covering the first card",
+    "Attendance mobile: add bottom padding / reposition so the FAB doesn't cover the Check In button",
+    "Messages mobile: keep the filter chips in one horizontally scrollable row",
+    "Office Overview: make 'Staff on roster' match the team count",
+    "Minor: shorten the CRM visits header on mobile, make the Attendance desktop width match other pages, use the Settings desktop whitespace better"
+  ],
+  "critical_code_review_comments": [
+    "Dashboard.jsx (1133 lines) is far above the 700-line guideline; split it into per-role dashboard modules",
+    "TeamStrip arrow visibility uses members.length > 3 instead of measuring overflow"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "86% (6/7 requested checks pass; super admin mobile overview regression)"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login form uses input[type=email]/[type=password] + Enter. The overflow check JS compares documentElement.scrollWidth with innerWidth. Office admin fixes verified. Re-check super admin / at 390px after the Dashboard.jsx grid-cols-1/min-w-0 fix.",
+  "rca of the issue": "Super admin overflow: a CSS grid with no explicit columns on mobile gets an implicit auto track. Its min-content width comes from the TeamStrip's non-wrapping flex carousel (shrink-0 cards), so the track grows to 532px. minmax(0,1fr) + min-w-0 lets the overflow-x-auto scroller clip instead. Repro: log in as admin@educonnect.app at 390x844; document.documentElement.scrollWidth = 548."
+}
