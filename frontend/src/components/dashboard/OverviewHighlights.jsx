@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin, BellRinging, FileText, ChatCircleDots } from "@phosphor-icons/react";
+import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin, BellRinging, FileText, ChatCircleDots, UserMinus } from "@phosphor-icons/react";
 import api from "@/lib/api";
 import AuthedImage from "@/components/AuthedImage";
 import ApplicationsReviewDialog from "@/components/dashboard/ApplicationsReviewDialog";
@@ -141,19 +141,29 @@ export function TeamStrip({ role }) {
 }
 
 // Right of the greeting card: what needs attention now.
-export function HeroInbox({ role }) {
+export function HeroInbox({ role, showAttendance = false }) {
   const [d, setD] = useState(null);
+  const [att, setAtt] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const load = () => api.get("/dashboard/inbox").then((r) => setD(r.data)).catch(() => setD({}));
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!showAttendance) return;
+    api.get("/attendance/board").then((r) => setAtt(r.data.counts || {})).catch(() => setAtt({}));
+  }, [showAttendance]);
   const rows = [
     { k: "reminders", label: "Follow-up reminders", hint: "due now", value: d?.followups_due, to: "/leads", Icon: BellRinging },
     ...(["super_admin", "office_admin"].includes(role) ? [{ k: "applications", label: "New applications", hint: "pending review", value: d?.new_applications, Icon: FileText, onClick: () => setReviewOpen(true) }] : []),
     { k: "messages", label: "New messages", hint: "unread", value: d?.unread_messages, to: "/messages", Icon: ChatCircleDots },
+    ...(showAttendance ? [{
+      k: "absent", label: "Absent / on leave", to: "/attendance?tab=board", Icon: UserMinus, hint: "today",
+      sub: att ? `${att.absent ?? 0} absent · ${att.leave ?? 0} leave` : null,
+      value: att ? (att.absent ?? 0) + (att.leave ?? 0) : undefined,
+    }] : []),
   ];
   return (
-    <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-3" data-testid="hero-inbox">
-      {rows.map(({ k, label, hint, value, to, Icon, onClick }) => {
+    <div className={`grid ${showAttendance ? "sm:grid-cols-2" : "sm:grid-cols-3"} lg:grid-cols-1 gap-3`} data-testid="hero-inbox">
+      {rows.map(({ k, label, hint, value, to, Icon, onClick, sub }) => {
         const Tag = onClick ? "button" : Link;
         return (
         <Tag key={k} {...(onClick ? { type: "button", onClick } : { to })} data-testid={`hero-inbox-${k}`} className="group w-full text-left flex items-center gap-3 rounded-2xl bg-card px-4 py-3.5 hover:-translate-y-0.5 hover:shadow-lg transition-[transform,box-shadow] duration-200">
@@ -162,8 +172,10 @@ export function HeroInbox({ role }) {
             {value > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-card" />}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] text-muted-foreground">{label} · {hint}</span>
-            <span className="block font-display text-lg font-semibold tabular-nums" data-testid={`hero-inbox-${k}-count`}>{d ? value ?? 0 : "…"}</span>
+            <span className="block text-[11px] text-muted-foreground truncate">{label} · {hint}</span>
+            <span className="block font-display text-lg font-semibold tabular-nums" data-testid={`hero-inbox-${k}-count`}>{d && (k !== "absent" || att) ? value ?? 0 : "…"}
+              {sub && <span className="ml-2 text-[11px] font-sans font-normal text-muted-foreground" data-testid={`hero-inbox-${k}-sub`}>{sub}</span>}
+            </span>
           </span>
           <CaretRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </Tag>

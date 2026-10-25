@@ -418,3 +418,4 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - OfficeDashboard + Dashboard highlight/hero grids: grid-cols-1 + min-w-0 (fixed mobile horizontal overflow). Team strip on left under Trending for office admin.
 - TeamStrip arrows only when scrollable (edge-aware). Bottom nav hides Clients for non-super-admin and respects company modules. Attendance + Messages tabs single scrollable row. Topbar subtitle falls back to tenant_name. Today visits date nowrap.
 - Note: "Staff on roster" counts staff records (Employees), Team strip shows login users — different by design.
+- Office Overview HeroInbox: 4th card "Absent / on leave · today" (from /api/attendance/board counts, office-scoped; hidden if attendance module off) -> /attendance?tab=board. /api/dashboard/team scoped to own office for office_admin.

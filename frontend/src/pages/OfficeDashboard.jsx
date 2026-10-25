@@ -19,6 +19,7 @@ import StaffPickerDialog from "@/components/office-dashboard/StaffPickerDialog";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
 import CrmAnalytics from "@/components/office-dashboard/CrmAnalytics";
 import { TrendingRow, TeamStrip, HeroInbox } from "@/components/dashboard/OverviewHighlights";
+import { hasModule } from "@/lib/perm";
 
 const OFFICE_LABEL = { HEAD_OFFICE: "HEAD OFFICE", BRANCH_EKM: "BRANCH EKM", BRANCH_TVM: "BRANCH TVM" };
 
@@ -172,7 +173,7 @@ export default function OfficeDashboard({ superView = false }) {
           <TeamStrip role={user?.role} />
         </div>
         <div className="min-w-0 lg:pt-8">
-          <HeroInbox role={user?.role} />
+          <HeroInbox role={user?.role} showAttendance={hasModule(user, "attendance")} />
         </div>
       </section>
 

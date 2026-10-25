@@ -311,7 +311,11 @@ async def team(user: dict = Depends(get_current_user), year: Optional[int] = Non
         if s.get("user_id") and in_year(s.get("enrollment_date") or s.get("created_at"), year):
             closed[s["user_id"]] += 1
     out = []
-    async for u in db.users.find({"deleted_at": {"$in": [None, ""]}, "role": {"$in": ["super_admin", "office_admin", "staff"]}},
+    uq = {"deleted_at": {"$in": [None, ""]}, "role": {"$in": ["super_admin", "office_admin", "staff"]}}
+    if user.get("role") == "office_admin":
+        # Office admins see only their own office's people.
+        uq = {**uq, "role": {"$in": ["office_admin", "staff"]}, "office": user.get("office")}
+    async for u in db.users.find(uq,
                                  {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "office": 1, "phone": 1, "linked_client_id": 1}).limit(60):
         u["photo_url"] = await _resolve_user_photo_url(u)
         u["admissions_closed"] = closed.get(u["id"], 0)
