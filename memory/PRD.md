@@ -419,3 +419,6 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - TeamStrip arrows only when scrollable (edge-aware). Bottom nav hides Clients for non-super-admin and respects company modules. Attendance + Messages tabs single scrollable row. Topbar subtitle falls back to tenant_name. Today visits date nowrap.
 - Note: "Staff on roster" counts staff records (Employees), Team strip shows login users — different by design.
 - Office Overview HeroInbox: 4th card "Absent / on leave · today" (from /api/attendance/board counts, office-scoped; hidden if attendance module off) -> /attendance?tab=board. /api/dashboard/team scoped to own office for office_admin.
+
+## 2026-06 — Fix: staff photo leaking to super admin (iteration_14.json, 7/7 pass)
+- Photo lookup legacy fallback (clients.user_id owner match) now only for role=staff and rows without login_user_id (routers/auth.py + lib/user_photo.py).
