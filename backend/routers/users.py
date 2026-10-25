@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 from db import db
 from auth_lib import get_current_user, hash_password, gen_id, now_iso
 from lib.activity_log import log_user_event
+from lib.offices import require_office
 from models import (
     UserApprovalUpdate, PermissionsUpdate, PERMISSION_PAGES, DEFAULT_PERMISSIONS,
     USER_DEFAULT_PERMISSIONS, STAFF_DEFAULT_PERMISSIONS,
@@ -264,6 +265,7 @@ async def create_user(payload: CreateUserIn, user: dict = Depends(get_current_us
 
     if payload.role in ("office_admin", "staff") and not payload.office:
         raise HTTPException(400, f"Office is required for {payload.role.replace('_', ' ')}")
+    await require_office(payload.office)
     email_lower = payload.email.lower()
     existing = await db.users.find_one({"email": email_lower})
     if existing and not _is_soft_deleted(existing):

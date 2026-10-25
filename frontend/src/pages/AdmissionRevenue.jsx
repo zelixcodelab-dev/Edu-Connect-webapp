@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import PinLock from "@/components/PinLock";
 import CollegeCoursesDrilldown from "@/components/admission-revenue/CollegeCoursesDrilldown";
 import { useNavigate } from "react-router-dom";
+import { liveMap } from "@/lib/offices";
 
 /** Wrapper: gate the whole dashboard behind a 4-digit PIN (per super admin,
  * per browser-tab session). Non-super-admin fall-through renders the
@@ -451,12 +452,7 @@ function BreakdownTable({ title, icon: Icon, keyField, rows, fmtInr, testid, onR
 // Consultants operating across every office, and rows with no resolvable
 // office are almost always Sub / Associates. We surface those meanings in
 // the group header so the super admin can read the layout at a glance.
-const OFFICE_HEADING = {
-  KM_BLR: "KM BLR OFFICE",
-  KM_TCR: "KM TCR OFFICE",
-  KM_KMLY: "KM KMLY OFFICE",
-  ALL: "ASSOCIATE CONSULTANTS",
-};
+const OFFICE_HEADING = liveMap({ ALL: "ASSOCIATE CONSULTANTS" }, (o) => `${o.name} OFFICE`.toUpperCase());
 function officeHeading(code) {
   if (!code || code === "—") return "SUB / ASSOCIATES";
   return OFFICE_HEADING[code] || code;

@@ -13,12 +13,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, IdentificationBadge, Eye, EyeSlash, Key, Trash, EnvelopeSimple } from "@phosphor-icons/react";
+import { officeOptions } from "@/lib/offices";
 
-const OFFICES = [
-  { value: "KM_BLR", label: "KM Bengaluru (BLR)" },
-  { value: "KM_TCR", label: "KM Thrissur (TCR)" },
-  { value: "KM_KMLY", label: "KM Kumily (KMLY)" },
-];
+const OFFICES = officeOptions();
 
 const emptyForm = { name: "", email: "", password: "", office: "" };
 

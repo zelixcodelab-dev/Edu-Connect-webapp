@@ -22,6 +22,8 @@ import PlatformShell from "@/components/platform/PlatformShell";
 import { StatCard, StatusBadge, EmptyState, LoadingState } from "@/components/platform/PlatformKit";
 import { MODULE_BY_KEY } from "@/lib/platformModules";
 import { TrialBadge } from "@/components/platform/ClientTabs";
+import { OfficeNamesInput } from "@/components/platform/OfficeNamesInput";
+import { BranchRequestsStrip } from "@/components/platform/ClientOffices";
 import { Users as UsersIcon, CheckCircle2, PauseCircle, Sparkles } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -44,6 +46,7 @@ const emptyForm = () => ({
   eyebrow: DEFAULT_BRANDING.eyebrow,
   currency: "INR",
   enabled_modules: [],
+  offices: [""],
 });
 
 export default function PlatformConsole() {
@@ -169,6 +172,7 @@ export default function PlatformConsole() {
           admin_name: form.admin_name || "Administrator",
           branding: branding(),
           enabled_modules: form.enabled_modules,
+          offices: form.offices.map((o, i) => o.trim() || (i === 0 ? form.name.trim() : "")).filter(Boolean),
         });
         toast.success("Company created");
       }
@@ -228,6 +232,8 @@ export default function PlatformConsole() {
           <StatCard icon={PauseCircle} label="Suspended" value={summary.suspended || 0} tint="bg-amber-500/10 text-amber-600" />
           <StatCard icon={Sparkles} label="Trial" value={summary.trial || 0} tint="bg-sky-500/10 text-sky-600" />
         </div>
+
+        <BranchRequestsStrip onOpenClient={(id) => nav(`/platform/clients/${id}`)} />
 
         <div className="flex items-center justify-between">
           <div>
@@ -347,6 +353,9 @@ export default function PlatformConsole() {
                   <Input type="text" value={form.admin_password} onChange={setF("admin_password")} placeholder="min 6 chars" data-testid="admin-password" />
                 </div>
               </div>
+            )}
+            {!editing && (
+              <OfficeNamesInput value={form.offices} onChange={(v) => setForm((p) => ({ ...p, offices: v }))} companyName={form.name} />
             )}
 
             {editing && (

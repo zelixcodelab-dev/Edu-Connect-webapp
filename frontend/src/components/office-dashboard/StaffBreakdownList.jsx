@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparkle, ArrowRight, Buildings, Lightning, CheckCircle } from "@phosphor-icons/react";
 import { formatMoney } from "@/lib/format";
+import { liveMap } from "@/lib/offices";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = liveMap();
 
 export default function StaffBreakdownList({ breakdown, loading, currency, onMarkPaid, onUnmarkPaid }) {
   return (

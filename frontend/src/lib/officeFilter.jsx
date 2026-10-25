@@ -9,14 +9,11 @@
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { liveList, getOffices } from "@/lib/offices";
 
 const OfficeFilterCtx = createContext({ office: null, setOffice: () => {}, isSuper: false });
 
-export const OFFICE_OPTIONS = Object.freeze([
-  { code: "KM_BLR", label: "KM BLR" },
-  { code: "KM_TCR", label: "KM TCR" },
-  { code: "KM_KMLY", label: "KM KMLY" },
-]);
+export const OFFICE_OPTIONS = liveList(() => getOffices().map((o) => ({ code: o.code, label: o.name })));
 
 const STORAGE_KEY = "crm.selectedOffice";
 

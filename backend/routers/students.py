@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, model_validator
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
 from lib.academic_year import in_year, with_year
+from lib.offices import tenant_office_codes
 from routers.notifications import notify_super_admins
 
 
@@ -53,7 +54,7 @@ class StudentIn(BaseModel):
     fees_plan: Optional[FeesPlan] = None
     # Cross-user visibility (super_admin sets via UI; office_admin gets it
     # forced server-side to their own office).
-    home_office: Optional[Literal["KM_BLR", "KM_TCR", "KM_KMLY", "ALL"]] = None
+    home_office: Optional[str] = None
     # Super-admin-only override: actual service charge received from the
     # college for THIS admission. Overrides the college-level default rate
     # when set. None means "fall back to the college-level rate".
@@ -945,10 +946,12 @@ async def bulk_students(payload: StudentBulkIn, user: dict = Depends(require_edi
         home_office = None
         if vis_raw:
             home_office = _STUDENT_OFFICE_ALIASES.get(vis_raw.lower())
+            if home_office is None and vis_raw.strip() in (await tenant_office_codes()) + ["ALL"]:
+                home_office = vis_raw.strip()
             if home_office is None:
                 errors += 1
                 rows_out.append({"line": i, "name": name, "action": "error",
-                                 "message": f"invalid office '{vis_raw}' (use KM_BLR / KM_TCR / KM_KMLY / ALL)"})
+                                 "message": f"invalid office '{vis_raw}' (use an office code or ALL)"})
                 continue
         effective_office = user.get("office") if office_admin else home_office
         k = dkey(name, college)
@@ -1111,8 +1114,8 @@ async def bulk_action_students(payload: StudentBulkActionIn, user: dict = Depend
 
     if payload.action == "visibility":
         vv = _STUDENT_OFFICE_ALIASES.get((payload.value or "").strip().lower(), (payload.value or "").strip())
-        if vv not in ("KM_BLR", "KM_TCR", "KM_KMLY", "ALL"):
-            raise HTTPException(400, f"invalid office '{payload.value}' (use KM_BLR / KM_TCR / KM_KMLY / ALL)")
+        if vv not in (await tenant_office_codes()) + ["ALL"]:
+            raise HTTPException(400, f"invalid office '{payload.value}'")
         if office_admin and vv not in (user.get("office"), "ALL"):
             vv = user.get("office")
         prev = await db.students.find(q, {"_id": 0, "id": 1, "home_office": 1}).to_list(100000)

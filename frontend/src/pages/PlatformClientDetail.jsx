@@ -7,6 +7,7 @@ import { StatCard, StatusBadge, EmptyState, LoadingState, Avatar } from "@/compo
 import { MODULE_BY_KEY } from "@/lib/platformModules";
 import TourEditor from "@/components/platform/TourEditor";
 import { ClientApplyLink } from "@/components/platform/ClientApplyLink";
+import { ClientOffices } from "@/components/platform/ClientOffices";
 import { ClientApplications, ClientDatabase, ClientSubscription, ClientSecurity } from "@/components/platform/ClientTabs";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -99,6 +100,7 @@ export default function PlatformClientDetail() {
             </div>
           </div>
           <ClientApplyLink key={client.slug} client={client} onSaved={(d) => setClient((c) => ({ ...c, slug: d.slug }))} />
+          <ClientOffices key={`off-${client.id}`} client={client} onSaved={(offices) => setClient((c) => ({ ...c, offices }))} />
         </TabsContent>
 
         <TabsContent value="users" className="pt-6">

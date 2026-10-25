@@ -9,6 +9,7 @@ import re
 import logging
 
 from db import gdb, tenant_database, ensure_tenant_indexes
+from lib.offices import default_offices
 from auth_lib import hash_password, gen_id, now_iso
 
 _log = logging.getLogger("whitelabel")
@@ -159,6 +160,7 @@ def tenant_public(doc: dict) -> dict:
         "admin_email": doc.get("admin_email"),
         "branding": merged_branding(doc.get("branding")),
         "enabled_modules": normalize_modules(doc.get("enabled_modules")),
+        "offices": doc.get("offices") or [],
         "created_at": doc.get("created_at"),
     }
 
@@ -212,6 +214,7 @@ async def provision_tenant(
     admin_name: str = "Administrator",
     branding: dict | None = None,
     enabled_modules=None,
+    offices: list | None = None,
     tenant_id: str | None = None,
     status: str = "active",
 ) -> dict:
@@ -228,6 +231,7 @@ async def provision_tenant(
         "admin_email": admin_email,
         "branding": b,
         "enabled_modules": modules,
+        "offices": default_offices(name, offices),
         "modules_backfilled": list(BACKFILL_MODULE_KEYS),
         "created_at": now_iso(),
     }

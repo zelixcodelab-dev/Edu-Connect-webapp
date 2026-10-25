@@ -6,8 +6,9 @@ import {
   CheckCircle, XCircle, ClockClockwise, CurrencyInr, Buildings, X, ArrowRight,
 } from "@phosphor-icons/react";
 import { formatMoney } from "@/lib/format";
+import { liveMap } from "@/lib/offices";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = liveMap();
 const STATUS_STYLE = {
   pending: "bg-amber-100/60 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400",
   approved: "bg-emerald-100/60 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",

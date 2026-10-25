@@ -5,15 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { LEAVE_TYPES } from "./LeaveRequestDialog";
+import { officeOptions } from "@/lib/offices";
 
 const TYPE_COLOR = {
   casual: "bg-sky-500", sick: "bg-rose-500", earned: "bg-emerald-500", unpaid: "bg-stone-500",
 };
-const OFFICES = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-];
+const OFFICES = officeOptions();
 const pad = (n) => String(n).padStart(2, "0");
 
 export default function LeaveCalendar() {

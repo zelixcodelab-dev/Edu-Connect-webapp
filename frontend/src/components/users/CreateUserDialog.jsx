@@ -11,16 +11,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CheckCircle, UserPlus, Eye, EyeSlash, ShieldCheck } from "@phosphor-icons/react";
+import { officeOptions, getOffices } from "@/lib/offices";
 
-const OFFICE_OPTIONS = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-];
+const OFFICE_OPTIONS = officeOptions();
 
 const emptyNewUser = () => ({
   email: "", password: "", name: "",
-  role: "office_admin", office: "KM_BLR", currency: "INR",
+  role: "office_admin", office: getOffices()[0]?.code || "", currency: "INR",
   linked_client_id: "",
 });
 

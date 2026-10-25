@@ -4,11 +4,11 @@ from pydantic import BaseModel, Field, EmailStr
 
 
 # ---------- Users ----------
-OfficeCode = Literal["KM_BLR", "KM_TCR", "KM_KMLY"]
+OfficeCode = str  # validated against the company's offices (lib/offices.py)
 # Visibility scope on records: an office code → only that office's admins,
 # or "ALL" → every office admin can see it. Records left as None remain
 # private to the super_admin who owns them.
-RecordOffice = Literal["KM_BLR", "KM_TCR", "KM_KMLY", "ALL"]
+RecordOffice = str
 UserRole = Literal["super_admin", "office_admin", "user", "staff"]
 ApprovalStatus = Literal["pending", "approved", "rejected"]
 

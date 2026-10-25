@@ -5,12 +5,9 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoneyForPdf as fmt } from "@/lib/format";
 import api from "@/lib/api";
+import { liveMap } from "@/lib/offices";
 
-const OFFICE_LABEL = {
-  KM_BLR: "KM Bangalore",
-  KM_TCR: "KM Thrissur",
-  KM_KMLY: "KM Kollam",
-};
+const OFFICE_LABEL = liveMap();
 
 function monthLabel(month) {
   try {

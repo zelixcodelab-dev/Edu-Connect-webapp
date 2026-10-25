@@ -3,13 +3,9 @@ import api, { formatApiError } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowsClockwise, Circle } from "@phosphor-icons/react";
+import { officeOptions } from "@/lib/offices";
 
-const OFFICES = [
-  { value: "all", label: "All offices" },
-  { value: "KM_BLR", label: "KM Bangalore" },
-  { value: "KM_TCR", label: "KM Thrissur" },
-  { value: "KM_KMLY", label: "KM Kollam" },
-];
+const OFFICES = officeOptions([{ value: "all", label: "All offices" }]);
 
 const STATE_META = {
   in: { label: "In", dot: "bg-emerald-500", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" },

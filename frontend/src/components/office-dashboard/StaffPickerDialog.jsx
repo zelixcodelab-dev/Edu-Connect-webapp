@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Calendar, MagnifyingGlass, ArrowRight } from "@phosphor-icons/react";
+import { liveMap } from "@/lib/offices";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = liveMap();
 
 export default function StaffPickerDialog({ open, onOpenChange, search, onSearchChange, staff, onPick }) {
   const filtered = useMemo(() => {

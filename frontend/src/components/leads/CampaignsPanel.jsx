@@ -16,8 +16,9 @@ import LeadsBulkUploadDialog from "./LeadsBulkUploadDialog";
 import CampaignImportSheetsDialog from "./CampaignImportSheetsDialog";
 import CampaignSyncedSheets from "./CampaignSyncedSheets";
 import LeadsPipeline from "./LeadsPipeline";
+import { liveMap } from "@/lib/offices";
 
-const OFFICE_LABEL = { KM_BLR: "KM BLR", KM_TCR: "KM TCR", KM_KMLY: "KM KMLY" };
+const OFFICE_LABEL = liveMap();
 
 function MiniStat({ icon: Icon, label, value, tone, testid }) {
   const tones = {

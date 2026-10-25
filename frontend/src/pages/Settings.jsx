@@ -11,6 +11,7 @@ import { hasModule } from "@/lib/perm";
 import AdmissionRevenuePinSettings from "@/components/settings/AdmissionRevenuePinSettings";
 import GoogleSheetsSettings from "@/components/settings/GoogleSheetsSettings";
 import PasskeySettings from "@/components/settings/PasskeySettings";
+import OfficesSettings from "@/components/settings/OfficesSettings";
 import PinSettingsSection from "@/components/settings/PinSettingsSection";
 import SoundHapticsSettings from "@/components/settings/SoundHapticsSettings";
 
@@ -84,6 +85,8 @@ function WorkspaceSettings({ user, updateProfile }) {
       {(user?.role === "super_admin" || user?.role === "office_admin") && hasModule(user, "google_sheets") && (
         <GoogleSheetsSettings />
       )}
+
+      {user?.role === "super_admin" && <OfficesSettings />}
 
       {user?.role === "super_admin" && (
         <AdmissionRevenuePinSettings userEmail={user?.email} />

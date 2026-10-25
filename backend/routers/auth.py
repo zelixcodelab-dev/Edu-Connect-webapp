@@ -20,6 +20,7 @@ from seed import seed_user_defaults
 from routers.notifications import notify_super_admins
 from lib.email_notifier import send_email, password_reset_email_html
 from lib.subscription import record_login_event, trial_info, TRIAL_BLOCKED_MSG
+from lib.offices import active_offices
 from lib.whitelabel import (
     find_tenant_for_email, tenant_public, merged_branding, DEFAULT_APP_NAME,
 )
@@ -158,7 +159,7 @@ async def login(payload: LoginIn, response: Response, request: Request):
             "tenant_slug": tenant.get("slug"),
             "scope": "tenant",
             "branding": tp["branding"],
-            "enabled_modules": tp["enabled_modules"],
+            "enabled_modules": tp["enabled_modules"], "offices": active_offices(tp),
             "trial": trial,
             "access_token": token,
         }
@@ -199,7 +200,7 @@ async def me(user: dict = Depends(get_current_user)):
         tp = tenant_public(tenant)
         extras.update({
             "branding": tp["branding"],
-            "enabled_modules": tp["enabled_modules"],
+            "enabled_modules": tp["enabled_modules"], "offices": active_offices(tp),
             "tenant_name": tenant.get("name"),
             "tenant_slug": tenant.get("slug"),
             "tenant_status": tenant.get("status", "active"),
@@ -353,7 +354,7 @@ async def verify_pin(payload: VerifyPinIn, request: Request, response: Response)
         return {
             **user, "access_token": token, "scope": "tenant",
             "tenant_id": tenant["id"], "tenant_name": tenant.get("name"), "tenant_slug": tenant.get("slug"),
-            "branding": tp["branding"], "enabled_modules": tp["enabled_modules"],
+            "branding": tp["branding"], "enabled_modules": tp["enabled_modules"], "offices": active_offices(tp),
         }
 
     # Wrong PIN — bump counter and enforce the 3-strike wipe.

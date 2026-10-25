@@ -426,13 +426,12 @@ async def _schedule_visit(lead: dict, visit_in: VisitIn, user: dict) -> tuple[di
 
 
 # ---------- list / stats ----------
-SUPER_ADMIN_OFFICES = ("KM_BLR", "KM_TCR", "KM_KMLY")
 
 
 def _apply_office_override(user: dict, base: dict, office: Optional[str]) -> dict:
     """Super admin can narrow their view to a single office via `?office=`;
     everyone else has hard scope enforced by _scope_filter() already."""
-    if user.get("role") == "super_admin" and office in SUPER_ADMIN_OFFICES:
+    if user.get("role") == "super_admin" and office and office != "all":
         return {**base, "office": office}
     return base
 
@@ -759,7 +758,7 @@ async def staff_performance(
     }
     if user.get("role") == "office_admin":
         user_q["office"] = user.get("office")
-    elif user.get("role") == "super_admin" and office in SUPER_ADMIN_OFFICES:
+    elif user.get("role") == "super_admin" and office and office != "all":
         user_q["office"] = office
     users = await db.users.find(
         user_q,

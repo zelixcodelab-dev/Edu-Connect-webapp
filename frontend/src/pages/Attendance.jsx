@@ -18,6 +18,7 @@ import EditDaysDialog from "@/components/attendance/EditDaysDialog";
 import RegularizationPanel from "@/components/attendance/RegularizationPanel";
 import WhosInBoard from "@/components/attendance/WhosInBoard";
 import Leave from "@/pages/Leave";
+import { officeOptions } from "@/lib/offices";
 
 // Shift = 9h total (8h work + 1h break). Warn 5 min before completion.
 const WORK_TARGET_SECONDS = 9 * 3600;
@@ -43,12 +44,7 @@ function fireWorkAlmostDone() {
   toast.info(msg, { duration: 10000 });
 }
 
-const OFFICES = [
-  { value: "all", label: "All offices" },
-  { value: "KM_BLR", label: "KM Bangalore" },
-  { value: "KM_TCR", label: "KM Thrissur" },
-  { value: "KM_KMLY", label: "KM Kollam" },
-];
+const OFFICES = officeOptions([{ value: "all", label: "All offices" }]);
 
 const STATUS_META = {
   present: { label: "Present", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" },

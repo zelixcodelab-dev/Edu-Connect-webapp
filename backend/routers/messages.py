@@ -49,7 +49,7 @@ class AudienceIn(BaseModel):
     """
     type: Literal["role", "role_office", "users"]
     role: Optional[Literal["super_admin", "office_admin", "user"]] = None
-    office: Optional[Literal["KM_BLR", "KM_TCR", "KM_KMLY"]] = None
+    office: Optional[str] = None
     user_ids: Optional[list[str]] = None
 
 

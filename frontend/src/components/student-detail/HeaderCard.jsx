@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/format";
 import FeesPlanFields, { emptyFeesPlan } from "@/components/FeesPlanFields";
 import CollegeSelect from "@/components/CollegeSelect";
 import { STATUS_OPTIONS } from "./constants";
+import { getOffices } from "@/lib/offices";
 
 const STATUS_STYLES = {
   enrolled: "bg-emerald-100/60 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -111,9 +112,7 @@ export default function HeaderCard({
                 <SelectTrigger data-testid="hdr-home-office"><SelectValue placeholder="Private to me (default)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Private to me (default)</SelectItem>
-                  <SelectItem value="KM_BLR">KM BLR</SelectItem>
-                  <SelectItem value="KM_TCR">KM TCR</SelectItem>
-                  <SelectItem value="KM_KMLY">KM KMLY</SelectItem>
+                  {getOffices().map((o) => <SelectItem key={o.code} value={o.code}>{o.name}</SelectItem>)}
                   <SelectItem value="ALL">Shared (all offices)</SelectItem>
                 </SelectContent>
               </Select>

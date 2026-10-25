@@ -6,6 +6,7 @@ import { AcademicYearProvider } from "@/lib/academicYear";
 import { ThemeProvider } from "@/lib/theme";
 import { BrandingProvider, useBranding } from "@/lib/branding";
 import { setApplyTenantSlug } from "@/lib/applyUrl";
+import { setTenantOffices } from "@/lib/offices";
 import { Toaster } from "@/components/ui/sonner";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import { hasModule } from "@/lib/perm";
@@ -100,6 +101,7 @@ function BrandingSync() {
   const { setBrandingData, resetBranding } = useBranding();
   // Set during render so sibling pages build share links with the right company.
   setApplyTenantSlug(user ? user.tenant_slug : "");
+  setTenantOffices(user ? user.offices : []);
   useEffect(() => {
     if (user && user !== false) {
       if (user.branding) setBrandingData(user.branding, user.enabled_modules);

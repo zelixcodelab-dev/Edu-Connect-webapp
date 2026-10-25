@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, PencilSimple, Trash, EnvelopeSimple, Phone, Buildings, Cake, CurrencyInr, IdentificationBadge, MapPin, Camera, UserCircle, LinkSimple, Key, ShieldWarning, Prohibit, ArrowCounterClockwise, Pause, Play } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import OfficeStaff from "@/pages/OfficeStaff";
+import { officeOptions } from "@/lib/offices";
 
 export const CLIENT_TYPES = [
   { value: "staff", label: "Our Staff" },
@@ -28,11 +29,7 @@ export const CLIENT_TYPES = [
 export const EMPLOYEE_PAGE_TYPES = ["staff", "km_blr_office", "km_tcr_office", "km_kmly_office"];
 export const CLIENT_PAGE_TYPES = ["sub_agent_associate", "associate_consultant"];
 
-const OFFICES = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-];
+const OFFICES = officeOptions();
 
 export function clientTypeLabel(v) {
   return CLIENT_TYPES.find((t) => t.value === v)?.label || "—";
@@ -63,12 +60,7 @@ const empty = {
   tax_regime: "", bank_account_no: "", ifsc_code: "",
 };
 
-const HOME_OFFICE_OPTIONS = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-  { value: "ALL", label: "Shared (all offices)" },
-];
+const HOME_OFFICE_OPTIONS = officeOptions([], [{ value: "ALL", label: "Shared (all offices)" }]);
 
 // Dispatcher: office admins get the unified staff page; super admins get the
 // scoped People page (Employees vs Clients) driven by the route's pageScope.
@@ -496,12 +488,9 @@ function SuperAdminPeople({ pageScope }) {
 
 // ---- Helpers ----
 
-const OFFICE_OPTIONS = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
+const OFFICE_OPTIONS = officeOptions([], [
   { value: "_none", label: "No office set" },
-];
+]);
 
 function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
   const nav = useNavigate();

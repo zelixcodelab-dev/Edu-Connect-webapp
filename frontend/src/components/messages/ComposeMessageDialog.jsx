@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
   Megaphone, Clock, PaperPlaneRight, X,
 } from "@phosphor-icons/react";
+import { officeOptions } from "@/lib/offices";
 
 const PRIORITIES = [
   { value: "low",    label: "Low",    color: "text-muted-foreground" },
@@ -23,11 +24,7 @@ const PRIORITIES = [
   { value: "urgent", label: "Urgent", color: "text-rose-600 dark:text-rose-400" },
 ];
 
-const OFFICE_OPTIONS = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-];
+const OFFICE_OPTIONS = officeOptions();
 
 const KIND_META = {
   announcement: { icon: Megaphone, label: "Announcement", color: "text-amber-700 dark:text-amber-400" },

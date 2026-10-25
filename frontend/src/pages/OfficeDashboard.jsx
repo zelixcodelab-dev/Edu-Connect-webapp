@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -20,8 +21,9 @@ import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
 import CrmAnalytics from "@/components/office-dashboard/CrmAnalytics";
 import { TrendingRow, TeamStrip, HeroInbox } from "@/components/dashboard/OverviewHighlights";
 import { hasModule } from "@/lib/perm";
+import { liveMap, getOffices } from "@/lib/offices";
 
-const OFFICE_LABEL = { HEAD_OFFICE: "HEAD OFFICE", BRANCH_EKM: "BRANCH EKM", BRANCH_TVM: "BRANCH TVM" };
+const OFFICE_LABEL = liveMap();
 
 const TABS = [
   { value: "crm", label: "Lead CRM" },
@@ -37,7 +39,7 @@ const WINDOWS = [
 export default function OfficeDashboard({ superView = false }) {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [office, setOffice] = useState("HEAD OFFICE");
+  const [office, setOffice] = useState(() => getOffices()[0]?.code || "");
   const currency = superView ? "INR" : (user?.currency || "INR");
   const [windowKey, setWindowKey] = useState("month");
   const [tab, setTab] = useState("admissions");
@@ -117,28 +119,24 @@ export default function OfficeDashboard({ superView = false }) {
             <>
               <p className="label-eyebrow">Office overview</p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-2" data-testid="office-overview-title">
-                {OFFICE_LABEL[office] || office} 
+                {OFFICE_LABEL[office] || office}
               </h1>
-              <div className="flex flex-wrap items-center gap-2 mt-3" data-testid="office-switcher">
-                {Object.keys(OFFICE_LABEL).map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setOffice(o)}
-                    data-testid={`office-switch-${o}`}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
-                      office === o
-                        ? "bg-foreground text-background"
-                        : "bg-card border border-border text-foreground hover:bg-muted/40"
-                    }`}
-                  >
-                    {OFFICE_LABEL[o]}
-                  </button>
-                ))}
-              </div>
+              {getOffices().length > 1 && (
+                <div className="mt-3 w-56" data-testid="office-switcher">
+                  <Select value={office} onValueChange={setOffice}>
+                    <SelectTrigger className="h-9 rounded-full" data-testid="office-switcher-trigger"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {getOffices().map((o) => (
+                        <SelectItem key={o.code} value={o.code} data-testid={`office-switch-${o.code}`}>{o.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </>
           ) : (
             <>
-              <p className="label-eyebrow">{user?.office ? `${OFFICE_LABEL[user.office] || user.office} · office` : "Office"}</p>
+              <p className="label-eyebrow" data-testid="office-name-eyebrow">{user?.office ? `${OFFICE_LABEL[user.office] || user.office} · office` : "Office"}</p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight mt-2" data-testid="office-greeting">
                 {greetingForNow()}, {user?.name?.split(" ")[0] || "there"}.
               </h1>

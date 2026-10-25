@@ -27,6 +27,7 @@ import PasteApplicationDialog from "@/components/students/PasteApplicationDialog
 import StudentBulkUploadDialog from "@/components/student-detail/StudentBulkUploadDialog";
 import Reveal from "@/components/Reveal";
 import { CardGridSkeleton } from "@/components/Shimmer";
+import { officeOptions, getOffices } from "@/lib/offices";
 
 const STATUS_OPTIONS = [
   { value: "inquiry", label: "Inquiry" },
@@ -42,12 +43,7 @@ const emptyForm = () => ({
   collegeCourses: [],
 });
 
-const HOME_OFFICE_OPTIONS = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-  { value: "ALL", label: "Shared (all offices)" },
-];
+const HOME_OFFICE_OPTIONS = officeOptions([], [{ value: "ALL", label: "Shared (all offices)" }]);
 
 function recentRank(s) {
   // Sort: enrollment_date desc, then created_at desc
@@ -778,9 +774,7 @@ export default function Students() {
           <Select onValueChange={(v) => runBulk("visibility", v)} disabled={bulkBusy}>
             <SelectTrigger className="h-9 w-[170px] rounded-full" data-testid="bulk-visibility-select"><SelectValue placeholder="Visible to office" /></SelectTrigger>
             <SelectContent>
-              {isSuper && <SelectItem value="KM_BLR">KM Bangalore</SelectItem>}
-              {isSuper && <SelectItem value="KM_TCR">KM Thrissur</SelectItem>}
-              {isSuper && <SelectItem value="KM_KMLY">KM Kollam</SelectItem>}
+              {isSuper && getOffices().map((o) => <SelectItem key={o.code} value={o.code}>{o.name}</SelectItem>)}
               <SelectItem value="ALL">All offices</SelectItem>
               {!isSuper && <SelectItem value={user?.office || "ALL"}>My office</SelectItem>}
             </SelectContent>

@@ -22,8 +22,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CaretLeft, CaretRight, FloppyDisk, Rocket, UploadSimple, Sparkle } from "@phosphor-icons/react";
+import { liveList, getOffices } from "@/lib/offices";
 
-const OFFICES = [["KM_BLR", "KM BLR"], ["KM_TCR", "KM TCR"], ["KM_KMLY", "KM KMLY"]];
+const OFFICES = liveList(() => getOffices().map((o) => [o.code, o.name]));
 const TAG_TYPES = [["none", "No tag"], ["course", "Course"], ["place", "Place"], ["source", "Source"]];
 const STATUSES = [
   ["draft", "Draft"],
@@ -54,7 +55,7 @@ const empty = {
   end_date: "",
   tag_type: "none",
   tag_value: "",
-  office: "KM_BLR",
+  office: "",
   owner_user_id: "",
   distribute_method: "equal",
   employee_ids: [],
@@ -116,7 +117,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
         end_date: campaign.end_date || "",
         tag_type: campaign.tag_type || "none",
         tag_value: campaign.tag_value || "",
-        office: campaign.office || "KM_BLR",
+        office: campaign.office || getOffices()[0]?.code || "",
         owner_user_id: campaign.owner_user_id || "",
         distribute_method: campaign.distribute_method || "equal",
         employee_ids: campaign.distribute_employee_ids || [],
@@ -124,7 +125,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
     } else {
       setForm({
         ...empty,
-        office: isSuper ? "KM_BLR" : (user?.office || "KM_BLR"),
+        office: isSuper ? (getOffices()[0]?.code || "") : (user?.office || ""),
         owner_user_id: user?.id || "",
       });
     }

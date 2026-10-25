@@ -50,6 +50,7 @@ class TenantCreate(BaseModel):
     plan: Optional[str] = "trial"
     branding: Optional[BrandingIn] = None
     enabled_modules: Optional[List[str]] = None
+    offices: Optional[List[str]] = None  # office names; first defaults to company name
 
 
 class TenantUpdate(BaseModel):
@@ -317,6 +318,7 @@ async def create_tenant(payload: TenantCreate, request: Request, owner: dict = D
         admin_name=payload.admin_name or "Administrator",
         branding=branding,
         enabled_modules=payload.enabled_modules,
+        offices=payload.offices,
     )
     # If this is the very first company, make it the default fallback tenant.
     if get_default_tenant_id() is None:

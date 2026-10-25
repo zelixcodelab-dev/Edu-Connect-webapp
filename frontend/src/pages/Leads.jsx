@@ -8,6 +8,7 @@ import LeadsPipeline from "@/components/leads/LeadsPipeline";
 import TodayVisitsPanel from "@/components/leads/TodayVisitsPanel";
 import LeadDetailDialog from "@/components/leads/LeadDetailDialog";
 import StaffPerformancePanel from "@/components/leads/StaffPerformancePanel";
+import { getOffices } from "@/lib/offices";
 
 export default function Leads() {
   const { user } = useAuth();
@@ -89,7 +90,7 @@ export default function Leads() {
             className="flex items-center gap-1 rounded-lg bg-muted p-0.5 self-start sm:self-auto shrink-0"
             data-testid="crm-office-switcher"
           >
-            {[["all", "All offices"], ["HEAD_OFFICE", "HEAD OFFICE"], ["BRANCH_EKM", "BRANCH EKM"], ["BRANCH_TVM", "BRANCH TVM"]].map(([v, label]) => (
+            {[["all", "All offices"], ...getOffices().map((o) => [o.code, o.name])].map(([v, label]) => (
               <button
                 key={v}
                 type="button"

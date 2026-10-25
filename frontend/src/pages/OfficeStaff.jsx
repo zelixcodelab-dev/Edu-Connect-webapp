@@ -14,12 +14,9 @@ import {
   MapPin, Cake, CurrencyInr, Buildings, ShieldWarning, LinkSimple, Phone,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { officeOptions } from "@/lib/offices";
 
-const OFFICES = [
-  { value: "KM_BLR", label: "KM BLR" },
-  { value: "KM_TCR", label: "KM TCR" },
-  { value: "KM_KMLY", label: "KM KMLY" },
-];
+const OFFICES = officeOptions();
 
 const emptyForm = {
   name: "", email: "", password: "", photo_url: "", employee_id: "", phone: "",

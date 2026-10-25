@@ -21,6 +21,7 @@ from seed import seed_platform_and_default_tenant
 from routers import auth, accounts, clients, categories, transactions, invoices, dashboard, students, users, expense_requests, notifications, applications, colleges, push, messages, leads, leave, uploads, staff, campaigns, admission_revenue, activity, attendance, academic, google_sheets, webauthn
 from routers import onboarding as onboarding_router
 from routers import platform as platform_router
+from routers import offices as offices_router
 from routers import branding as branding_router
 from routers import connect as connect_router
 from routers import registry as registry_router
@@ -64,6 +65,8 @@ app.include_router(google_sheets.oauth_router)
 app.include_router(webauthn.router)
 app.include_router(onboarding_router.router)
 app.include_router(platform_router.router)
+app.include_router(offices_router.router)
+app.include_router(offices_router.platform)
 app.include_router(branding_router.router)
 app.include_router(connect_router.router)
 app.include_router(registry_router.router)
@@ -233,6 +236,20 @@ async def startup() -> None:
                 )
     except Exception:
         logger.exception("[startup] module backfill failed")
+
+    # Every company gets its own offices list (legacy KM data keeps KM_BLR).
+    try:
+        from lib.offices import ensure_offices_backfill, LEGACY_CODES
+        from db import tenant_database
+
+        async def _has_legacy(tid: str) -> bool:
+            tdb = tenant_database(tid)
+            q = {"office": {"$in": LEGACY_CODES}}
+            return bool(await tdb.users.find_one(q, {"_id": 1}) or await tdb.clients.find_one(q, {"_id": 1})
+                        or await tdb.leads.find_one(q, {"_id": 1}))
+        await ensure_offices_backfill(_has_legacy)
+    except Exception:
+        logger.exception("[startup] offices backfill failed")
 
     # Per-tenant helper indexes (rate-limit + activity) resolve against the
     # default tenant DB now that it's bound. Non-fatal.
