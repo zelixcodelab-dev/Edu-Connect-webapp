@@ -163,18 +163,20 @@ export default function OfficeDashboard({ superView = false }) {
           ))}
         </div>
       </header>
-      <section className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="office-highlights">
-        <div>
-          <p className="font-display text-sm font-semibold mb-3">Trending</p>
-          <TrendingRow />
-        </div>
-        <div className="space-y-3 lg:pt-8">
-          <HeroInbox role={user?.role} />
+      <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="office-highlights">
+        <div className="min-w-0 space-y-4">
+          <div>
+            <p className="font-display text-sm font-semibold mb-3">Trending</p>
+            <TrendingRow />
+          </div>
           <TeamStrip role={user?.role} />
+        </div>
+        <div className="min-w-0 lg:pt-8">
+          <HeroInbox role={user?.role} />
         </div>
       </section>
 
-      <div key={tab} className="view-enter">
+      <div key={tab} className="view-enter space-y-5">
       {tab === "crm" ? (
         <CrmAnalytics office={superView ? office : null} />
       ) : (

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { canView } from "@/lib/perm";
+import { canView, hasModule } from "@/lib/perm";
 import { navigateToApply, linkedUserRef } from "@/lib/applyUrl";
 import {
   House,
@@ -28,7 +28,7 @@ const ALL_SIDE_NAV = [
   { to: "/", label: "Home", icon: House, end: true, tid: "bottom-nav-home", perm: "overview" },
   { to: "/my-ledger", label: "My ledger", icon: Coins, tid: "bottom-nav-my-ledger", roles: ["user"] },
   { to: "/leads", label: "CRM", icon: Target, tid: "bottom-nav-crm", perm: "leads", roles: ["super_admin", "office_admin"] },
-  { to: "/clients", label: "Clients", icon: UsersThree, tid: "bottom-nav-clients", perm: "clients" },
+  { to: "/clients", label: "Clients", icon: UsersThree, tid: "bottom-nav-clients", perm: "clients", roles: ["super_admin"] },
   { to: "/students", label: "Students", icon: Student, tid: "bottom-nav-students", perm: "students" },
   { to: "/my-students", label: "Students", icon: Student, tid: "bottom-nav-my-students", roles: ["staff"] },
   { to: "/messages", label: "Messages", icon: ChatCircleDots, tid: "bottom-nav-messages" },
@@ -113,10 +113,18 @@ const ALL_QUICK_ACTIONS = [
   },
 ];
 
+const PATH_MODULE = {
+  "/leads": "leads", "/clients": "clients", "/students": "students", "/my-students": "students",
+  "/messages": "messages", "/invoices": "invoices", "/transactions": "transactions",
+  "/expense-requests": "expense_requests", "/attendance": "attendance",
+};
+
 function isVisible(item, user) {
   if (!user) return false;
   if (item.roles && !item.roles.includes(user.role)) return false;
   if (item.perm && !canView(user, item.perm)) return false;
+  const mod = item.module || PATH_MODULE[item.to];
+  if (mod && !hasModule(user, mod)) return false;
   return true;
 }
 

@@ -697,7 +697,7 @@ export default function AppShell() {
                     </div>
                     <div className="hidden lg:block min-w-0 text-left">
                       <p className="text-xs font-medium leading-tight truncate max-w-[140px]" data-testid="topbar-user-name">{user?.name}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{user?.business_name || user?.currency || "USD"}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{user?.business_name || user?.tenant_name || user?.currency || "USD"}</p>
                     </div>
                     <CaretDown size={13} className="hidden sm:block text-muted-foreground shrink-0" />
                   </button>

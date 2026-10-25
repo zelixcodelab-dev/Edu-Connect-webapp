@@ -608,9 +608,9 @@ export default function Attendance() {
   return (
     <div className="space-y-6 max-w-6xl" data-testid="attendance-page">
       <Tabs value={active} onValueChange={setActive}>
-        <TabsList data-testid="attendance-tabs" className="flex-wrap h-auto">
+        <TabsList data-testid="attendance-tabs" className="w-full sm:w-auto justify-start overflow-x-auto sidebar-scroll h-auto">
           {tabs.map((t) => (
-            <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`}>{t.label}</TabsTrigger>
+            <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`} className="shrink-0">{t.label}</TabsTrigger>
           ))}
         </TabsList>
 
