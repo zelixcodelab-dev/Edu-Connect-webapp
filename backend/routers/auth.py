@@ -61,9 +61,11 @@ async def _resolve_user_photo_url(user: dict) -> str:
                 {"login_user_id": user["id"]}, {"_id": 0, "photo_url": 1}
             )
             photo = (row or {}).get("photo_url") or ""
-        if not photo:
+        # Legacy self-owned staff row: staff only, and never a row that belongs
+        # to another login (admins own every staff row they create).
+        if not photo and user.get("role") == "staff":
             row = await db.clients.find_one(
-                {"user_id": user["id"], "client_type": "staff"},
+                {"user_id": user["id"], "client_type": "staff", "login_user_id": {"$in": [None, ""]}},
                 {"_id": 0, "photo_url": 1},
             )
             photo = (row or {}).get("photo_url") or ""

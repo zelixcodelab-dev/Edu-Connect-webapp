@@ -37,11 +37,12 @@ async def resolve_photos_for_users(user_ids: Iterable[str]) -> Dict[str, str]:
     #    row's ``linked_client_id`` so we can join into the clients table.
     users_cursor = db.users.find(
         {"id": {"$in": ids}},
-        {"_id": 0, "id": 1, "linked_client_id": 1},
+        {"_id": 0, "id": 1, "linked_client_id": 1, "role": 1},
     )
     users = await users_cursor.to_list(len(ids))
     linked_ids = {u.get("linked_client_id") for u in users if u.get("linked_client_id")}
     user_to_linked = {u["id"]: u.get("linked_client_id") for u in users}
+    staff_ids = {u["id"] for u in users if u.get("role") == "staff"}
 
     # 2) Linked-client photo lookup (priority 1)
     if linked_ids:
@@ -60,7 +61,8 @@ async def resolve_photos_for_users(user_ids: Iterable[str]) -> Dict[str, str]:
         docs = await db.clients.find(
             {"$or": [
                 {"login_user_id": {"$in": remaining}},
-                {"user_id": {"$in": remaining}, "client_type": "staff"},
+                {"user_id": {"$in": [u for u in remaining if u in staff_ids]}, "client_type": "staff",
+                 "login_user_id": {"$in": [None, ""]}},
             ],
              "photo_url": {"$ne": ""}},
             {"_id": 0, "user_id": 1, "login_user_id": 1, "photo_url": 1},
@@ -71,6 +73,8 @@ async def resolve_photos_for_users(user_ids: Iterable[str]) -> Dict[str, str]:
             # login_user_id wins over user_id (staff self-profile before
             # legacy staff-owned rows). Never overwrite an existing entry.
             for k in ("login_user_id", "user_id"):
+                if k == "user_id" and d.get("login_user_id"):
+                    continue
                 v = d.get(k)
                 if v and v in remaining and v not in photos:
                     photos[v] = d["photo_url"]
