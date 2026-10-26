@@ -94,8 +94,19 @@ async def send_push_to_users(
         "badge": "/finflow-icon.png",
     }
 
+    counts = {}
+    for uid in {s["user_id"] for s in subs}:
+        try:
+            counts[uid] = await unread_total(uid)
+        except Exception:
+            counts[uid] = None
+
+    def _payload(s):
+        c = counts.get(s["user_id"])
+        return payload if c is None else {**payload, "badge_count": c}
+
     results = await asyncio.gather(
-        *(asyncio.to_thread(_send_one, s, payload) for s in subs)
+        *(asyncio.to_thread(_send_one, s, _payload(s)) for s in subs)
     )
     sent = sum(1 for ok, _ in results if ok)
     stale_endpoints = [
@@ -110,6 +121,16 @@ async def send_push_to_users(
         "failed": len(results) - sent,
         "pruned": len(stale_endpoints),
     }
+
+
+async def unread_total(user_id: str) -> int:
+    """Unread bell notifications + unread top-level messages for the app icon badge."""
+    n = await db.notifications.count_documents({"recipient_user_id": user_id, "read": False})
+    docs = await db.messages.find(
+        {"recipient_ids": user_id, "parent_id": None}, {"_id": 0, f"acks.{user_id}": 1}
+    ).to_list(500)
+    m = sum(1 for d in docs if not (((d.get("acks") or {}).get(user_id) or {}).get("read_at")))
+    return n + m
 
 
 async def super_admin_user_ids() -> list[str]:

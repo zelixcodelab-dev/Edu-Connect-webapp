@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import api, { formatApiError, setStoredToken } from "./api";
+import { clearAppBadge } from "./appBadge";
 
 const AuthContext = createContext(null);
 
@@ -208,6 +209,7 @@ export function AuthProvider({ children }) {
       console.error("[auth] logout failed:", err?.message || err);
     }
     setStoredToken(null);
+    clearAppBadge();
     setUser(false);
     setLocked(false);
     clearInactivityTimer();

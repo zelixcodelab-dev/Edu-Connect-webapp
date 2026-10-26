@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, Navigate } from "react-route
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { setBadgePart } from "@/lib/appBadge";
 import { useTheme } from "@/lib/theme";
 import { useBranding } from "@/lib/branding";
 import BrandMark from "@/components/BrandMark";
@@ -557,6 +558,7 @@ export default function AppShell() {
       try {
         const r = await api.get("/messages/unread-count");
         next.messages = r.data?.count || 0;
+        setBadgePart("msgs", next.messages);
       } catch { /* ignore */ }
       if (user.role === "super_admin") {
         try {

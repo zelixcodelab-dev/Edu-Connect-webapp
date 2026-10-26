@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { Check, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
 import { subscribe, getSnapshot, setOverlayMounted, dismissCelebration } from "@/lib/celebrate";
 
 const SUCCESS_MS = 1700;
@@ -15,12 +15,20 @@ const SUCCESS_SUBTITLE = {
 
 const CONFETTI_COLORS = ["#C70000", "#f59e0b", "#10b981", "#2f7d6b", "#e11d48", "#ffffff", "#34d399"];
 
-/** Frosted-glass folder silhouette that sits inside the gradient hero. */
-function GlassFolder() {
+/** Green check that draws itself in, with small shapes bursting outward. */
+function SuccessBurst() {
   return (
-    <svg className="celebrate-folder" viewBox="0 0 156 126" aria-hidden="true">
-      <path d="M22 32 Q22 21 33 21 L60 21 Q66 21 70 27 L75 35 Q77 38 82 38 L127 38 Q138 38 138 49 L138 96 Q138 107 127 107 L33 107 Q22 107 22 96 Z" />
-    </svg>
+    <div className="celebrate-burst" aria-hidden="true" data-testid="celebration-burst">
+      <svg className="burst-shape s1" viewBox="0 0 20 20"><polygon points="10,2 18,8 15,18 5,18 2,8" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinejoin="round" /></svg>
+      <span className="burst-shape s2 burst-line" style={{ background: "#facc15" }} />
+      <span className="burst-shape s3 burst-line" style={{ background: "#fb923c" }} />
+      <span className="burst-shape s4 burst-line" style={{ background: "#6366f1" }} />
+      <span className="burst-shape s5 burst-dot" />
+      <span className="burst-shape s6 burst-square" />
+      <div className="celebrate-circle">
+        <svg viewBox="0 0 52 52" className="celebrate-check-svg"><path d="M15 27 L23 35 L38 18" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </div>
+    </div>
   );
 }
 
@@ -99,14 +107,13 @@ export default function CelebrationOverlay() {
         data-testid={isError ? "celebration-error" : "celebration-success"}
       >
         <div className="celebrate-hero">
-          <GlassFolder />
-          <div className="celebrate-check-badge">
-            {isError ? (
-              <X size={30} weight="bold" className="celebrate-icon" />
-            ) : (
-              <Check size={32} weight="bold" className="celebrate-icon" />
-            )}
-          </div>
+          {isError ? (
+            <div className="celebrate-check-badge">
+              <X size={26} weight="bold" className="celebrate-icon" />
+            </div>
+          ) : (
+            <SuccessBurst />
+          )}
         </div>
         <div className="celebrate-body">
           <h3 className="celebrate-title" data-testid="celebration-caption">{title}</h3>

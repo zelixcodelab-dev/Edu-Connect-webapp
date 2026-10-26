@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { setBadgePart } from "@/lib/appBadge";
 import { useAuth } from "@/lib/auth";
 import {
   isPushSupported,
@@ -43,6 +44,7 @@ export default function NotificationsBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const popRef = useRef(null);
+  useEffect(() => { setBadgePart("notif", unread); }, [unread]);
 
   const loadUnread = useCallback(async () => {
     if (!user || user === false) return;

@@ -236,12 +236,12 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <InfoRow icon={Phone}>{local.phone}</InfoRow>
-            <InfoRow icon={EnvelopeSimple}>{local.email}</InfoRow>
+            <InfoRow icon={Phone}>{local.phone && <a href={`tel:${local.phone.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-phone-link">{local.phone}</a>}</InfoRow>
+            <InfoRow icon={EnvelopeSimple}>{local.email && <a href={`mailto:${local.email}`} className="hover:underline underline-offset-2" data-testid="lead-detail-email-link">{local.email}</a>}</InfoRow>
             <InfoRow icon={GraduationCap}>{local.course}</InfoRow>
             <InfoRow icon={MapPin}>{local.place}</InfoRow>
-            {local.parent_number ? <InfoRow icon={Phone}>{`Parent: ${local.parent_number}`}</InfoRow> : null}
-            {local.alternate_number ? <InfoRow icon={Phone}>{`Alternate: ${local.alternate_number}`}</InfoRow> : null}
+            {local.parent_number ? <InfoRow icon={Phone}>Parent: <a href={`tel:${local.parent_number.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-parent-phone-link">{local.parent_number}</a></InfoRow> : null}
+            {local.alternate_number ? <InfoRow icon={Phone}>Alternate: <a href={`tel:${local.alternate_number.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-alt-phone-link">{local.alternate_number}</a></InfoRow> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="px-2 py-0.5 rounded-full bg-muted">{sourceLabel(local.source)}</span>

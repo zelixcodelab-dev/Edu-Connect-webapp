@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { LEAD_STATUSES, LEAD_STATUS_META } from "./constants";
-import { Phone, GraduationCap } from "@phosphor-icons/react";
+import { Phone, GraduationCap, DotsThreeVertical } from "@phosphor-icons/react";
 import UserAvatar from "@/components/UserAvatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function LeadsBoard({ leads, onCardClick, onStatusChange, editable }) {
   const [dragId, setDragId] = useState(null);
@@ -55,7 +56,28 @@ export default function LeadsBoard({ leads, onCardClick, onStatusChange, editabl
                   data-testid={`board-card-${l.id}`}
                   className={`rounded-lg border border-border bg-card p-3 cursor-pointer hover:border-orange-500/40 hover:shadow-sm transition-all ${dragId === l.id ? "opacity-40" : ""}`}
                 >
-                  <p className="text-sm font-medium text-foreground truncate">{l.name}</p>
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-sm font-medium text-foreground truncate">{l.name}</p>
+                    {editable && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" onClick={(e) => e.stopPropagation()} aria-label="Move to stage"
+                            className="-mr-1 -mt-0.5 w-7 h-7 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                            data-testid={`board-card-move-${l.id}`}>
+                            <DotsThreeVertical size={16} weight="bold" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} data-testid={`board-card-move-menu-${l.id}`}>
+                          <DropdownMenuLabel className="text-xs">Move to</DropdownMenuLabel>
+                          {LEAD_STATUSES.filter((t) => t !== l.status).map((t) => (
+                            <DropdownMenuItem key={t} onSelect={() => onStatusChange(l, t)} data-testid={`board-move-${l.id}-${t}`}>
+                              {LEAD_STATUS_META[t].label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                   {l.course && <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5"><GraduationCap size={12} /> {l.course}</p>}
                   <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground flex-wrap">
                     {l.phone && <span className="flex items-center gap-1"><Phone size={11} /> {l.phone}</span>}

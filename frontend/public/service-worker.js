@@ -73,7 +73,13 @@ self.addEventListener("push", (event) => {
     renotify: false,
     requireInteraction: false,
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  // Home-screen icon badge with this recipient's fresh unread total.
+  const n = Number(data.badge_count);
+  const nav = self.navigator;
+  const badge = Number.isFinite(n) && nav && "setAppBadge" in nav
+    ? (n > 0 ? nav.setAppBadge(n) : nav.clearAppBadge()).catch(() => {})
+    : Promise.resolve();
+  event.waitUntil(Promise.all([self.registration.showNotification(title, options), badge]));
 });
 
 self.addEventListener("notificationclick", (event) => {
