@@ -1,0 +1,53 @@
+{
+  "summary": "Frontend-only spacing audit of all company pages at 390x844 and 1920x800 (super admin admin@educonnect.app; office admin office@educonnect.app quick check on /, /students, /leads, /attendance). I ran a DOM measurement script on every page: page-level horizontal overflow, elements sticking out past the viewport, section gaps (space-y children margin-top), card padding and grid gaps. No data was changed. RESULT: the global spacing system works as specified. space-y-6/7/8 sections = 24px mobile / 28px desktop. Cards using p-5..p-8 = 20px / 24px. Empty states using p-10/p-12/py-16 = 28px / 40px. Grids using gap-4/5/6 = 16px / 20px. Page wrapper = 16px/20px on mobile and 40px/32px on desktop. No horizontal overflow (docOverflow=0) and no element past the viewport on any page or tab, for both roles. No text overflowing card padding on the sampled pages. Overview hero buttons sit side by side on mobile (Quick entry x=36, Application QR x=199, both 155x40, same row). Buttons and inputs look undistorted in the screenshots. Some places are still inconsistent because they use utility classes the system does not cover (p-4, p-3, gap-3, space-y-4/5, py-8, mt-6). These are listed below.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/ (Overview) and /office-overview", "issues": [
+        "team-strip card uses p-4 = 16px on both mobile and desktop. Sibling cards (p-6, staff-breakdown p-5) are 20px mobile / 24px desktop.",
+        "Hero card (Dashboard.jsx ~L176, 'px-7 py-8 sm:px-9'): vertical padding is 32px on both viewports. Horizontal padding is normalised to 20/24px, so the hero is 32px top/bottom but 20-24px left/right.",
+        "trending-row gap-3 = 12px and hero-inbox gap-3 = 12px. The surrounding grids (dashboard-hero, overview-highlights) are 16px / 20px, so gaps between cards in the same section differ."
+      ]},
+      {"screen": "/leads Overview tab (admin + office admin)", "issues": [
+        "staff-performance-panel 'p-4 sm:p-5' = 16px mobile / 20px desktop. The neighbouring crm-funnel and crm-monthly (p-5) are 20px / 24px. sm:p-5 is missing from the spacing selector list.",
+        "KPI tiles crm-kpi-* use p-4 = 16px on desktop. Other cards on the page are 24px.",
+        "Leads sections use space-y-5 = 20px on both viewports (5 occurrences). Other pages use 24px / 28px.",
+        "The KPI grid uses gap-3 = 12px. The other card grids on the page are 16px / 20px."
+      ]},
+      {"screen": "/leads All leads tab", "issues": ["lead-card-* use p-4 = 16px. leads-stats grid gap-3 = 12px. Sections use space-y-5 = 20px and space-y-3 = 12px."]},
+      {"screen": "/leads Campaigns tab", "issues": ["Inner wrapper uses space-y-5 = 20px. The page level is 24px / 28px."]},
+      {"screen": "/attendance", "issues": [
+        "Board (Who's in) tab: wrapper space-y-5 = 20px on both viewports. board-row-* use p-3 = 12px and board-group gap-2 = 8px. This may be fine for dense rows, but it is not on the scale.",
+        "TabsContent uses mt-6 = 24px on desktop, not 28px (Attendance.jsx ~L614).",
+        "Leave tab: balance-* tiles use p-3 = 12px, and leave-balance grid gap-3 = 12px.",
+        "Regularize tab: grids use gap-1.5 = 6px (calendar or chips, probably intentional)."
+      ]},
+      {"screen": "/students/{id}", "issues": ["summary-tiles: tiles use p-4 = 16px (shadcn Card 'p-4 rounded-lg'), and the grid uses gap-3 = 12px. The header card above is 20px / 24px. On mobile, the '₹2,90,000.00' value fills the 173px tile almost edge to edge."]},
+      {"screen": "/students, /agents", "issues": ["students-filters and agent-totals grids use gap-3 = 12px, not the 16px / 20px card gap."]},
+      {"screen": "/clients, /employees, /admission-revenue, /settings, /branding", "issues": ["Inner stacks use space-y-4 = 16px. On /admission-revenue this is the top-level section gap on mobile (3 occurrences), so its sections are 16px apart, not 24px. /settings and /branding inner forms mix space-y-5 (20px), space-y-4 and space-y-3. Fine inside forms, but section-level stacks should use the scale."]},
+      {"screen": "/activity", "issues": ["The page wrapper uses space-y-5 = 20px on both viewports, not 24px / 28px."]},
+      {"screen": "/transactions (mobile)", "issues": ["The filter select (150px) and 'Add transaction' button (182px) do not fill the row: the right edge is at 356px while the container ends at 374px. Minor alignment issue."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Bring space-y-5 (and space-y-4 at page level, e.g. /admission-revenue and /activity wrappers) onto --page-gap. Affected: Leads tabs, Attendance board, Office overview, Activity, Admission revenue.",
+    "Add sm:p-5 to the card padding selector, or change staff-performance-panel to p-5. Decide whether p-4 cards (team-strip, crm-kpi-*, lead-card-*, student summary-tiles) should follow --card-pad.",
+    "Decide whether gap-3 card grids (trending-row, hero-inbox, KPI and stat grids, summary-tiles, agent-totals, leads-stats, leave-balance, students-filters) should use --grid-gap, so card spacing is the same within a section.",
+    "Dashboard hero: py-8 (32px) does not match the 20/24px horizontal padding. Normalise it, or keep it as an intentional hero exception.",
+    "Attendance TabsContent mt-6 is 24px on desktop, while the page scale is 28px."
+  ],
+  "critical_code_review_comments": [
+    "The spacing rules in index.css depend on matching class names. Any class not in the lists (p-4, sm:p-5, gap-3, space-y-5, py-8) silently stays off the scale, which explains every remaining inconsistency.",
+    "The card padding rule skips any element whose class contains 'px-', 'py-', 'pt-' or 'pb-'. Cards that combine p-* with pt-0 (for example shadcn CardContent 'p-6 pt-0') keep their own padding. This works, but it is fragile.",
+    "The horizontal padding rule overrides responsive classes like sm:px-9 through higher specificity (because of the :not() parts). This is intended but not obvious; a short comment would help."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% for the specified spacing rules and for overflow/hero checks; ~10 places still off-scale (listed)"},
+  "seed_data_creation": "None. No data was changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Measurement approach: on each page, query .mobile-pad. For space-y children, read the computed marginTop. For rounded cards with bg-card or border and width >220px, read the computed padding. For .grid elements with 2+ children, read rowGap. Check documentElement.scrollWidth - innerWidth. Student id for detail pages: 372fcdd9-ac53-40f8-a44f-f1fb8d510b93. The super admin can reach /my-ledger, but it redirects to /. Office admin '/' shows the office overview page with Lead CRM and Admissions tabs, not the hero with Quick entry/QR. The admin has no Attendance check-in tab; the office admin does. Mobile PIN prompt: click 'Skip for now'. The browser tool rewrites screenshot paths, so use simple literal filenames."
+}

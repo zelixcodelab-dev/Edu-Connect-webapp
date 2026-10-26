@@ -6,7 +6,7 @@ function Tile({ label, value, tone, hint, "data-testid": tid }) {
   return (
     <Card className="p-4 border border-border bg-card rounded-lg shadow-none" data-testid={tid}>
       <p className="label-eyebrow">{label}</p>
-      <p className={`font-display text-2xl mt-2 tabular-nums ${tone === "success" ? "text-emerald-700 dark:text-emerald-400" : tone === "danger" ? "text-rose-700 dark:text-rose-400" : "text-foreground"}`}>{value}</p>
+      <p className={`font-display text-lg sm:text-2xl mt-2 tabular-nums break-words ${tone === "success" ? "text-emerald-700 dark:text-emerald-400" : tone === "danger" ? "text-rose-700 dark:text-rose-400" : "text-foreground"}`}>{value}</p>
       {hint && <p className="text-[11px] text-muted-foreground mt-1.5">{hint}</p>}
     </Card>
   );

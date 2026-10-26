@@ -174,7 +174,7 @@ function SuperAdminDashboard() {
     <div className="space-y-7 animate-fade-in" data-testid="dashboard-page">
       <AnnouncementBanners />
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5" data-testid="dashboard-hero">
-        <div className="relative overflow-hidden rounded-[28px] bg-card px-7 py-8 sm:px-9 min-h-[230px] flex items-center">
+        <div className="relative overflow-hidden rounded-[28px] bg-card p-6 min-h-[230px] flex items-center">
           <div className="relative z-[1] max-w-[440px]">
             <p className="label-eyebrow">{greeting}</p>
             <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight mt-2" data-testid="dashboard-greeting">

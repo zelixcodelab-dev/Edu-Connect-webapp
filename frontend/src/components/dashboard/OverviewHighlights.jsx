@@ -52,7 +52,7 @@ export function TrendingRow() {
   if (!d) return <div className="grid sm:grid-cols-3 gap-3">{[0, 1, 2].map((i) => <div key={i} className="h-[168px] rounded-[22px] bg-card animate-pulse" />)}</div>;
   const n = (c) => `${c} admission${c === 1 ? "" : "s"} closed`;
   return (
-    <div className="grid sm:grid-cols-3 gap-3 dash-stagger" data-testid="trending-row">
+    <div className="grid sm:grid-cols-3 gap-4 dash-stagger" data-testid="trending-row">
       <TrendCard tid="trend-course" icon={GraduationCap} eyebrow="Top course" data={d.top_course} sub={d.top_course && n(d.top_course.count)} to="/students" />
       <TrendCard tid="trend-college" icon={Buildings} eyebrow="Top college" data={d.top_college} sub={d.top_college && n(d.top_college.count)} to="/colleges" dark />
       <TrendCard tid="trend-closer" icon={Trophy} eyebrow="Best closer" data={d.best_closer} faceUrl={d.best_closer?.photo_url || ""}
@@ -106,7 +106,7 @@ export function TeamStrip({ role }) {
   }, [members, measure]);
   const scroll = (dir) => scroller.current?.scrollBy({ left: dir * 220, behavior: "smooth" });
   return (
-    <div className="rounded-[22px] bg-card p-4" data-testid="team-strip">
+    <div className="rounded-[22px] bg-card p-5" data-testid="team-strip">
       <div className="flex items-center justify-between mb-3">
         <p className="font-display text-sm font-semibold">Team</p>
         <Link to={role === "super_admin" ? "/users" : "/employees"} className="text-xs text-muted-foreground hover:text-foreground" data-testid="team-view-all">View all</Link>

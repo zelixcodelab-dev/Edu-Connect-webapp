@@ -429,3 +429,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - routers/offices.py: GET /api/offices, GET/POST /api/offices/requests (super_admin); platform: PUT /api/platform/tenants/{id}/offices, GET /api/platform/office-requests, POST /api/platform/office-requests/{id}/approve|reject (atomic claim). Offices never deleted, only hidden.
 - Frontend: lib/offices.js live lists (setTenantOffices in BrandingSync); all hardcoded KM/HEAD_OFFICE lists + `.replace("KM_","KM ")` labels replaced by officeName(). Office overview: name heading + Select switcher only when 2+ offices. Platform: BranchRequestsStrip on clients page, ClientOffices card on client detail, OfficeNamesInput in New client dialog. Tenant Settings: OfficesSettings (request a branch).
 - Known: Platform clients table at 1920 has many columns (horizontal scroll) — pre-existing.
+
+## 2026-06 — Global spacing system for company pages (iteration_16.json audit + follow-ups)
+- index.css (end): tokens on .mobile-pad — page gap 24/28px, card pad 20/24px (p-5..p-8), tile pad 16/20px (p-4 cards), empty states 28/40px, card grid gaps 16/20px (incl. gap-3 grids of cards via :has), page/tab level space-y-4/5 normalised. Mobile = <640px.
+- Overview hero p-6, trending gap-4, team strip p-5; hero buttons 2-col on mobile; student summary tile values text-lg on mobile.
+- Left as-is (dense by design): attendance board rows p-3, regularize calendar gaps, form field stacks.

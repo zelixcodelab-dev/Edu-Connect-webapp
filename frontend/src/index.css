@@ -756,3 +756,13 @@ html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { ac
 :where(.mobile-pad) :is(.p-10, .p-12, .py-12, .py-16):not([class*="px-"]) { padding: var(--empty-pad); }
 /* Gaps between cards */
 :where(.mobile-pad) :is(.grid, .flex):is(.gap-4, .gap-5, .gap-6, .gap-8, .sm\:gap-5, .sm\:gap-6, .lg\:gap-6, .lg\:gap-8) { gap: var(--grid-gap); }
+:where(.mobile-pad) .grid.gap-3:has(> :is(.card-premium, [class*="rounded-xl"][class*="border"], [class*="rounded-2xl"], [class*="rounded-lg"][class*="border"])) { gap: var(--grid-gap); }
+/* Page/tab level stacks that used smaller steps */
+:where(.mobile-pad) > :is(.space-y-4, .space-y-5) > :not([hidden]) ~ :not([hidden]),
+:where(.mobile-pad) [role="tabpanel"] > :is(.space-y-4, .space-y-5) > :not([hidden]) ~ :not([hidden]),
+:where(.mobile-pad) [role="tabpanel"]:is(.space-y-4, .space-y-5) > :not([hidden]) ~ :not([hidden]) { margin-top: var(--page-gap); }
+:where(.mobile-pad) [role="tabpanel"]:is(.mt-4, .mt-5, .mt-6) { margin-top: var(--page-gap); }
+/* Compact cards and stat tiles */
+.mobile-pad { --tile-pad: 1rem; }
+@media (min-width: 640px) { .mobile-pad { --tile-pad: 1.25rem; } }
+:where(.mobile-pad) :is(.card-premium, [class*="rounded-xl"][class*="border"], [class*="rounded-2xl"][class*="border"], [class*="rounded-lg"][class*="border"]):is(.p-4, .sm\:p-5):not(button):not(a):not(input):not([class*="px-"]):not([class*="py-"]) { padding: var(--tile-pad); }
