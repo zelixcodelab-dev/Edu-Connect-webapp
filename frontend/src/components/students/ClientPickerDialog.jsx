@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MagnifyingGlass, UserCircle, X } from "@phosphor-icons/react";
 import { CLIENT_TYPES, clientTypeLabel } from "@/pages/Clients";
+import { officeName } from "@/lib/offices";
 
 export default function ClientPickerDialog({
   open,
@@ -90,7 +91,7 @@ export default function ClientPickerDialog({
                       <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
                       <p className="text-[11px] text-muted-foreground">
                         {clientTypeLabel(c.client_type)}
-                        {c.client_type === "staff" && c.office ? ` · ${c.office.replace("KM_", "KM ")}` : ""}
+                        {c.client_type === "staff" && c.office ? ` · ${officeName(c.office)}` : ""}
                         {c.company ? ` · ${c.company}` : ""}
                       </p>
                     </div>

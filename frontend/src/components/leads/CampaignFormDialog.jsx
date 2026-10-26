@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CaretLeft, CaretRight, FloppyDisk, Rocket, UploadSimple, Sparkle } from "@phosphor-icons/react";
 import { liveList, getOffices } from "@/lib/offices";
+import { officeName } from "@/lib/offices";
 
 const OFFICES = liveList(() => getOffices().map((o) => [o.code, o.name]));
 const TAG_TYPES = [["none", "No tag"], ["course", "Course"], ["place", "Place"], ["source", "Source"]];
@@ -357,7 +358,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
                   <SelectContent>
                     <SelectItem value="__none">No owner assigned</SelectItem>
                     {admins.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} · {a.role === "super_admin" ? "Super Admin" : (a.office || "").replace("KM_", "KM ")}</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.name} · {a.role === "super_admin" ? "Super Admin" : officeName(a.office)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -379,7 +380,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Office: <span className="text-foreground font-medium">{(form.office || "").replace("KM_", "KM ")}</span>
+              Office: <span className="text-foreground font-medium">{officeName(form.office)}</span>
             </p>
           </div>
           <DialogFooter className="gap-2">
@@ -508,7 +509,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input value={(form.office || "").replace("KM_", "KM ")} disabled className="bg-muted" data-testid="campaign-office-locked" />
+                  <Input value={officeName(form.office)} disabled className="bg-muted" data-testid="campaign-office-locked" />
                 )}
               </div>
               <div className="space-y-1.5">
@@ -519,7 +520,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
                     <SelectItem value="__none">No owner</SelectItem>
                     {admins.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.name} · {a.role === "super_admin" ? "Super Admin" : (a.office || "").replace("KM_", "KM ")}
+                        {a.name} · {a.role === "super_admin" ? "Super Admin" : officeName(a.office)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -647,7 +648,7 @@ export default function CampaignFormDialog({ open, onOpenChange, onSaved, user, 
               {(form.start_date || form.end_date) && (
                 <SummaryRow label="Schedule" value={`${form.start_date || "—"} → ${form.end_date || "—"}`} />
               )}
-              <SummaryRow label="Office" value={(form.office || "").replace("KM_", "KM ")} />
+              <SummaryRow label="Office" value={officeName(form.office)} />
               <SummaryRow label="Owner" value={ownerLabel} />
               <SummaryRow label="Distribution" value={`${DISTRIBUTE_METHODS.find((m) => m[0] === form.distribute_method)?.[1] || "—"} · ${form.employee_ids.length} staff`} />
               {csvFile && <SummaryRow label="CSV file" value={csvFile.name} />}

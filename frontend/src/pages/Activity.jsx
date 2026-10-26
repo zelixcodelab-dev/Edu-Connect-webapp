@@ -10,6 +10,7 @@ import {
   ClockCounterClockwise, ArrowClockwise, MagnifyingGlass, User, Target,
   Megaphone, ChatCircleDots, Trash, UploadSimple, PencilSimple, CheckCircle,
 } from "@phosphor-icons/react";
+import { officeName } from "@/lib/offices";
 
 /** Icon + palette for each supported event type. */
 const EVENT_META = {
@@ -228,7 +229,7 @@ export default function Activity() {
                         {ev.note && <p className="text-xs text-muted-foreground mt-0.5">{ev.note}</p>}
                         <p className="text-[10px] text-muted-foreground mt-1">
                           {fmtRelative(ev.at)}
-                          {ev.actor_office ? ` · ${ev.actor_office.replace("KM_", "KM ")}` : ""}
+                          {ev.actor_office ? ` · ${officeName(ev.actor_office)}` : ""}
                           {restored && (
                             <>
                               {" · "}

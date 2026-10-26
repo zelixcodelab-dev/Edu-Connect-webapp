@@ -32,6 +32,7 @@ import {
   ArrowSquareOut,
   CheckCircle,
 } from "@phosphor-icons/react";
+import { officeName } from "@/lib/offices";
 
 const WINDOWS = [
   ["live", "Live"],
@@ -269,7 +270,7 @@ export default function StaffPerformancePanel({ officeOverride = "all" }) {
                   <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
                   <p className="text-[11px] text-muted-foreground">
                     {s.role === "office_admin" ? "Office Admin" : "Staff"}
-                    {s.office && <> · {(s.office || "").replace("KM_", "KM ")}</>}
+                    {s.office && <> · {officeName(s.office)}</>}
                   </p>
                 </div>
                 <div className="hidden sm:flex items-center gap-3 shrink-0">

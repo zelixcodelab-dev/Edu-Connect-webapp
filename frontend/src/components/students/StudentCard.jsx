@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, GraduationCap, Buildings, UserCircle, IdentificationCard, CurrencyInr } from "@phosphor-icons/react";
 import { formatMoney } from "@/lib/format";
+import { officeName } from "@/lib/offices";
 
 const STATUS_STYLES = {
   inquiry: "bg-muted text-foreground",
@@ -74,7 +75,7 @@ export default function StudentCard({ s, currency, isSuper, selectable, selected
 
         {isSuper && s._creator_office && (
           <div className="mt-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-orange-100/60 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 self-start" data-testid={`st-creator-${s.id}`}>
-            <Buildings size={11} weight="duotone" /> {s._creator_office.replace("KM_", "KM ")} · {s._creator_name}
+            <Buildings size={11} weight="duotone" /> {officeName(s._creator_office)} · {s._creator_name}
           </div>
         )}
 

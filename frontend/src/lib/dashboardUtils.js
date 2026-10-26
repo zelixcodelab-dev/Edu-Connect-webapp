@@ -1,3 +1,4 @@
+import { officeName } from "@/lib/offices";
 // Pure utilities + token maps used by the Dashboard overview tiles.
 // Extracted from Dashboard.jsx to keep the page slim.
 
@@ -132,9 +133,9 @@ export const STATUS_BADGE = {
 export const CLIENT_TYPE_LABEL = {
   sub_agent_associate: "Sub Agent / Associate",
   associate_consultant: "Associate Consultant",
-  km_blr_office: "KM BLR Office",
-  km_tcr_office: "KM TCR Office",
-  km_kmly_office: "KM KMLY Office",
+  get km_blr_office() { return `${officeName("KM_BLR")} Office`; },
+  get km_tcr_office() { return `${officeName("KM_TCR")} Office`; },
+  get km_kmly_office() { return `${officeName("KM_KMLY")} Office`; },
 };
 
 export const LEDGER_TYPE_LABEL = { sub_agent: "Sub Agent", associate: "Associate", km: "KM" };

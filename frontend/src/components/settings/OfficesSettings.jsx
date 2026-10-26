@@ -18,7 +18,10 @@ export default function OfficesSettings() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", note: "" });
   const [busy, setBusy] = useState(false);
-  const load = () => api.get("/offices/requests").then((r) => setReqs(r.data.items || [])).catch(() => {});
+  const load = () => api.get("/offices/requests").then((r) => {
+    const items = r.data.items || [];
+    setReqs([...items.filter((i) => i.status === "pending"), ...items.filter((i) => i.status !== "pending").slice(0, 3)]);
+  }).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const submit = async () => {

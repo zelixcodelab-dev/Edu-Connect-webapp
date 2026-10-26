@@ -14,15 +14,19 @@ import { Plus, PencilSimple, Trash, EnvelopeSimple, Phone, Buildings, Cake, Curr
 import { toast } from "sonner";
 import OfficeStaff from "@/pages/OfficeStaff";
 import { officeOptions } from "@/lib/offices";
+import { officeName, liveList, getOffices } from "@/lib/offices";
 
-export const CLIENT_TYPES = [
+// Legacy "office as account" types map to an office code; labelled with the
+// company's office name and only offered while that office is active.
+const OFFICE_TYPE_CODE = { km_blr_office: "KM_BLR", km_tcr_office: "KM_TCR", km_kmly_office: "KM_KMLY" };
+export const CLIENT_TYPES = liveList(() => [
   { value: "staff", label: "Our Staff" },
   { value: "sub_agent_associate", label: "Sub Agent / Associate" },
   { value: "associate_consultant", label: "Associate Consultant" },
-  { value: "km_blr_office", label: "KM BLR Office" },
-  { value: "km_tcr_office", label: "KM TCR Office" },
-  { value: "km_kmly_office", label: "KM KMLY Office" },
-];
+  ...Object.entries(OFFICE_TYPE_CODE).map(([value, code]) => ({
+    value, label: `${officeName(code)} Office`, inactive: !getOffices().some((o) => o.code === code),
+  })),
+]);
 
 // Page scoping: "Employees" shows staff + KM offices; "Clients" shows the
 // routing partners (sub-agents / associate consultants).
@@ -111,7 +115,7 @@ function SuperAdminPeople({ pageScope }) {
   };
 
   const visibleTypes = useMemo(
-    () => CLIENT_TYPES.filter((t) => scopeTypes.includes(t.value)),
+    () => CLIENT_TYPES.filter((t) => scopeTypes.includes(t.value) && !t.inactive),
     [scopeTypes]
   );
 
@@ -243,7 +247,7 @@ function SuperAdminPeople({ pageScope }) {
             {isEmployees ? "Employees" : "Clients"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isEmployees ? "Staff & KM office accounts." : "Sub-agents & associate consultants."}
+            {isEmployees ? "Staff & office accounts." : "Sub-agents & associate consultants."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -519,7 +523,7 @@ function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin
           <div>
             <p className="font-medium">{c.name}</p>
             {c.company && <p className="text-xs text-muted-foreground flex items-center gap-1"><Buildings size={12} /> {c.company}</p>}
-            {c.client_type === "staff" && c.office && <p className="text-xs text-muted-foreground flex items-center gap-1"><Buildings size={12} /> {c.office.replace("KM_", "KM ")}</p>}
+            {c.client_type === "staff" && c.office && <p className="text-xs text-muted-foreground flex items-center gap-1"><Buildings size={12} /> {officeName(c.office)}</p>}
           </div>
         </div>
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -533,7 +537,7 @@ function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin
         </span>
         {c._creator_office && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider bg-orange-100/60 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400" data-testid={`cli-creator-${c.id}`}>
-            <Buildings size={11} weight="duotone" /> {c._creator_office.replace("KM_", "KM ")}
+            <Buildings size={11} weight="duotone" /> {officeName(c._creator_office)}
           </span>
         )}
       </div>

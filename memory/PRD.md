@@ -422,3 +422,10 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 
 ## 2026-06 — Fix: staff photo leaking to super admin (iteration_14.json, 7/7 pass)
 - Photo lookup legacy fallback (clients.user_id owner match) now only for role=staff and rows without login_user_id (routers/auth.py + lib/user_photo.py).
+
+## 2026-06 — Per-client offices / branch requests (backend iteration15 pytest 17/17; frontend iteration_15.json pass + follow-ups fixed)
+- Tenant registry `offices: [{code,name,active}]` (lib/offices.py). New client: offices names (first code HQ, default = company name). Startup backfill: legacy KM tenants keep KM_BLR (renamed company name) active, KM_TCR/KM_KMLY hidden.
+- auth login/me return active `offices`; office validated on user/staff/campaign/client create (require_office).
+- routers/offices.py: GET /api/offices, GET/POST /api/offices/requests (super_admin); platform: PUT /api/platform/tenants/{id}/offices, GET /api/platform/office-requests, POST /api/platform/office-requests/{id}/approve|reject (atomic claim). Offices never deleted, only hidden.
+- Frontend: lib/offices.js live lists (setTenantOffices in BrandingSync); all hardcoded KM/HEAD_OFFICE lists + `.replace("KM_","KM ")` labels replaced by officeName(). Office overview: name heading + Select switcher only when 2+ offices. Platform: BranchRequestsStrip on clients page, ClientOffices card on client detail, OfficeNamesInput in New client dialog. Tenant Settings: OfficesSettings (request a branch).
+- Known: Platform clients table at 1920 has many columns (horizontal scroll) — pre-existing.

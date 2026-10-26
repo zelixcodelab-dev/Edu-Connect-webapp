@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend E2E of per-client offices / branch requests. Verified: owner /platform/clients branch-requests-strip hidden when 0 pending, shown with Approve/Decline when pending; New client dialog offices inputs (placeholder=company name, add/remove rows, no remove btn with 1 row) -> created TEST Offices Co with 2 offices, detail Overview client-offices listed both, then deleted via UI; ZELIX detail card shows rows with Active/Hidden switches, approve from card appends new row (active) and persists after reload; Save offices disabled when not dirty. Tenant admin Settings offices-settings lists only active offices; Request-a-branch dialog sends request, 'Waiting for approval' status shown; existing office name (case-insensitive, also hidden 'Kochi Branch') and duplicate pending (case-insensitive) return 409 and show error toast ('Didn't go through' + detail). After approval + re-login: offices list shows both, /office-overview shows office-switcher with both, switching updates heading; with 1 active office no switcher; no KM pill buttons. Office admin eyebrow = 'ZELIX VENTURES · office'. Office dropdowns verified showing only active office names: Users create (cu-office), Employees office (cli-office), Clients/Employees home office (cli-home-office), Campaign wizard step2 (campaign-office-select), Compose (compose-aud-office), Attendance (board-office), Leads (crm-office-switcher). CLEANUP done: TEST Calicut Branch hidden + saved, only KM_BLR 'ZELIX VENTURES' active, 0 pending requests, test client deleted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CampaignFormDialog (office admin, step 2)", "issue": "Locked target office shows raw code transformed 'KM BLR' instead of office name 'ZELIX VENTURES' (uses (form.office).replace('KM_','KM ')). Use officeName(form.office).", "selector": "[data-testid='campaign-office-locked']", "priority": "MEDIUM"},
+      {"component": "Clients.jsx CLIENT_TYPES (Employees add dialog Type select)", "issue": "Type select still offers hardcoded 'KM BLR Office / KM TCR Office / KM KMLY Office' (client_type km_*_office). Also Dashboard.jsx CLIENT_TYPES, dashboardUtils.js, clientStatementPdf.js, AdmissionRevenue.jsx keep KM labels.", "selector": "[data-testid='cli-type']", "priority": "MEDIUM"},
+      {"component": "WhosInBoard (Attendance Who's in)", "issue": "Group heading shows raw office code 'KM_BLR' instead of office name (renders {off}). Use officeName(off).", "selector": "[data-testid^='board-group-']", "priority": "LOW"},
+      {"component": "OverviewHighlights TeamStrip member detail", "issue": "Renders {member.office} raw code (code review, not visually verified).", "selector": "components/dashboard/OverviewHighlights.jsx:81", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Platform /platform/clients table", "issues": ["At 1920 viewport the table overflows its container horizontally: Actions column (delete icon) clipped and after an action the table scrolls so 'Company' header is cut ('mpany')."]},
+      {"screen": "Tenant Settings > Offices & branches", "issues": ["Requests list shows 'Approved' for branches that are now hidden (Kochi Branch, TEST Calicut Branch) and not in offices list – confusing; consider showing 'Removed by provider' or hiding old approved/declined items. List grows unbounded with declined history."]},
+      {"screen": "Platform client detail Offices card", "issues": ["Input width shifts slightly between 'Active' and 'Hidden' rows because label text width differs (give label a fixed width)."]},
+      {"screen": "Tenant sidebar logo", "issues": ["Sidebar logo intermittently renders default 'C' brand logo instead of ZELIX 'Z' logo across page loads (branding flicker)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CampaignFormDialog: replace (form.office||'').replace('KM_','KM ') with officeName(form.office)",
+    "Remove/rename hardcoded KM BLR/TCR/KMLY client types in Clients.jsx CLIENT_TYPES & EMPLOYEE_PAGE_TYPES (and Dashboard.jsx, dashboardUtils.js, clientStatementPdf.js, AdmissionRevenue.jsx labels) or derive from tenant offices",
+    "WhosInBoard group heading & OverviewHighlights member.office: display officeName(code)",
+    "Fix platform clients table horizontal overflow at desktop widths",
+    "Clarify status of approved-but-hidden branch requests in tenant Settings"
+  ],
+  "critical_code_review_comments": [
+    "StaffMembers.jsx is not imported anywhere (dead code) - remove or wire up",
+    "OfficeDashboard office state initialised once from getOffices()[0]; if offices change in-session (hidden/added) the selected code can become stale until remount",
+    "Tenant offices only refresh on login/auth me; an office hidden by owner stays visible in an open tenant session until reload"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "92% - all requested flows pass; 1 office label bug (campaign locked office) + leftover KM client types"},
+  "seed_data_creation": "Created & deleted client 'TEST Offices Co'. Created branch request 'TEST Calicut Branch' for ZELIX, approved, then hidden (office code remains as inactive row).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "ZELIX tenant id 3b5e3f1f-dba9-4a89-a201-c2fdb24372ef. Offices: KM_BLR 'ZELIX VENTURES' active; KM_TCR, KM_KMLY, KOCHI_BRANCH, TEST Calicut Branch hidden. 0 pending requests. App error toasts use a custom centered overlay ('Didn't go through'), not sonner DOM. Campaign office select is on wizard step 2 (fill campaign-name-input, click campaign-next-btn). Compose office select appears only after choosing 'All Office Admins' in compose-aud-role."
+}

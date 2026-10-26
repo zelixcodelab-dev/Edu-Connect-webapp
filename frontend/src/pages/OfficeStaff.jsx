@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { officeOptions } from "@/lib/offices";
+import { officeName } from "@/lib/offices";
 
 const OFFICES = officeOptions();
 
@@ -179,7 +180,7 @@ export default function OfficeStaff() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium truncate">{r.name}</p>
-                    {r.office && <p className="text-xs text-muted-foreground flex items-center gap-1"><Buildings size={12} /> {r.office.replace("KM_", "KM ")}</p>}
+                    {r.office && <p className="text-xs text-muted-foreground flex items-center gap-1"><Buildings size={12} /> {officeName(r.office)}</p>}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">

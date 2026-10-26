@@ -15,6 +15,7 @@ import StaffQuotaDialog from "@/components/leave/StaffQuotaDialog";
 import ClientTxnDialog from "@/components/ClientTxnDialog";
 import InvoiceCreateDialog from "@/components/InvoiceCreateDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { officeName } from "@/lib/offices";
 
 const TYPE_BADGE = {
   staff: "bg-orange-100/60 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400",
@@ -112,12 +113,12 @@ export default function ClientDetail() {
                 )}
                 {c._creator_office && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-100/60 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 uppercase tracking-wider">
-                    <Buildings size={11} weight="duotone" /> {c._creator_office.replace("KM_", "KM ")}
+                    <Buildings size={11} weight="duotone" /> {officeName(c._creator_office)}
                   </span>
                 )}
                 {isStaff && c.office && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted text-foreground uppercase tracking-wider">
-                    <Buildings size={11} weight="duotone" /> {c.office.replace("KM_", "KM ")}
+                    <Buildings size={11} weight="duotone" /> {officeName(c.office)}
                   </span>
                 )}
               </div>

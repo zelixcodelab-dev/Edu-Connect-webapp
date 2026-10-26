@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api, { formatApiError } from "@/lib/api";
+import { officeName } from "@/lib/offices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,7 +183,7 @@ export default function LeadFormDialog({ open, onOpenChange, lead, assignable, u
                   <SelectItem value="none">Unassigned / me</SelectItem>
                   {(assignable || []).map((u) => (
                     <SelectItem key={u.id} value={u.id} data-testid={`assignee-opt-${u.id}`}>
-                      {u.name} · {u.role === "staff" ? "Staff" : "Office admin"}{u.office ? ` · ${u.office.replace("KM_", "")}` : ""}
+                      {u.name} · {u.role === "staff" ? "Staff" : "Office admin"}{u.office ? ` · ${officeName(u.office)}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

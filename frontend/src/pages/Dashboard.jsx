@@ -32,6 +32,7 @@ import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
 import { ChartTooltip, activePieShape, usePieActive, CHART_CURSOR, CHART_CURSOR_LINE } from "@/components/dashboard/ChartInteractions";
 import { TxList, StudentList, ClientList, LedgerList } from "@/components/dashboard/OverviewLists";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
+import { officeName } from "@/lib/offices";
 
 const TILES = [
   { key: "transactions", label: "Accounts", icon: Receipt, palette: "amber" },
@@ -623,9 +624,9 @@ function StudentsOverview({ students, currency, range }) {
 const CLIENT_TYPES = [
   { value: "sub_agent_associate", label: "Sub Agent / Associate", short: "Sub / Assoc.", color: "#7c3aed" },
   { value: "associate_consultant", label: "Associate Consultant", short: "Consultant", color: "#d97706" },
-  { value: "km_blr_office", label: "KM BLR Office", short: "KM BLR", color: "#059669" },
-  { value: "km_tcr_office", label: "KM TCR Office", short: "KM TCR", color: "#0284c7" },
-  { value: "km_kmly_office", label: "KM KMLY Office", short: "KM KMLY", color: "#e11d48" },
+  { value: "km_blr_office", get label() { return `${officeName("KM_BLR")} Office`; }, get short() { return officeName("KM_BLR"); }, color: "#059669" },
+  { value: "km_tcr_office", get label() { return `${officeName("KM_TCR")} Office`; }, get short() { return officeName("KM_TCR"); }, color: "#0284c7" },
+  { value: "km_kmly_office", get label() { return `${officeName("KM_KMLY")} Office`; }, get short() { return officeName("KM_KMLY"); }, color: "#e11d48" },
 ];
 
 function ClientsOverview({ clients, students }) {
@@ -717,12 +718,12 @@ function ClientsOverview({ clients, students }) {
 
               {/* KM offices breakdown */}
               <div className="mt-5 pt-4 border-t border-border/60" data-testid="km-breakdown">
-                <p className="label-eyebrow mb-2">KM offices</p>
+                <p className="label-eyebrow mb-2">Office accounts</p>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: "BLR", value: stats.counts.km_blr_office, color: "#059669" },
-                    { label: "TCR", value: stats.counts.km_tcr_office, color: "#0284c7" },
-                    { label: "KMLY", value: stats.counts.km_kmly_office, color: "#e11d48" },
+                    { label: officeName("KM_BLR"), value: stats.counts.km_blr_office, color: "#059669" },
+                    { label: officeName("KM_TCR"), value: stats.counts.km_tcr_office, color: "#0284c7" },
+                    { label: officeName("KM_KMLY"), value: stats.counts.km_kmly_office, color: "#e11d48" },
                   ].map((k) => (
                     <div key={k.label} className="rounded-md bg-muted/40 p-2 text-center" data-testid={`km-${k.label.toLowerCase()}`}>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{k.label}</p>

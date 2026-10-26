@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import api, { formatApiError } from "@/lib/api";
+import { officeName } from "@/lib/offices";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -120,7 +121,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
                     <span className="flex-1 min-w-0 truncate">
                       <span className="text-foreground font-medium">{r.name || "—"}</span>
                       <span className="text-muted-foreground">
-                        {r.status ? ` · ${r.status}` : ""}{r.date ? ` · ${r.date}` : ""}{r.college ? ` · ${r.college}` : ""}{r.office ? ` · ${String(r.office).replace("KM_", "KM ")}` : ""}
+                        {r.status ? ` · ${r.status}` : ""}{r.date ? ` · ${r.date}` : ""}{r.college ? ` · ${r.college}` : ""}{r.office ? ` · ${officeName(r.office)}` : ""}
                         {r.message ? ` · ${r.message}` : ""}
                       </span>
                     </span>

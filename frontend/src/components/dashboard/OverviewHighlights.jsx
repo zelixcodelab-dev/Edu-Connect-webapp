@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { GraduationCap, Buildings, Trophy, CaretRight, CaretLeft, EnvelopeSimple, Phone, MapPin, BellRinging, FileText, ChatCircleDots, UserMinus } from "@phosphor-icons/react";
 import api from "@/lib/api";
+import { officeName } from "@/lib/offices";
 import AuthedImage from "@/components/AuthedImage";
 import ApplicationsReviewDialog from "@/components/dashboard/ApplicationsReviewDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -78,7 +79,7 @@ function ProfileDialog({ member, onClose }) {
             <div className="space-y-2 text-sm">
               {member.email && <p className="flex items-center gap-2"><EnvelopeSimple size={15} className="text-muted-foreground" /><a href={`mailto:${member.email}`} className="hover:underline truncate">{member.email}</a></p>}
               {member.phone && <p className="flex items-center gap-2"><Phone size={15} className="text-muted-foreground" />{member.phone}</p>}
-              {member.office && <p className="flex items-center gap-2"><MapPin size={15} className="text-muted-foreground" />{member.office}</p>}
+              {member.office && <p className="flex items-center gap-2"><MapPin size={15} className="text-muted-foreground" />{officeName(member.office)}</p>}
             </div>
           </>
         )}

@@ -17,6 +17,7 @@ import PinLock from "@/components/PinLock";
 import CollegeCoursesDrilldown from "@/components/admission-revenue/CollegeCoursesDrilldown";
 import { useNavigate } from "react-router-dom";
 import { liveMap } from "@/lib/offices";
+import { officeName } from "@/lib/offices";
 
 /** Wrapper: gate the whole dashboard behind a 4-digit PIN (per super admin,
  * per browser-tab session). Non-super-admin fall-through renders the
@@ -469,9 +470,9 @@ const CLIENT_TYPE_LABEL = {
   associate_consultant: "Associate Consultant",
   sub_agent_associate: "Sub / Associate",
   staff: "Staff",
-  km_blr_office: "KM BLR Office",
-  km_tcr_office: "KM TCR Office",
-  km_kmly_office: "KM KMLY Office",
+  get km_blr_office() { return `${officeName("KM_BLR")} Office`; },
+  get km_tcr_office() { return `${officeName("KM_TCR")} Office`; },
+  get km_kmly_office() { return `${officeName("KM_KMLY")} Office`; },
 };
 const CLIENT_TYPE_TONE = {
   associate_consultant: "bg-amber-500/12 text-amber-800 dark:text-amber-300 border-amber-500/40",

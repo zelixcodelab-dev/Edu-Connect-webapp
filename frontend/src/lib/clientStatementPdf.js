@@ -4,14 +4,15 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoneyForPdf as formatMoney, formatDate } from "@/lib/format";
+import { officeName } from "@/lib/offices";
 
 const CLIENT_TYPE_LABEL = {
   staff: "Staff",
   sub_agent_associate: "Sub Agent / Associate",
   associate_consultant: "Associate Consultant",
-  km_blr_office: "KM BLR Office",
-  km_tcr_office: "KM TCR Office",
-  km_kmly_office: "KM KMLY Office",
+  get km_blr_office() { return `${officeName("KM_BLR")} Office`; },
+  get km_tcr_office() { return `${officeName("KM_TCR")} Office`; },
+  get km_kmly_office() { return `${officeName("KM_KMLY")} Office`; },
 };
 
 const STATUS_LABEL = {
@@ -40,7 +41,7 @@ function _drawHeader(doc, { title, eyebrow, client, user }) {
   doc.setFontSize(11);
   doc.setTextColor(28, 25, 23);
   doc.text(
-    user?.business_name || user?.name || "KM Connet",
+    user?.business_name || user?.tenant_name || user?.name || "",
     pageWidth - margin,
     70,
     { align: "right" }
@@ -68,7 +69,7 @@ function _drawHeader(doc, { title, eyebrow, client, user }) {
   doc.setTextColor(120, 113, 108);
   const sub = [
     CLIENT_TYPE_LABEL[client?.client_type] || "",
-    client?.office ? client.office.replace("KM_", "KM ") : "",
+    client?.office ? officeName(client.office) : "",
     client?.company,
   ].filter(Boolean).join(" · ");
   if (sub) doc.text(sub, margin, y);

@@ -3,7 +3,7 @@ import api, { formatApiError } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowsClockwise, Circle } from "@phosphor-icons/react";
-import { officeOptions } from "@/lib/offices";
+import { officeOptions, officeName } from "@/lib/offices";
 
 const OFFICES = officeOptions([{ value: "all", label: "All offices" }]);
 
@@ -94,7 +94,7 @@ export default function WhosInBoard({ user }) {
       ) : (
         Object.entries(grouped).map(([off, rows]) => (
           <div key={off}>
-            {isSuper && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{off}</p>}
+            {isSuper && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{officeName(off)}</p>}
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" data-testid={`board-group-${off}`}>
               {rows.map((r) => {
                 const meta = STATE_META[r.state] || STATE_META.absent;

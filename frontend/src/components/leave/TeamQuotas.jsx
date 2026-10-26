@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PencilSimple, Buildings, UsersThree } from "@phosphor-icons/react";
 import StaffQuotaDialog from "./StaffQuotaDialog";
+import { officeName } from "@/lib/offices";
 
 const ROLE_LABEL = { staff: "Staff", office_admin: "Office Admin", super_admin: "Super Admin" };
-const officeLabel = (o) => (o ? o.replace("KM_", "KM ") : "—");
+const officeLabel = (o) => (o ? officeName(o) : "—");
 
 function QuotaChips({ q }) {
   const items = [

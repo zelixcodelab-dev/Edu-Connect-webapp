@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { Plus, IdentificationBadge, Eye, EyeSlash, Key, Trash, EnvelopeSimple } from "@phosphor-icons/react";
 import { officeOptions } from "@/lib/offices";
+import { officeName } from "@/lib/offices";
 
 const OFFICES = officeOptions();
 
@@ -129,7 +130,7 @@ export default function StaffMembers() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground truncate">{s.name}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><EnvelopeSimple size={12} /> {s.email}</p>
-                  {s.office && <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s.office.replace("KM_", "KM ")}</span>}
+                  {s.office && <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{officeName(s.office)}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
@@ -183,7 +184,7 @@ export default function StaffMembers() {
                 </Select>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Office: <span className="text-foreground font-medium">{(user?.office || "").replace("KM_", "KM ")}</span> (your office)</p>
+              <p className="text-xs text-muted-foreground">Office: <span className="text-foreground font-medium">{officeName(user?.office)}</span> (your office)</p>
             )}
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
