@@ -1680,6 +1680,36 @@ async def update_visit(lead_id: str, payload: VisitUpdate, user: dict = Depends(
 
 
 # ---------- follow-ups ----------
+CALL_OUTCOMES = {
+    "connected": "Connected", "no_answer": "No answer", "busy": "Busy",
+    "call_back": "Call back later", "wrong_number": "Wrong number",
+}
+
+
+class CallLogIn(BaseModel):
+    outcome: str
+    note: Optional[str] = Field(default="", max_length=1000)
+    phone: Optional[str] = Field(default="", max_length=40)
+
+
+@router.post("/{lead_id}/call-log", status_code=201)
+async def log_call(lead_id: str, payload: CallLogIn, user: dict = Depends(require_edit("leads"))):
+    if payload.outcome not in CALL_OUTCOMES:
+        raise HTTPException(400, "Unknown call outcome")
+    lead = await db.leads.find_one({**_scope_filter(user), "id": lead_id}, {"_id": 0, "status": 1})
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+    label = CALL_OUTCOMES[payload.outcome]
+    note = (payload.note or "").strip()
+    ev = _status_event(lead["status"], lead["status"], user, note=f"Call · {label}" + (f" — {note}" if note else ""),
+                       metadata={"call": {"outcome": payload.outcome, "phone": (payload.phone or "").strip()}})
+    now = now_iso()
+    await db.leads.update_one({"id": lead_id}, {"$push": {"status_history": ev},
+                                                "$set": {"last_call_at": now, "last_call_outcome": payload.outcome, "updated_at": now}})
+    doc = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    return doc
+
+
 @router.post("/{lead_id}/followups", status_code=201)
 async def add_followup(lead_id: str, payload: FollowUpIn, user: dict = Depends(require_edit("leads"))):
     lead = await db.leads.find_one({**_scope_filter(user), "id": lead_id})

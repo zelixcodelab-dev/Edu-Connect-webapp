@@ -19,6 +19,7 @@ import LeadJourney from "./LeadJourney";
 import LeadAttachments from "./LeadAttachments";
 import StageChangeDialog from "./StageChangeDialog";
 import UserAvatar from "@/components/UserAvatar";
+import { CallLogDialog, useCallPrompt } from "./CallLogDialog";
 
 function InfoRow({ icon: Icon, children }) {
   if (!children) return null;
@@ -89,6 +90,8 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
       api.get("/users/assignable").then(({ data }) => setColleagues(data)).catch(() => {});
     }
   }, [open, editable]);
+
+  const { startCall, prompt: callPrompt, closePrompt } = useCallPrompt();
 
   if (!local) return null;
   const meta = LEAD_STATUS_META[local.status] || LEAD_STATUS_META.new;
@@ -236,12 +239,12 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <InfoRow icon={Phone}>{local.phone && <a href={`tel:${local.phone.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-phone-link">{local.phone}</a>}</InfoRow>
+            <InfoRow icon={Phone}>{local.phone && <a href={`tel:${local.phone.replace(/[^\d+]/g, "")}`} onClick={() => editable && startCall(local.phone)} className="hover:underline underline-offset-2" data-testid="lead-detail-phone-link">{local.phone}</a>}</InfoRow>
             <InfoRow icon={EnvelopeSimple}>{local.email && <a href={`mailto:${local.email}`} className="hover:underline underline-offset-2" data-testid="lead-detail-email-link">{local.email}</a>}</InfoRow>
             <InfoRow icon={GraduationCap}>{local.course}</InfoRow>
             <InfoRow icon={MapPin}>{local.place}</InfoRow>
-            {local.parent_number ? <InfoRow icon={Phone}>Parent: <a href={`tel:${local.parent_number.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-parent-phone-link">{local.parent_number}</a></InfoRow> : null}
-            {local.alternate_number ? <InfoRow icon={Phone}>Alternate: <a href={`tel:${local.alternate_number.replace(/[^\d+]/g, "")}`} className="hover:underline underline-offset-2" data-testid="lead-detail-alt-phone-link">{local.alternate_number}</a></InfoRow> : null}
+            {local.parent_number ? <InfoRow icon={Phone}>Parent: <a href={`tel:${local.parent_number.replace(/[^\d+]/g, "")}`} onClick={() => editable && startCall(local.parent_number)} className="hover:underline underline-offset-2" data-testid="lead-detail-parent-phone-link">{local.parent_number}</a></InfoRow> : null}
+            {local.alternate_number ? <InfoRow icon={Phone}>Alternate: <a href={`tel:${local.alternate_number.replace(/[^\d+]/g, "")}`} onClick={() => editable && startCall(local.alternate_number)} className="hover:underline underline-offset-2" data-testid="lead-detail-alt-phone-link">{local.alternate_number}</a></InfoRow> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="px-2 py-0.5 rounded-full bg-muted">{sourceLabel(local.source)}</span>
@@ -518,6 +521,7 @@ export default function LeadDetailDialog({ open, onOpenChange, lead, user, onCha
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CallLogDialog lead={local} call={callPrompt} onClose={closePrompt} onSaved={(d) => d && refresh(d)} />
     </Dialog>
   );
 }
