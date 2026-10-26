@@ -183,7 +183,7 @@ function SuperAdminDashboard() {
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Welcome back {user?.name || ""}. Here's what's happening across admissions, payments and your team today.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 [&>*]:justify-center [&>*]:px-3 sm:[&>*]:px-5 [&>*]:whitespace-nowrap">
               <Link to="/quick-entry" data-testid="quick-add-tx" className="inline-flex items-center gap-2 h-10 px-5 rounded-xl btn-amber text-sm font-medium">
                 <Receipt size={16} /> Quick entry
               </Link>

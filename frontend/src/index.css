@@ -737,10 +737,22 @@ html.theme-mono [role="tab"][data-state="active"] {
 }
 html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { accent-color: hsl(var(--primary)); }
 
-/* Mobile: tighter, consistent card padding inside page content. */
-@media (max-width: 639px) {
-    :where(.mobile-pad) :is(.p-6, .p-7, .p-8):not([class*="px-"]):not([class*="py-"]):not([class*="pt-"]):not([class*="pb-"]) { padding: 1.25rem; }
-    :where(.mobile-pad) .p-10:not([class*="px-"]):not([class*="py-"]) { padding: 1.5rem; }
-    :where(.mobile-pad) :is(.px-6, .px-7, .px-8):not([class*="sm:px-"]) { padding-left: 1.25rem; padding-right: 1.25rem; }
-    :where(.mobile-pad) .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
+/* One spacing system for every company page (inside the .mobile-pad wrapper). */
+.mobile-pad {
+    --page-gap: 1.5rem;
+    --card-pad: 1.25rem;
+    --grid-gap: 1rem;
+    --empty-pad: 1.75rem;
 }
+@media (min-width: 640px) {
+    .mobile-pad { --page-gap: 1.75rem; --card-pad: 1.5rem; --grid-gap: 1.25rem; --empty-pad: 2.5rem; }
+}
+/* Sections of a page */
+:where(.mobile-pad) :is(.space-y-6, .space-y-7, .space-y-8, .space-y-10) > :not([hidden]) ~ :not([hidden]) { margin-top: var(--page-gap); }
+/* Card inner padding */
+:where(.mobile-pad) :is(.p-5, .p-6, .p-7, .p-8, .sm\:p-6, .sm\:p-7, .sm\:p-8, .lg\:p-8):not([class*="px-"]):not([class*="py-"]):not([class*="pt-"]):not([class*="pb-"]) { padding: var(--card-pad); }
+:where(.mobile-pad) :is(.px-5, .px-6, .px-7, .px-8, .sm\:px-6):not([class*="sm:px-8"]):not(button):not(a):not(input) { padding-left: var(--card-pad); padding-right: var(--card-pad); }
+/* Empty states and big placeholders */
+:where(.mobile-pad) :is(.p-10, .p-12, .py-12, .py-16):not([class*="px-"]) { padding: var(--empty-pad); }
+/* Gaps between cards */
+:where(.mobile-pad) :is(.grid, .flex):is(.gap-4, .gap-5, .gap-6, .gap-8, .sm\:gap-5, .sm\:gap-6, .lg\:gap-6, .lg\:gap-8) { gap: var(--grid-gap); }
