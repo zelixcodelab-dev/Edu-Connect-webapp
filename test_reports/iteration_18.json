@@ -1,0 +1,32 @@
+{
+  "summary": "Quick Call Log feature tested end-to-end. Backend: 13/13 pytest pass (POST /api/leads/{id}/call-log for all 5 outcomes, note formatting 'Call · <Label> — <note>', whitespace note -> label only, same-status event (from==to), metadata.call {outcome, phone}, last_call_at/last_call_outcome persisted, unknown outcome 400, missing outcome 422, note>1000 chars 422, unknown lead 404, office admin out-of-scope lead 404, office admin with leads=view -> 403 (perms restored), unauth 401, call_back + follow-up chain sets next_follow_up). Frontend (desktop 1920 + mobile 390): tel link click -> prompt not shown at 3s, shown at ~6-7s; visibilitychange hidden->visible shows prompt immediately; description shows the dialed number (primary, parent, alternate verified); Save disabled until outcome selected; Skip closes without saving and does not re-prompt; Connected+note saved and Journey updated in place ('Call · Connected — note') without reopening; Call back later shows datetime input defaulting to tomorrow 10:00, saving creates call entry + follow-up ('Follow-up scheduled for ...' in journey and next-follow-up chip on header). Mobile: dialog 366px wide fits, chips wrap into 2 rows cleanly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallLogDialog outcome chip", "issue": "Selected chip uses bg-[hsl(var(--primary))] but also has hover:bg-muted, so while the pointer stays over the just-clicked chip it shows muted bg with white (primary-foreground) text -> selection looks lost / low contrast until mouse moves away. Add hover only to unselected state.", "selector": "[data-testid^='call-outcome-']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CallLogDialog", "issues": ["Follow-up date uses native <input type=datetime-local> instead of the shadcn calendar/time picker used elsewhere", "During close animation the description drops the phone number (call set to null before fade-out) - cosmetic flicker"]},
+      {"screen": "LeadJourney", "issues": ["Call entries render as a status transition 'Interested -> Interested · Call · Connected — note' with the arrow icon; a dedicated phone icon/'Call' row (using metadata.call) would read better"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration61_call_log.py", "/app/test_reports/pytest/iteration18.xml"],
+  "action_items": [
+    "(Low) CallLogDialog: apply hover:bg-muted only to unselected chips",
+    "(Low) Call back: if POST /call-log succeeds but /followups fails, dialog stays open and a retry Save duplicates the call journey entry - consider single backend call (e.g. call-log accepts follow_up_at) or skip re-posting the call on retry",
+    "(Optional) Render call journey events with a phone icon instead of the same-status transition chips; consider shadcn date/time picker for follow-up"
+  ],
+  "critical_code_review_comments": [
+    "Two sequential requests for call_back are non-atomic (call saved, follow-up may fail); error is swallowed with comment relying on global feedback card",
+    "useCallPrompt: pending prompt lives inside LeadDetailDialog; if user closes the lead dialog before returning, the prompt never shows (acceptable but worth noting)",
+    "Backend log_call: outcome could be a Literal type in Pydantic for automatic 422 instead of manual 400 - fine as is per spec",
+    "No GET /api/leads/{id} endpoint (405) - tests read the lead from GET /api/leads list"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration61_call_log.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (1 low-priority visual issue)"},
+  "seed_data_creation": "Created TEST_CallLog Lead (with parent/alternate numbers via /interested) for UI tests, then deleted it. Call-log journey entries added to lead 83adeb85 (left in place); test follow-up on it deleted (next_follow_up None).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run backend tests with '-n 0'. Admin tenant has only 1 lead (83adeb85, office_id None) which office@educonnect.app cannot see -> used as out-of-scope 404 case. 403 test temporarily sets office admin leads perm to 'view' via PATCH /api/users/{id}/permissions and restores. In Playwright, prevent tel: navigation with a capture click listener calling preventDefault (React onClick still fires); prompt appears after 6s or on emulated visibilitychange (override document.visibilityState via defineProperty). Deep-link /leads?lead=<id> opens lead detail."
+}

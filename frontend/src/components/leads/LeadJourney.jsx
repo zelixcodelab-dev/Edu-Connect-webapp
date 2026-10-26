@@ -28,7 +28,7 @@ function buildEvents(lead) {
 
   (lead.status_history || []).forEach((h) => {
     events.push({
-      kind: "status",
+      kind: h.metadata?.call ? "call" : "status",
       at: h.at,
       from: h.from,
       to: h.to,
@@ -84,6 +84,7 @@ function EventDot({ kind }) {
     created: { icon: Sparkle, cls: "bg-sky-500/15 text-sky-600 dark:text-sky-400 ring-sky-500/30" },
     status: { icon: ArrowRight, cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/30" },
     followup: { icon: PhoneCall, cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-blue-500/30" },
+    call: { icon: PhoneCall, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/30" },
     visit: { icon: Bus, cls: "bg-violet-500/15 text-violet-600 dark:text-violet-400 ring-violet-500/30" },
     conversion: { icon: GraduationCap, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/30" },
     assignment: { icon: ArrowsLeftRight, cls: "bg-teal-500/15 text-teal-600 dark:text-teal-400 ring-teal-500/30" },
@@ -149,6 +150,16 @@ function EventRow({ ev, canResend, onResendLink, resending, canEditFollowup, onE
     wa && !wa.ok;
 
   const contentByKind = {
+    call: (
+      <>
+        <p className="text-sm text-foreground" data-testid={`journey-call-${ev.id}`}>
+          <span className="font-medium">{(ev.note || "").replace(/^Call · /, "").split(" — ")[0] || "Call"}</span>
+          {ev.metadata?.call?.phone && <span className="text-muted-foreground"> · {ev.metadata.call.phone}</span>}
+        </p>
+        {ev.note && ev.note.includes(" — ") && <p className="text-xs text-muted-foreground italic">{ev.note.split(" — ").slice(1).join(" — ")}</p>}
+        <p className="text-[11px] text-muted-foreground">Call · {timestamp}{who}</p>
+      </>
+    ),
     created: (
       <>
         <p className="text-sm text-foreground font-medium">Lead created</p>

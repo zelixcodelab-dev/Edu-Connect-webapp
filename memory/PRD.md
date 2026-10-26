@@ -441,3 +441,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - App icon badge: lib/appBadge.js (notif + msgs parts) from NotificationsBell + AppShell messages poll; cleared on logout; service worker sets badge from push payload badge_count; backend lib/push.py unread_total() per recipient.
 - Leads board: ⋮ Move to menu per card (touch friendly, 40px on mobile), uses existing stage-change flow.
 - Celebration success card: compact 300px, green gradient circle with self-drawing check + 6 burst shapes on neutral surface; error card crimson + X; reduced motion respected.
+
+## 2026-06 — Quick Call Log (iteration_18.json: BE 13/13, FE pass; follow-ups fixed)
+- POST /api/leads/{id}/call-log {outcome: connected|no_answer|busy|call_back|wrong_number, note, phone} -> same-status status_history event with metadata.call; sets last_call_at/last_call_outcome.
+- components/leads/CallLogDialog.jsx: useCallPrompt (prompt on return from dialer via visibilitychange; 6s fallback on desktop); outcomes + note; Call back later -> datetime (default tomorrow 10:00) creates follow-up via /followups.
+- LeadDetailDialog tel links (phone/parent/alternate) start the prompt. LeadJourney renders call events as 'call' rows (green phone icon, outcome, number, note).

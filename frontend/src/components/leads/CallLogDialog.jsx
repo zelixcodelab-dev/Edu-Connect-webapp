@@ -44,6 +44,9 @@ export function CallLogDialog({ lead, call, onClose, onSaved }) {
   const [note, setNote] = useState("");
   const [fuAt, setFuAt] = useState(tomorrowAt10());
   const [busy, setBusy] = useState(false);
+  const lastCall = useRef(null);
+  if (call) lastCall.current = call;
+  const shown = call || lastCall.current;
   useEffect(() => { if (call) { setOutcome(""); setNote(""); setFuAt(tomorrowAt10()); } }, [call]);
 
   const save = async () => {
@@ -65,7 +68,7 @@ export function CallLogDialog({ lead, call, onClose, onSaved }) {
       <DialogContent className="max-w-sm" data-testid="call-log-dialog">
         <DialogHeader className="text-left">
           <DialogTitle className="font-display">How did the call go?</DialogTitle>
-          <DialogDescription>{lead?.name}{call?.phone ? ` · ${call.phone}` : ""}</DialogDescription>
+          <DialogDescription>{lead?.name}{shown?.phone ? ` · ${shown.phone}` : ""}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap gap-2" data-testid="call-log-outcomes">
           {OUTCOMES.map(([v, l]) => (
