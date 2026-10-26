@@ -62,7 +62,7 @@ export default function LeadsBoard({ leads, onCardClick, onStatusChange, editabl
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button type="button" onClick={(e) => e.stopPropagation()} aria-label="Move to stage"
-                            className="-mr-1 -mt-0.5 w-7 h-7 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="-mr-1.5 -mt-1 w-10 h-10 sm:w-7 sm:h-7 sm:-mr-1 sm:-mt-0.5 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
                             data-testid={`board-card-move-${l.id}`}>
                             <DotsThreeVertical size={16} weight="bold" />
                           </button>

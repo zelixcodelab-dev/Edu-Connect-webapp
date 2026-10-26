@@ -757,6 +757,10 @@ html.theme-mono [role="tab"][data-state="active"] {
 html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { accent-color: hsl(var(--primary)); }
 
 /* One spacing system for every company page (inside the .mobile-pad wrapper). */
+/* Centered dialogs never extend under the notch / home bar, even with per-dialog max-h overrides. */
+[role="dialog"].fixed.left-\[50\%\].top-\[50\%\] {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem) !important;
+}
 .mobile-pad {
     --page-gap: 1.5rem;
     --card-pad: 1.25rem;

@@ -434,3 +434,10 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - index.css (end): tokens on .mobile-pad — page gap 24/28px, card pad 20/24px (p-5..p-8), tile pad 16/20px (p-4 cards), empty states 28/40px, card grid gaps 16/20px (incl. gap-3 grids of cards via :has), page/tab level space-y-4/5 normalised. Mobile = <640px.
 - Overview hero p-6, trending gap-4, team strip p-5; hero buttons 2-col on mobile; student summary tile values text-lg on mobile.
 - Left as-is (dense by design): attendance board rows p-3, regularize calendar gaps, form field stacks.
+
+## 2026-06 — Ported KM Connect updates (iteration_17.json all pass + follow-ups)
+- Dialogs: valid safe-area max-h in ui/dialog.jsx + global !important rule for centered dialogs (overrides per-dialog vh max-h).
+- Lead detail: tel: links (phone/parent/alternate), mailto email.
+- App icon badge: lib/appBadge.js (notif + msgs parts) from NotificationsBell + AppShell messages poll; cleared on logout; service worker sets badge from push payload badge_count; backend lib/push.py unread_total() per recipient.
+- Leads board: ⋮ Move to menu per card (touch friendly, 40px on mobile), uses existing stage-change flow.
+- Celebration success card: compact 300px, green gradient circle with self-drawing check + 6 burst shapes on neutral surface; error card crimson + X; reduced motion respected.

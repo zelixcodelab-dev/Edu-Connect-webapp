@@ -1,0 +1,30 @@
+{
+  "summary": "Tested all 6 ported features (backend + frontend, desktop 1920x1080 and mobile 390x844) as super admin admin@educonnect.app (tenant ZELIX). All passed. (1) Mobile dialogs: the [role=dialog] computed max-height is 820px (a valid px value, not 'none'), overflow-y is auto, and the title and close button sit at top=29px. Lead detail (scrollHeight 1218) and Add lead (scrollHeight 1008) scroll inside the dialog. Student New Payment dialog: header and close visible at the top. (2) Lead detail links: phone tel:+919876543210, email mailto:test_badge@example.com, parent tel:+919123456789, alternate tel:08023456789. (3) App badge: with setAppBadge/clearAppBadge spied and 2 unread notifications seeded, setAppBadge(2) was called after login and clearAppBadge was called on sign-out. No page errors. (4) Leads Board: the ⋮ button on each card opens board-card-move-menu-{id} with the 10 stages other than the current one. It does not open the lead detail, on desktop or mobile. Follow-up opens StageChangeDialog and the lead moves column. Lost needs a sub-stage: confirm stays disabled until one is chosen, then the lead moves to Lost. Interested opens the lead detail with the existing Interested capture form, which is the intended existing behaviour (handleBoardStatus). Moving back to New on mobile worked. (5) Success card: 'Updated successfully!' shows 1 .celebrate-circle with a green linear gradient and 6 .burst-shape on a neutral muted surface; card width is 302px. Error card: saving Add lead with no name showed 'Didn't go through / Lead name is required' with the crimson radial hero and a white badge with a red X. (6) Backend: unread_total matches the notifications and messages unread-count APIs and goes up by 1 when a notification is seeded. send_push_to_users returns skipped=True without VAPID and handles an empty list.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Leads Board (mobile)", "issues": ["The ⋮ move button is 28x28px, below the recommended 44px touch target. It still worked in the test."]},
+      {"screen": "Dialogs with their own max-h-[Nvh] className (AddEntryDialog 92vh, InvoiceCreateDialog, CampaignFormDialog, CollegeFormDialog, Students/Clients/Accounts pages etc.)", "issues": ["tailwind-merge replaces the new safe-area-aware max-h from dialog.jsx with plain vh values, so these dialogs are not safe-area aware. They render fine at 390x844 in the browser, but in iOS standalone PWA mode the header could sit under the notch. Consider removing the per-dialog max-h overrides."]},
+      {"screen": "Student New Payment dialog", "issues": ["The Date field uses the browser's default date picker instead of the shadcn calendar. This was already the case before this change."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration17_push_badge.py", "/app/test_reports/pytest/iteration17.xml"],
+  "action_items": [
+    "Optional: make the board-card-move button at least 40-44px on touch devices",
+    "Optional: remove the max-h-[Nvh] overrides on DialogContent so all dialogs use the safe-area-aware default"
+  ],
+  "critical_code_review_comments": [
+    "lib/push.py unread_total relies on the tenant ContextVar in db.py. It works inside a request or a task created from one (contextvars are copied), but anything that calls send_push_to_users outside a request (scheduler or cron) must call set_current_tenant first, or the counts come from the default tenant.",
+    "service-worker.js: Number(undefined) is NaN, so payloads without badge_count are safely ignored.",
+    "appBadge.js calls clearAppBadge on every render while the total is 0 (seen several times at boot). Harmless."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration17_push_badge.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "seed_data_creation": "Created lead TEST_Badge Lead (id df6eacdc...) through the API. parent_number and alternate_number were set via Mongo in tenant DB test_database_t_8286d28c6b04042a because LeadIn does not accept them. Also created 2 TEST_i17 notifications. All of it has been deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin@educonnect.app / Admin@12345 (tenant DB test_database_t_8286d28c6b04042a, user id 90713cd9-f535-4b07-806c-53af5b33cce5)",
+  "context_for_next_testing_agent": "Leads Board is on /leads -> crm-tab-all -> leads-view-board. Choosing Interested, or Converted without a student, opens the lead detail with an auto action instead of StageChangeDialog. Run the backend tests with '-n 0' (pytest.ini sets xdist) and one shared event loop (motor). The admin user lives in a tenant DB, so tests must call set_current_tenant(jwt.tenant) before using the db proxy."
+}
