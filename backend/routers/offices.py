@@ -1,6 +1,7 @@
 """Offices: company-side list + branch requests, and platform-owner management."""
 from __future__ import annotations
 
+import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,10 +44,14 @@ async def request_branch(payload: BranchRequestIn, user: dict = Depends(get_curr
     if user.get("role") != "super_admin":
         raise HTTPException(403, "Only the company admin can request a new branch")
     tid = _tenant_id(user)
-    if await gdb.office_requests.find_one({"tenant_id": tid, "status": "pending", "name": payload.name.strip()}):
+    name = payload.name.strip()
+    rx = {"$regex": f"^{re.escape(name)}$", "$options": "i"}
+    if await gdb.office_requests.find_one({"tenant_id": tid, "status": "pending", "name": rx}):
         raise HTTPException(409, "A request for this branch is already pending")
-    t = await gdb.tenants.find_one({"id": tid}, {"_id": 0, "name": 1})
-    doc = {"id": gen_id(), "tenant_id": tid, "tenant_name": (t or {}).get("name"), "name": payload.name.strip(),
+    t = await gdb.tenants.find_one({"id": tid}, {"_id": 0, "name": 1, "offices": 1})
+    if any((o.get("name") or "").strip().lower() == name.lower() for o in (t or {}).get("offices") or []):
+        raise HTTPException(409, "An office with this name already exists")
+    doc = {"id": gen_id(), "tenant_id": tid, "tenant_name": (t or {}).get("name"), "name": name,
            "note": payload.note.strip(), "status": "pending", "requested_by": user.get("name") or user.get("email"),
            "created_at": now_iso()}
     await gdb.office_requests.insert_one({**doc})
@@ -113,14 +118,16 @@ class DecisionIn(BaseModel):
 async def decide(req_id: str, decision: str, payload: DecisionIn, owner: dict = Depends(require_permission("client.edit"))):
     if decision not in ("approve", "reject"):
         raise HTTPException(404, "Unknown action")
-    r = await gdb.office_requests.find_one({"id": req_id, "status": "pending"}, {"_id": 0})
+    # Claim the request atomically so a double-click can't add two offices.
+    r = await gdb.office_requests.find_one_and_update(
+        {"id": req_id, "status": "pending"}, {"$set": {"status": "processing"}}, projection={"_id": 0})
     if not r:
         raise HTTPException(404, "Request not found or already decided")
     office = None
     if decision == "approve":
         t = await gdb.tenants.find_one({"id": r["tenant_id"]}, {"_id": 0, "offices": 1}) or {}
         existing = t.get("offices") or []
-        name = (payload.name or r["name"]).strip()
+        name = ((payload.name or "").strip() or r["name"]).strip()
         offices = _clean([OfficeIn(**o) for o in existing] + [OfficeIn(name=name)], existing)
         office = offices[len(existing)]
         await gdb.tenants.update_one({"id": r["tenant_id"]}, {"$set": {"offices": offices}})

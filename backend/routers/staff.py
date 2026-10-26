@@ -14,6 +14,7 @@ Scope:
 """
 from __future__ import annotations
 from lib.subscription import enforce_seat_limit
+from lib.offices import require_office
 
 from typing import Optional
 
@@ -154,6 +155,7 @@ async def create_member(payload: StaffMemberIn, user: dict = Depends(get_current
     office = user.get("office") if user.get("role") == "office_admin" else payload.office
     if not office:
         raise HTTPException(400, "Office is required")
+    await require_office(office)
     email = str(payload.email).lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "A user with this email already exists")

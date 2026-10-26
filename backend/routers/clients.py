@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
+from lib.offices import require_office
 from models import ClientIn
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
@@ -106,6 +107,8 @@ async def _next_employee_id(office: str | None) -> str:
 @router.post("")
 async def create_client(payload: ClientIn, user: dict = Depends(require_edit("clients"))):
     data = payload.model_dump()
+    await require_office(data.get("office"))
+    await require_office(data.get("home_office"), allow_all=True)
     if user.get("role") == "office_admin":
         data["home_office"] = user.get("office")
     # Auto-assign an employee id for staff when not provided.
@@ -120,6 +123,10 @@ async def create_client(payload: ClientIn, user: dict = Depends(require_edit("cl
 @router.patch("/{client_id}")
 async def update_client(client_id: str, payload: ClientIn, user: dict = Depends(require_edit("clients"))):
     data = payload.model_dump()
+    if "office" in payload.model_fields_set:
+        await require_office(data.get("office"))
+    if "home_office" in payload.model_fields_set:
+        await require_office(data.get("home_office"), allow_all=True)
     if user.get("role") == "office_admin":
         data["home_office"] = user.get("office")
     elif "home_office" not in payload.model_fields_set:

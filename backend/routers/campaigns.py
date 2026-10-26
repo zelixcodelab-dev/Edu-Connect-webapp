@@ -21,6 +21,7 @@ from auth_lib import get_current_user, gen_id, now_iso
 from models import OfficeCode
 from lib.lead_distribution import distribute
 from lib.activity_log import log_event
+from lib.offices import require_office
 from routers.leads import LEAD_SOURCES
 from routers.notifications import notify_users
 
@@ -154,6 +155,7 @@ async def create_campaign(payload: CampaignIn, user: dict = Depends(campaign_man
         if not payload.office:
             raise HTTPException(400, "Select a target office for the campaign")
         office = payload.office
+        await require_office(office)
     tag_type = payload.tag_type if payload.tag_type in TAG_TYPES else None
     status = payload.status if payload.status in CAMPAIGN_STATUSES else "draft"
     source_type = (payload.source_type or "").strip() or None
