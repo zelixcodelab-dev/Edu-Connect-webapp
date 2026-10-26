@@ -446,3 +446,7 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - POST /api/leads/{id}/call-log {outcome: connected|no_answer|busy|call_back|wrong_number, note, phone} -> same-status status_history event with metadata.call; sets last_call_at/last_call_outcome.
 - components/leads/CallLogDialog.jsx: useCallPrompt (prompt on return from dialer via visibilitychange; 6s fallback on desktop); outcomes + note; Call back later -> datetime (default tomorrow 10:00) creates follow-up via /followups.
 - LeadDetailDialog tel links (phone/parent/alternate) start the prompt. LeadJourney renders call events as 'call' rows (green phone icon, outcome, number, note).
+
+## 2026-06 — Push notification 503 fix
+- Root cause: VAPID keys never configured → /api/push/vapid-public-key returned 503.
+- Fix: lib/push.ensure_vapid_keys() runs at startup; uses env VAPID_* if set, else generates once and persists in platform DB `system_config` (_id="vapid"). Works in preview and live with no manual setup.

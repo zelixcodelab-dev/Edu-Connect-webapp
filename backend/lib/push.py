@@ -17,15 +17,48 @@ import logging
 import os
 from typing import Iterable
 
+import base64
+
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from pymongo.errors import DuplicateKeyError
 from pywebpush import WebPushException, webpush
 
-from db import db
+from db import db, gdb
 
 log = logging.getLogger("finflow.push")
 
 
+_VAPID: dict = {}
+
+
+def _b64url(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+async def ensure_vapid_keys() -> None:
+    """Load VAPID keys from env, else from the platform DB, generating them once if missing."""
+    pub, priv = os.environ.get("VAPID_PUBLIC_KEY"), os.environ.get("VAPID_PRIVATE_KEY")
+    if pub and priv:
+        _VAPID.update(public=pub, private=priv)
+        return
+    doc = await gdb.system_config.find_one({"_id": "vapid"})
+    if not doc:
+        key = ec.generate_private_key(ec.SECP256R1())
+        doc = {
+            "_id": "vapid",
+            "public": _b64url(key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)),
+            "private": _b64url(key.private_numbers().private_value.to_bytes(32, "big")),
+        }
+        try:
+            await gdb.system_config.insert_one(doc)
+        except DuplicateKeyError:
+            doc = await gdb.system_config.find_one({"_id": "vapid"})
+    _VAPID.update(public=doc["public"], private=doc["private"])
+
+
 def get_vapid_public_key() -> str | None:
-    return os.environ.get("VAPID_PUBLIC_KEY")
+    return _VAPID.get("public")
 
 
 def _vapid_claims() -> dict:
@@ -34,7 +67,7 @@ def _vapid_claims() -> dict:
 
 def _send_one(subscription: dict, payload: dict) -> tuple[bool, int | None]:
     """Synchronous single-push helper run inside a thread."""
-    private_key = os.environ.get("VAPID_PRIVATE_KEY")
+    private_key = _VAPID.get("private")
     if not private_key:
         log.info("[push] VAPID_PRIVATE_KEY not set — skipping send")
         return False, None

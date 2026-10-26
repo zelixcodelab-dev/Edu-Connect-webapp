@@ -251,6 +251,13 @@ async def startup() -> None:
     except Exception:
         logger.exception("[startup] offices backfill failed")
 
+    try:
+        from lib.push import ensure_vapid_keys
+        await ensure_vapid_keys()
+    except Exception:
+        logger.exception("[startup] VAPID key setup failed")
+
+
     # Per-tenant helper indexes (rate-limit + activity) resolve against the
     # default tenant DB now that it's bound. Non-fatal.
     try:
