@@ -156,6 +156,11 @@ async def export_clients(
     )
 
 
+def _phone_key(v) -> str:
+    digits = "".join(ch for ch in str(v or "") if ch.isdigit())
+    return digits[-10:] if len(digits) >= 7 else ""
+
+
 def _parse_type(raw: str, default_type: str) -> str:
     v = (raw or "").strip()
     if not v:
@@ -218,8 +223,15 @@ async def import_clients(
         raise HTTPException(400, "CSV must have a 'Name' column")
 
     valid, errors = [], []
-    existing = await db.clients.find({}, {"_id": 0, "name": 1}).to_list(10000)
-    seen = {(d.get("name") or "").strip().lower() for d in existing}
+    scope: dict = {} if user.get("role") == "super_admin" else _office_visibility_clause(user)
+    existing = await db.clients.find(
+        {**scope, "client_type": {"$in": list(allowed)}}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "email": 1}
+    ).to_list(10000)
+    all_names = await db.clients.find({}, {"_id": 0, "name": 1}).to_list(10000)
+    seen = {(d.get("name") or "").strip().lower() for d in all_names}
+    by_phone = {_phone_key(d.get("phone")): d for d in existing if _phone_key(d.get("phone"))}
+    by_email = {(d.get("email") or "").strip().lower(): d for d in existing if (d.get("email") or "").strip()}
+    touched: set[str] = set()
     for i, row in enumerate(reader, start=2):
         mapped = {header_map[k]: v for k, v in row.items() if k in header_map and header_map[k]}
         if not any((v or "").strip() for v in mapped.values() if isinstance(v, str)):
@@ -228,25 +240,47 @@ async def import_clients(
             data = await _row_to_client(mapped, default_type, user)
             if data["client_type"] not in allowed:
                 raise ValueError(f"Type '{data['client_type']}' is not allowed on this page")
+            match = by_phone.get(_phone_key(data.get("phone"))) or by_email.get((data.get("email") or "").lower())
+            if match:
+                if match["id"] in touched:
+                    raise ValueError(f"Matches '{match['name']}' again (already updated by an earlier row)")
+                touched.add(match["id"])
+                seen.add(data["name"].strip().lower())
+                filled = {f for f, v in mapped.items() if (v or "").strip()}
+                changes = {f: data[f] for f in filled if f in data and data[f] is not None}
+                if user.get("role") == "office_admin":
+                    changes.pop("home_office", None)
+                valid.append({"action": "update", "id": match["id"], "match_name": match["name"], "data": data, "changes": changes})
+                continue
             key = data["name"].strip().lower()
             if key in seen:
                 raise ValueError(f"'{data['name']}' already exists")
             seen.add(key)
-            valid.append(data)
+            valid.append({"action": "create", "data": data})
         except ValueError as e:
             errors.append({"row": i, "error": str(e)})
 
     if not dry_run:
-        for data in valid:
+        for item in valid:
+            data = item["data"]
+            if item["action"] == "update":
+                if item["changes"]:
+                    await db.clients.update_one({"id": item["id"]}, {"$set": item["changes"]})
+                continue
             if data.get("client_type") == "staff" and not data.get("employee_id"):
                 data["employee_id"] = await _next_employee_id(data.get("office"))
             doc = {"id": gen_id(), "user_id": user["id"], "created_at": now_iso(), **data}
             await db.clients.insert_one(doc)
     preview = [
-        {"name": d["name"], "client_type": d["client_type"], "phone": d.get("phone"), "email": d.get("email")}
-        for d in valid
+        {"action": it["action"], "name": it["data"]["name"], "client_type": it["data"]["client_type"],
+         "phone": it["data"].get("phone"), "email": it["data"].get("email"),
+         "match_name": it.get("match_name"), "fields": sorted(it.get("changes", {}).keys())}
+        for it in valid
     ]
-    return {"dry_run": dry_run, "valid": len(valid), "created": 0 if dry_run else len(valid),
+    n_create = sum(1 for it in valid if it["action"] == "create")
+    n_update = len(valid) - n_create
+    return {"dry_run": dry_run, "valid": len(valid), "to_create": n_create, "to_update": n_update,
+            "created": 0 if dry_run else n_create, "updated": 0 if dry_run else n_update,
             "rows": preview, "errors": errors}
 
 

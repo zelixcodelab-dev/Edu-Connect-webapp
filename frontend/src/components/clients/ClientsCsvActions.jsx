@@ -41,7 +41,7 @@ export const ClientsCsvActions = ({ scopeTypes, defaultType, onImported }) => {
     setBusy(true);
     try {
       const data = await send(file, false);
-      toast.success(`Imported ${data.created} client${data.created === 1 ? "" : "s"}`);
+      toast.success(`Added ${data.created} · updated ${data.updated}`);
       setPreview(null); setFile(null);
       onImported?.();
     } catch (err) {
