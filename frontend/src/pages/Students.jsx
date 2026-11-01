@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -754,9 +755,9 @@ export default function Students() {
         </>
       )}
 
-      {isAdmin && selectedIds.size > 0 && (
+      {isAdmin && selectedIds.size > 0 && createPortal(
         <div
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-3 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]"
+          className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 sm:gap-3 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]"
           data-testid="students-bulk-bar"
         >
           <span className="text-sm font-semibold text-foreground whitespace-nowrap" data-testid="students-bulk-count">
@@ -785,7 +786,8 @@ export default function Students() {
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={clearSel} disabled={bulkBusy} data-testid="bulk-clear-btn" aria-label="Clear selection">
             <X size={16} />
           </Button>
-        </div>
+        </div>,
+        document.body
       )}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

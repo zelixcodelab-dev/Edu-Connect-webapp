@@ -1,13 +1,15 @@
 """Client CRUD."""
+import csv
+import io
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from pydantic import BaseModel, ValidationError
 
 from db import db
 from auth_lib import get_current_user, gen_id, now_iso, require_edit
 from lib.offices import require_office
-from models import ClientIn
+from models import ClientIn, ClientType
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 
@@ -102,6 +104,145 @@ async def _next_employee_id(office: str | None) -> str:
     while await db.clients.find_one({"employee_id": f"{prefix}{seq:03d}"}):
         seq += 1
     return f"{prefix}{seq:03d}"
+
+
+CSV_COLUMNS = [
+    ("Name", "name"), ("Type", "client_type"), ("Email", "email"), ("Phone", "phone"),
+    ("Company", "company"), ("Office", "office"), ("Home Office", "home_office"),
+    ("Place", "place"), ("Address", "address"), ("Incentive", "eligible_incentive"),
+    ("DOB", "date_of_birth"), ("Employee ID", "employee_id"), ("Designation", "designation"),
+    ("Department", "department"), ("DOJ", "date_of_joining"),
+]
+_HEADER_ALIASES = {
+    **{h.lower(): f for h, f in CSV_COLUMNS}, **{f: f for _, f in CSV_COLUMNS},
+    "type": "client_type", "eligible incentive": "eligible_incentive", "date of birth": "date_of_birth",
+    "date of joining": "date_of_joining", "home office": "home_office", "employee id": "employee_id",
+}
+_TYPE_LABELS = {
+    "sub agent / associate": "sub_agent_associate", "sub agent": "sub_agent_associate",
+    "associate": "sub_agent_associate", "associate consultant": "associate_consultant",
+    "our staff": "staff", "staff": "staff",
+}
+_VALID_TYPES = set(ClientType.__args__)
+
+
+class BulkIdsIn(BaseModel):
+    ids: list[str]
+
+
+@router.get("/export")
+async def export_clients(
+    types: str = "", ids: str = "", user: dict = Depends(get_current_user)
+):
+    q: dict = {} if user.get("role") == "super_admin" else _office_visibility_clause(user)
+    if types:
+        q["client_type"] = {"$in": types.split(",")}
+    if ids:
+        q["id"] = {"$in": ids.split(",")}
+    docs = await db.clients.find(q, {"_id": 0}).sort("name", 1).to_list(5000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([h for h, _ in CSV_COLUMNS])
+    for d in docs:
+        w.writerow(["" if d.get(f) is None else d.get(f) for _, f in CSV_COLUMNS])
+    return Response(
+        content=buf.getvalue(), media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="clients.csv"'},
+    )
+
+
+def _parse_type(raw: str, default_type: str) -> str:
+    v = (raw or "").strip()
+    if not v:
+        return default_type
+    key = v.lower()
+    if key in _VALID_TYPES:
+        return key
+    if key in _TYPE_LABELS:
+        return _TYPE_LABELS[key]
+    raise ValueError(f"Unknown type '{v}'")
+
+
+async def _row_to_client(row: dict, default_type: str, user: dict) -> dict:
+    data = {f: (v or "").strip() or None for f, v in row.items()}
+    if not data.get("name"):
+        raise ValueError("Name is required")
+    data["client_type"] = _parse_type(data.get("client_type") or "", default_type)
+    if data.get("eligible_incentive") is not None:
+        try:
+            data["eligible_incentive"] = float(data["eligible_incentive"])
+        except ValueError:
+            raise ValueError("Invalid eligible incentive") from None
+    try:
+        payload = ClientIn(**data).model_dump()
+    except ValidationError as e:
+        raise ValueError(e.errors()[0].get("msg", "Invalid row")) from None
+    try:
+        await require_office(payload.get("office"))
+        await require_office(payload.get("home_office"), allow_all=True)
+    except HTTPException as e:
+        raise ValueError(e.detail) from None
+    if user.get("role") == "office_admin":
+        payload["home_office"] = user.get("office")
+    return payload
+
+
+@router.post("/import")
+async def import_clients(
+    file: UploadFile = File(...),
+    default_type: str = Form("sub_agent_associate"),
+    dry_run: bool = False,
+    user: dict = Depends(require_edit("clients")),
+):
+    if default_type not in _VALID_TYPES:
+        raise HTTPException(400, "Invalid default type")
+    raw = await file.read()
+    if len(raw) > 2_000_000:
+        raise HTTPException(413, "File too large (max 2MB)")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(400, "File must be a UTF-8 CSV") from None
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV has no header row")
+    header_map = {h: _HEADER_ALIASES.get((h or "").strip().lower()) for h in reader.fieldnames}
+    if "name" not in header_map.values():
+        raise HTTPException(400, "CSV must have a 'Name' column")
+
+    valid, errors = [], []
+    for i, row in enumerate(reader, start=2):
+        mapped = {header_map[k]: v for k, v in row.items() if k in header_map and header_map[k]}
+        if not any((v or "").strip() for v in mapped.values() if isinstance(v, str)):
+            continue
+        try:
+            valid.append(await _row_to_client(mapped, default_type, user))
+        except ValueError as e:
+            errors.append({"row": i, "error": str(e)})
+
+    if not dry_run:
+        for data in valid:
+            if data.get("client_type") == "staff" and not data.get("employee_id"):
+                data["employee_id"] = await _next_employee_id(data.get("office"))
+            doc = {"id": gen_id(), "user_id": user["id"], "created_at": now_iso(), **data}
+            await db.clients.insert_one(doc)
+    preview = [
+        {"name": d["name"], "client_type": d["client_type"], "phone": d.get("phone"), "email": d.get("email")}
+        for d in valid
+    ]
+    return {"dry_run": dry_run, "valid": len(valid), "created": 0 if dry_run else len(valid),
+            "rows": preview, "errors": errors}
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_clients(payload: BulkIdsIn, user: dict = Depends(require_edit("clients"))):
+    if not payload.ids:
+        return {"deleted": 0}
+    q: dict = {"id": {"$in": payload.ids}}
+    if user.get("role") != "super_admin":
+        q.update(_office_visibility_clause(user))
+    res = await db.clients.delete_many(q)
+    return {"deleted": res.deleted_count}
 
 
 @router.post("")

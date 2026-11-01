@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Plus, PencilSimple, Trash, EnvelopeSimple, Phone, Buildings, Cake, CurrencyInr, IdentificationBadge, MapPin, Camera, UserCircle, LinkSimple, Key, ShieldWarning, Prohibit, ArrowCounterClockwise, Pause, Play } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import ClientsCsvActions from "@/components/clients/ClientsCsvActions";
+import ClientsBulkBar from "@/components/clients/ClientsBulkBar";
 import OfficeStaff from "@/pages/OfficeStaff";
 import { officeOptions } from "@/lib/offices";
 import { officeName, liveList, getOffices } from "@/lib/offices";
@@ -124,6 +127,17 @@ function SuperAdminPeople({ pageScope }) {
     if (filter !== "all") l = l.filter((c) => c.client_type === filter);
     return l;
   }, [list, filter, scopeTypes]);
+
+  const selectable = !isEmployees && allowEdit;
+  const [sel, setSel] = useState(() => new Set());
+  useEffect(() => {
+    const ids = new Set(filtered.map((c) => c.id));
+    setSel((prev) => new Set([...prev].filter((id) => ids.has(id))));
+  }, [filtered]);
+  const selection = selectable ? {
+    has: (id) => sel.has(id),
+    toggle: (id) => setSel((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }),
+  } : null;
 
   const openCreate = () => {
     setEditing(null);
@@ -262,6 +276,9 @@ function SuperAdminPeople({ pageScope }) {
               ))}
             </SelectContent>
           </Select>
+          {selectable && (
+            <ClientsCsvActions scopeTypes={scopeTypes} defaultType={defaultType} onImported={load} />
+          )}
           <Dialog open={open} onOpenChange={setOpen}>
             {allowEdit && (
             <DialogTrigger asChild>
@@ -424,6 +441,16 @@ function SuperAdminPeople({ pageScope }) {
           onResetLogin={openResetLogin}
           onToggleSuspend={toggleSuspend}
           onToggleHold={toggleHold}
+          selection={selection}
+        />
+      )}
+
+      {selectable && (
+        <ClientsBulkBar
+          selected={sel} totalCount={filtered.length}
+          onSelectAll={() => setSel(new Set(filtered.map((c) => c.id)))}
+          onClear={() => setSel(new Set())}
+          onDeleted={() => { setSel(new Set()); load(); }}
         />
       )}
 
@@ -496,7 +523,7 @@ const OFFICE_OPTIONS = officeOptions([], [
   { value: "_none", label: "No office set" },
 ]);
 
-function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
+function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold, selection }) {
   const nav = useNavigate();
   const goDetail = () => nav(`/clients/${c.id}`);
   const onKey = (e) => {
@@ -517,6 +544,11 @@ function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
+          {selection && (
+            <div onClick={(e) => e.stopPropagation()} className="p-1 -ml-1">
+              <Checkbox checked={selection.has(c.id)} onCheckedChange={() => selection.toggle(c.id)} aria-label={`Select ${c.name}`} data-testid={`client-select-${c.id}`} />
+            </div>
+          )}
           <div className="w-11 h-11 rounded-md bg-muted text-foreground flex items-center justify-center font-medium overflow-hidden shrink-0">
             {c.photo_url ? <AuthedImage url={c.photo_url} alt={c.name} className="w-full h-full object-cover" fallback={c.name.slice(0, 2).toUpperCase()} /> : c.name.slice(0, 2).toUpperCase()}
           </div>
@@ -662,7 +694,7 @@ function ClientCard({ c, allowEdit, openEdit, remove, isEmployees, onCreateLogin
   );
 }
 
-function ClientGrid({ clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
+function ClientGrid({ clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold, selection }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {clients.map((c) => (
@@ -674,6 +706,7 @@ function ClientGrid({ clients, allowEdit, openEdit, remove, isEmployees, onCreat
           onResetLogin={onResetLogin}
           onToggleSuspend={onToggleSuspend}
           onToggleHold={onToggleHold}
+          selection={selection}
         />
       ))}
     </div>
@@ -690,7 +723,7 @@ function CategoryHeader({ label, count }) {
   );
 }
 
-function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold }) {
+function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remove, isEmployees, onCreateLogin, onResetLogin, onToggleSuspend, onToggleHold, selection }) {
   // When a specific type filter is selected, just show that category (with Staff sub-grouping)
   const groups = CLIENT_TYPES
     .filter((t) => scopeTypes.includes(t.value))
@@ -725,6 +758,7 @@ function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remo
                       onResetLogin={onResetLogin}
                       onToggleSuspend={onToggleSuspend}
                       onToggleHold={onToggleHold}
+          selection={selection}
                     />
                   </div>
                 );
@@ -739,6 +773,7 @@ function GroupedClients({ filter, scopeTypes, clients, allowEdit, openEdit, remo
               onResetLogin={onResetLogin}
               onToggleSuspend={onToggleSuspend}
               onToggleHold={onToggleHold}
+          selection={selection}
             />
           )}
         </section>
