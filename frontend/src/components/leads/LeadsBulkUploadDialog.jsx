@@ -45,17 +45,19 @@ export default function LeadsBulkUploadDialog({ open, onOpenChange, onUploaded, 
       if (campaignMode) fd.append("campaign_id", campaignId);
       else if (!isStaff && assignee) fd.append("assigned_to_user_id", assignee);
       const r = await api.post("/leads/bulk", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      setResult(r.data);
       const dupN = r.data.duplicate_count || 0;
+      const hasSkipped = dupN > 0 || (r.data.unmatched_employees?.length || 0) > 0;
       if (r.data.created_count > 0) {
         const dupNote = dupN ? ` — ${dupN} duplicate${dupN === 1 ? "" : "s"} skipped` : "";
         toast.success(`Imported ${r.data.created_count} lead(s)${dupNote}`);
         onUploaded?.();
+        if (!hasSkipped) { close(); return; }
       } else if (dupN > 0) {
         toast.message("Nothing new to import", { description: `All ${dupN} row(s) already exist in the CRM.` });
       } else {
         toast.message("Nothing imported", { description: "All rows were blank." });
       }
+      setResult(r.data);
     } catch (err) {
       const detail = err?.response?.data?.detail;
       toast.error(typeof detail === "string" ? detail : "Bulk upload failed");

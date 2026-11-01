@@ -41,6 +41,7 @@ export default function BulkUploadDialog({ open, onOpenChange, onDone }) {
   const fileRef = useRef(null);
 
   const reset = () => { setPreview(null); setApplied(false); };
+  const close = () => { onOpenChange(false); setCsv(""); reset(); };
 
   const onFile = async (e) => {
     const f = e.target.files?.[0];
@@ -69,10 +70,11 @@ export default function BulkUploadDialog({ open, onOpenChange, onDone }) {
     setBusy(true);
     try {
       const { data } = await api.post("/attendance/bulk", { kind, csv, preview: false });
-      setPreview(data);
-      setApplied(true);
       toast.success(`Applied · ${data.created} added · ${data.updated} updated${data.error_count ? ` · ${data.error_count} skipped` : ""}`);
       onDone?.();
+      if (!data.error_count) { close(); return; }
+      setPreview(data);
+      setApplied(true);
     } catch (e) {
       toast.error(formatApiError(e?.response?.data?.detail));
     } finally {

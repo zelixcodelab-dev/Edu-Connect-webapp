@@ -58,13 +58,14 @@ export default function BulkUploadDialog({ open, onOpenChange, onUploaded }) {
       const r = await api.post("/colleges/bulk", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setResult(r.data);
       if (r.data.created_count > 0) {
         toast.success(`Added ${r.data.created_count} college(s)`);
         onUploaded?.();
+        if (!r.data.duplicates_count) { close(); return; }
       } else {
         toast.message("Nothing to add", { description: "All rows were duplicates or blank." });
       }
+      setResult(r.data);
     } catch (err) {
       const detail = err?.response?.data?.detail;
       toast.error(typeof detail === "string" ? detail : "Bulk upload failed");

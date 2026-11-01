@@ -61,9 +61,11 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
         setApplied(false);
         if (data.error_count && !(data.created + data.updated)) toast.error("All rows have errors — fix them before applying");
       } else {
-        setApplied(true);
         toast.success(`${data.created} added · ${data.updated} updated${data.error_count ? ` · ${data.error_count} skipped` : ""}`);
         onDone?.();
+        if (!data.error_count) { onOpenChange(false); setCsv(""); reset(); return; }
+        setPreview(data);
+        setApplied(true);
       }
     } catch (e) {
       toast.error(formatApiError(e?.response?.data?.detail));
