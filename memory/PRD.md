@@ -469,3 +469,4 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - internal_credit ("Company account") adjustments are part of the received amount: same account → no extra tx; different account → transfer (expense on received acct + income on company acct); no received acct → plain income.
 - Linked tx cleanup on edit now by linked_student_payment_id only (no duplicates).
 - One-time startup migration `payment_tx_resync_v1` (flag in gdb.tenants.migrations) rebuilds linked tx for all past payments with internal_credit adjustments, per tenant (runs on live after publish).
+- SC to Client adjustments marked "SC given" now log an SC-payout debit (is_sc_payout, client_id) on the payment's received account; skipped if a one-click SC payout already logged it. Migration `sc_given_tx_resync_v1` backfills past entries. Student detail shows "debited from <account>".

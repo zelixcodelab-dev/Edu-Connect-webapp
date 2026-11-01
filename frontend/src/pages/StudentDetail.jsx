@@ -434,7 +434,7 @@ export default function StudentDetail() {
                                 ? "bg-amber-100 text-amber-700 dark:text-amber-400"
                                 : "bg-emerald-100 text-emerald-700 dark:text-emerald-400";
                               const kmAccount = isKm ? (accounts.find((x) => x.id === a.account_id)?.name) : null;
-                              const recvAccount = isCollege ? (accounts.find((x) => x.id === p.received_in?.account_id)?.name) : null;
+                              const recvAccount = (isCollege || (isSc && a.sc_given)) ? (accounts.find((x) => x.id === p.received_in?.account_id)?.name) : null;
                               return (
                               <div key={a.id || idx} className="flex items-center gap-2 text-xs text-foreground flex-wrap" data-testid={`adj-detail-${p.id}-${idx}`}>
                                 <span className={`px-1.5 py-0.5 rounded ${kindCls}`}>
@@ -455,6 +455,9 @@ export default function StudentDetail() {
                                   <span className={`px-1.5 py-0.5 rounded ${a.sc_given ? "bg-emerald-100 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:text-amber-400"}`} data-testid={`adj-sc-given-${p.id}-${idx}`}>
                                     {a.sc_given ? "SC given" : "SC pending"}
                                   </span>
+                                )}
+                                {isSc && a.sc_given && recvAccount && (
+                                  <span className="text-muted-foreground" data-testid={`adj-sc-account-${p.id}-${idx}`}>· debited from {recvAccount}</span>
                                 )}
                                 {a.remarks && <span className="text-muted-foreground">· {a.remarks}</span>}
                               </div>

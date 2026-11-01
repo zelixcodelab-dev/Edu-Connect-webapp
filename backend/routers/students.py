@@ -520,6 +520,49 @@ async def _auto_log_payment_transaction(user_id: str, student: dict, payment: di
                 "linked_adjustment_idx": idx,
             })
 
+        # SC to Client marked "SC given" → the SC left the received account.
+        # Skipped when a one-click SC payout already logged that debit.
+        for idx, adj in enumerate(payment.get("adjustments") or []):
+            if adj.get("kind") != "sc_adjusted" or not adj.get("sc_given"):
+                continue
+            amount = round(float(adj.get("amount") or 0), 2)
+            if adj.get("client_id") and await db.transactions.find_one({
+                "is_sc_payout": True, "client_id": adj["client_id"], "student_name": student.get("name"),
+                "amount": amount, "linked_student_payment_id": {"$exists": False},
+            }, {"_id": 1}):
+                continue
+            await db.transactions.insert_one({
+                "id": gen_id(),
+                "user_id": user_id,
+                "created_at": now_iso(),
+                "type": "expense",
+                "amount": amount,
+                "account_id": account_id,
+                "category_id": None,
+                "date": adj.get("payment_date") or payment.get("date"),
+                "description": " · ".join(filter(None, [
+                    f"SC payout — {student.get('name')} · to {adj.get('sub_agent_name') or 'sub-agent'}",
+                    adj.get("remarks") or "",
+                ])),
+                "client_id": adj.get("client_id"),
+                "is_sc_payout": True,
+                "payment_mode": adj.get("payment_mode"),
+                "student_name": student.get("name"),
+                "linked_student_id": student.get("id"),
+                "linked_student_payment_id": payment["id"],
+                "linked_adjustment_idx": idx,
+            })
+
+
+async def resync_sc_given_payments() -> int:
+    """One-off per tenant: log debits for past SC-given adjustments."""
+    n = 0
+    async for s in db.students.find({"payments.adjustments": {"$elemMatch": {"kind": "sc_adjusted", "sc_given": True}}}, {"_id": 0}):
+        for p in s.get("payments") or []:
+            if any(a.get("kind") == "sc_adjusted" and a.get("sc_given") for a in p.get("adjustments") or []):
+                await _auto_log_payment_transaction(s["user_id"], s, p)
+                n += 1
+    return n
 
 async def resync_internal_credit_payments() -> int:
     """One-off per tenant: rebuild linked tx for payments with internal_credit adjustments."""

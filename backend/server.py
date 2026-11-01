@@ -259,6 +259,7 @@ async def startup() -> None:
 
     try:
         await _run_once_per_tenant("payment_tx_resync_v1", "routers.students", "resync_internal_credit_payments")
+        await _run_once_per_tenant("sc_given_tx_resync_v1", "routers.students", "resync_sc_given_payments")
     except Exception:
         logger.exception("[startup] payment tx resync failed")
 
