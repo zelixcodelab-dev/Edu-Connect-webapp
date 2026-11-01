@@ -292,12 +292,14 @@ async def trending(user: dict = Depends(get_current_user), year: Optional[int] =
         if s.get("user_id"):
             closers[s["user_id"]] += 1
     best = None
-    if closers:
-        uid, count = closers.most_common(1)[0]
+    from routers.auth import _resolve_user_photo_url
+    for uid, count in closers.most_common():
         u = await db.users.find_one({"id": uid}, {"_id": 0, "id": 1, "name": 1, "role": 1, "linked_client_id": 1}) or {"id": uid, "name": "Former user"}
-        from routers.auth import _resolve_user_photo_url
+        if u.get("role") == "super_admin":
+            continue
         best = {"id": uid, "name": u.get("name"), "role": "associate" if u.get("role") == "user" else u.get("role"),
                 "count": count, "photo_url": await _resolve_user_photo_url(u) if u.get("role") else ""}
+        break
     return {"top_course": _top(courses, course_people), "top_college": _top(colleges, college_people), "best_closer": best}
 
 
@@ -311,10 +313,10 @@ async def team(user: dict = Depends(get_current_user), year: Optional[int] = Non
         if s.get("user_id") and in_year(s.get("enrollment_date") or s.get("created_at"), year):
             closed[s["user_id"]] += 1
     out = []
-    uq = {"deleted_at": {"$in": [None, ""]}, "role": {"$in": ["super_admin", "office_admin", "staff"]}}
+    uq = {"deleted_at": {"$in": [None, ""]}, "role": {"$in": ["office_admin", "staff"]}}
     if user.get("role") == "office_admin":
         # Office admins see only their own office's people.
-        uq = {**uq, "role": {"$in": ["office_admin", "staff"]}, "office": user.get("office")}
+        uq = {**uq, "office": user.get("office")}
     async for u in db.users.find(uq,
                                  {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "office": 1, "phone": 1, "linked_client_id": 1}).limit(60):
         u["photo_url"] = await _resolve_user_photo_url(u)
