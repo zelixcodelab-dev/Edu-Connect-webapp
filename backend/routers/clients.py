@@ -126,6 +126,11 @@ _TYPE_LABELS = {
 _VALID_TYPES = set(ClientType.__args__)
 
 
+def _safe_cell(v) -> str:
+    s = "" if v is None else str(v)
+    return f"'{s}" if s[:1] in ("=", "+", "-", "@") else s
+
+
 class BulkIdsIn(BaseModel):
     ids: list[str]
 
@@ -144,7 +149,7 @@ async def export_clients(
     w = csv.writer(buf)
     w.writerow([h for h, _ in CSV_COLUMNS])
     for d in docs:
-        w.writerow(["" if d.get(f) is None else d.get(f) for _, f in CSV_COLUMNS])
+        w.writerow([_safe_cell(d.get(f)) for _, f in CSV_COLUMNS])
     return Response(
         content=buf.getvalue(), media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="clients.csv"'},
@@ -164,7 +169,7 @@ def _parse_type(raw: str, default_type: str) -> str:
 
 
 async def _row_to_client(row: dict, default_type: str, user: dict) -> dict:
-    data = {f: (v or "").strip() or None for f, v in row.items()}
+    data = {f: (v or "").strip().removeprefix("'") or None for f, v in row.items()}
     if not data.get("name"):
         raise ValueError("Name is required")
     data["client_type"] = _parse_type(data.get("client_type") or "", default_type)
@@ -191,11 +196,13 @@ async def _row_to_client(row: dict, default_type: str, user: dict) -> dict:
 async def import_clients(
     file: UploadFile = File(...),
     default_type: str = Form("sub_agent_associate"),
+    allowed_types: str = Form(""),
     dry_run: bool = False,
     user: dict = Depends(require_edit("clients")),
 ):
     if default_type not in _VALID_TYPES:
         raise HTTPException(400, "Invalid default type")
+    allowed = {t for t in allowed_types.split(",") if t} or _VALID_TYPES
     raw = await file.read()
     if len(raw) > 2_000_000:
         raise HTTPException(413, "File too large (max 2MB)")
@@ -211,12 +218,21 @@ async def import_clients(
         raise HTTPException(400, "CSV must have a 'Name' column")
 
     valid, errors = [], []
+    existing = await db.clients.find({}, {"_id": 0, "name": 1}).to_list(10000)
+    seen = {(d.get("name") or "").strip().lower() for d in existing}
     for i, row in enumerate(reader, start=2):
         mapped = {header_map[k]: v for k, v in row.items() if k in header_map and header_map[k]}
         if not any((v or "").strip() for v in mapped.values() if isinstance(v, str)):
             continue
         try:
-            valid.append(await _row_to_client(mapped, default_type, user))
+            data = await _row_to_client(mapped, default_type, user)
+            if data["client_type"] not in allowed:
+                raise ValueError(f"Type '{data['client_type']}' is not allowed on this page")
+            key = data["name"].strip().lower()
+            if key in seen:
+                raise ValueError(f"'{data['name']}' already exists")
+            seen.add(key)
+            valid.append(data)
         except ValueError as e:
             errors.append({"row": i, "error": str(e)})
 

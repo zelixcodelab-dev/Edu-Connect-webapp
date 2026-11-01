@@ -32,7 +32,7 @@ export const ClientsBulkBar = ({ selected, totalCount, onSelectAll, onClear, onD
 
   return createPortal(
     <>
-      <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]" data-testid="clients-bulk-bar">
+      <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-max flex items-center gap-2 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]" data-testid="clients-bulk-bar">
         <span className="text-sm font-semibold whitespace-nowrap" data-testid="clients-bulk-count">{n} selected</span>
         {n < totalCount ? (
           <Button variant="outline" size="sm" className="h-9 rounded-full" onClick={onSelectAll} disabled={busy} data-testid="clients-select-all-btn">

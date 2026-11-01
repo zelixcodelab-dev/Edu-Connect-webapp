@@ -757,7 +757,7 @@ export default function Students() {
 
       {isAdmin && selectedIds.size > 0 && createPortal(
         <div
-          className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 sm:gap-3 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]"
+          className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-max flex items-center gap-2 sm:gap-3 flex-wrap justify-center bg-card border border-border shadow-xl rounded-full px-3 sm:px-4 py-2 max-w-[95vw]"
           data-testid="students-bulk-bar"
         >
           <span className="text-sm font-semibold text-foreground whitespace-nowrap" data-testid="students-bulk-count">

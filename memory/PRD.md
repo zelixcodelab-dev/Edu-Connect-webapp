@@ -450,3 +450,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Push notification 503 fix
 - Root cause: VAPID keys never configured → /api/push/vapid-public-key returned 503.
 - Fix: lib/push.ensure_vapid_keys() runs at startup; uses env VAPID_* if set, else generates once and persists in platform DB `system_config` (_id="vapid"). Works in preview and live with no manual setup.
+
+## 2026-06 — Bulk bar fix + Clients CSV import/export + bulk select
+- Students bulk bar portaled to body (bottom-24 mobile / md:bottom-6, w-max).
+- Clients page only: Download (GET /api/clients/export?types|ids, formula-safe cells) & Upload (POST /api/clients/import?dry_run, allowed_types, dup-name + type scope checks) with Review import dialog.
+- Client card checkboxes + portaled ClientsBulkBar: Select all/Clear all, Download selected, Delete (POST /api/clients/bulk-delete) with confirm.

@@ -1,0 +1,49 @@
+{
+  "summary": "Tested the Students bulk-bar portal fix and the new Clients features: CSV export/import with a review step, card selection and the bulk bar. Backend: 5/5 pytest pass. Frontend: every requested flow works on desktop (1920x800) and mobile (390x844). Found 2 UX bugs, neither blocking: (1) on mobile both bulk bars squeeze to half the screen width (~195px), wrap into a pill about 170px tall and cover the cards; (2) the dry-run upload shows the global 'Saved successfully!' popup even though nothing was saved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/clients/import", "issue": "Rows with Type 'staff'/'Our Staff' are accepted when uploading from the Clients page (no scope check), so they create employees that never show on the Clients page. Duplicate names/phones are not detected."},
+      {"endpoint": "GET /api/clients/export", "issue": "Cell values are not escaped against CSV/formula injection (cells starting with =, +, -, @)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClientsCsvActions (dry-run upload)", "issue": "lib/api.js maybeCelebrate pops the 'Saved successfully!' overlay for POST /clients/import?dry_run=true, on top of the review dialog that says 'Nothing is saved until you confirm'. Fix: pass {skipCelebration: dryRun} in the api.post config in ClientsCsvActions.send.", "selector": "[data-testid=client-import-review-dialog]", "priority": "MEDIUM"},
+      {"component": "students-bulk-bar & clients-bulk-bar (mobile)", "issue": "Both bars use 'fixed left-1/2 -translate-x-1/2' with no width set, so the browser caps their width at 50vw (195px of 390px). They wrap into a 3-row pill (~170px tall, y 578-748) that covers card content. They do not overlap the bottom nav (nav top 779, bar bottom 748). Fix: add 'w-max' (keeping max-w-[95vw]), or use 'inset-x-0 mx-auto w-fit'.", "selector": "[data-testid=clients-bulk-bar], [data-testid=students-bulk-bar]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Clients/Students mobile", "issues": ["Bulk bar wraps into a tall narrow pill in the middle of the screen (see ui_bugs)"]}
+    ]
+  },
+  "passed_checks": [
+    "students-bulk-bar is portaled to BODY with position fixed. On desktop its bottom is at 776 of innerHeight 800 even though the list ends at ~507px. On mobile its bottom is at 748, above the bottom-nav top at 779.",
+    "Employees page shows no download/upload buttons and no card checkboxes; Clients page shows both buttons",
+    "Download gives clients.csv with exactly the expected 15-column header",
+    "Upload dry-run: summary reads '2 ready · 2 skipped'; valid list shows names, type labels and phones; skipped rows show 'Row 4: Name is required' and 'Row 5: Unknown type 'weird''; button reads 'Import 2'",
+    "Cancel closes the dialog and creates nothing; Confirm creates both rows and they appear in the list",
+    "Ticking a card checkbox does not open the detail page; the bar appears with the right count; Select all (4) shows Clear all; Clear all and the X button hide the bar",
+    "Download selected gives clients-selected.csv containing only the selected rows",
+    "Delete opens a confirm dialog 'Delete 2 clients?'; confirming deletes both and the list refreshes (4 cards -> 2) and the bar disappears",
+    "Switching the type filter to Associate Consultant drops the selection from 2 to 1"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iteration62_clients_csv_bulk.py", "/app/test_reports/pytest/pytest_iter19.xml"],
+  "action_items": [
+    "In ClientsCsvActions.send pass skipCelebration: dryRun so the dry-run does not show 'Saved successfully!'",
+    "Add w-max (or inset-x-0 mx-auto w-fit) to the bulk-bar containers in ClientsBulkBar.jsx and Students.jsx (~line 759) so the bar is not limited to 50vw on mobile",
+    "Optional: on the Clients page, reject import rows whose type is outside scopeTypes (staff); escape formula-leading cells in the export"
+  ],
+  "critical_code_review_comments": [
+    "Import commits rows one insert_one at a time; insert_many would be faster for large files",
+    "The import confirm step re-uploads and re-parses the same file; results can differ from the preview if office data changed in between (acceptable)",
+    "Bulk delete does not touch students that reference the deleted sub-agents (same as single delete)"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration62_clients_csv_bulk.py"],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "admin@educonnect.app / Admin@12345",
+  "seed_data_creation": "TEST_UI_A/B and TEST_CSV_A/B were created and then deleted (cleaned up)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Clients tenant has 2 non-test clients (Sourav CM, Suhail). Students page has 1 student (Nayana Biju). Student card checkbox testid is st-card-select-{id}. Login testids: auth-email-input, auth-password-input, auth-submit-btn."
+}

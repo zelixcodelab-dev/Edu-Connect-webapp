@@ -16,8 +16,10 @@ export const ClientsCsvActions = ({ scopeTypes, defaultType, onImported }) => {
     const fd = new FormData();
     fd.append("file", f);
     fd.append("default_type", defaultType);
+    fd.append("allowed_types", scopeTypes.join(","));
     const { data } = await api.post(`/clients/import?dry_run=${dryRun}`, fd, {
       headers: { "Content-Type": "multipart/form-data" },
+      skipCelebration: dryRun,
     });
     return data;
   };
