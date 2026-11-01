@@ -161,6 +161,18 @@ def _phone_key(v) -> str:
     return digits[-10:] if len(digits) >= 7 else ""
 
 
+def _same_value(field: str, new, old) -> bool:
+    if field == "phone":
+        return bool(_phone_key(new)) and _phone_key(new) == _phone_key(old)
+    if field == "eligible_incentive":
+        try:
+            return old is not None and float(old) == float(new)
+        except (TypeError, ValueError):
+            return False
+    a, b = str(new).strip(), str(old or "").strip()
+    return a.lower() == b.lower() if field == "email" else a == b
+
+
 def _parse_type(raw: str, default_type: str) -> str:
     v = (raw or "").strip()
     if not v:
@@ -225,7 +237,7 @@ async def import_clients(
     valid, errors = [], []
     scope: dict = {} if user.get("role") == "super_admin" else _office_visibility_clause(user)
     existing = await db.clients.find(
-        {**scope, "client_type": {"$in": list(allowed)}}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "email": 1}
+        {**scope, "client_type": {"$in": list(allowed)}}, {"_id": 0}
     ).to_list(10000)
     all_names = await db.clients.find({}, {"_id": 0, "name": 1}).to_list(10000)
     seen = {(d.get("name") or "").strip().lower() for d in all_names}
@@ -245,11 +257,19 @@ async def import_clients(
                 if match["id"] in touched:
                     raise ValueError(f"Matches '{match['name']}' again (already updated by an earlier row)")
                 touched.add(match["id"])
-                seen.add(data["name"].strip().lower())
                 filled = {f for f, v in mapped.items() if (v or "").strip()}
-                changes = {f: data[f] for f in filled if f in data and data[f] is not None}
+                changes = {
+                    f: data[f] for f in filled
+                    if f in data and data[f] is not None and not _same_value(f, data[f], match.get(f))
+                }
                 if user.get("role") == "office_admin":
                     changes.pop("home_office", None)
+                new_key = (changes.get("name") or "").strip().lower()
+                if new_key and new_key != (match.get("name") or "").strip().lower() and new_key in seen:
+                    raise ValueError(f"Can't rename '{match['name']}' to '{changes['name']}': name already exists")
+                seen.add(data["name"].strip().lower())
+                if "client_type" not in changes:
+                    data["client_type"] = match.get("client_type")
                 valid.append({"action": "update", "id": match["id"], "match_name": match["name"], "data": data, "changes": changes})
                 continue
             key = data["name"].strip().lower()
@@ -265,7 +285,7 @@ async def import_clients(
             data = item["data"]
             if item["action"] == "update":
                 if item["changes"]:
-                    await db.clients.update_one({"id": item["id"]}, {"$set": item["changes"]})
+                    await db.clients.update_one({"id": item["id"]}, {"$set": {**item["changes"], "updated_at": now_iso()}})
                 continue
             if data.get("client_type") == "staff" and not data.get("employee_id"):
                 data["employee_id"] = await _next_employee_id(data.get("office"))

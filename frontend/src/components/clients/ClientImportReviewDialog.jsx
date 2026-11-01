@@ -15,7 +15,7 @@ export default function ClientImportReviewDialog({ preview, busy, onConfirm, onC
   const errors = preview?.errors || [];
   return (
     <Dialog open={!!preview} onOpenChange={(v) => { if (!v && !busy) onCancel(); }}>
-      <DialogContent className="bg-card max-w-lg overflow-y-auto" data-testid="client-import-review-dialog">
+      <DialogContent className="bg-card max-w-2xl overflow-y-auto" data-testid="client-import-review-dialog">
         <DialogHeader>
           <DialogTitle className="font-display">Review import</DialogTitle>
           <DialogDescription data-testid="client-import-summary">
@@ -29,7 +29,7 @@ export default function ClientImportReviewDialog({ preview, busy, onConfirm, onC
                 <div className="min-w-0">
                   <p className="font-medium truncate">{r.name}</p>
                   {r.action === "update" && (
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-[11px] text-muted-foreground break-words">
                       Updates {r.match_name}: {r.fields.length ? r.fields.map((f) => FIELD_LABELS[f] || f).join(", ") : "no changes"}
                     </p>
                   )}

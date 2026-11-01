@@ -455,3 +455,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Students bulk bar portaled to body (bottom-24 mobile / md:bottom-6, w-max).
 - Clients page only: Download (GET /api/clients/export?types|ids, formula-safe cells) & Upload (POST /api/clients/import?dry_run, allowed_types, dup-name + type scope checks) with Review import dialog.
 - Client card checkboxes + portaled ClientsBulkBar: Select all/Clear all, Download selected, Delete (POST /api/clients/bulk-delete) with confirm.
+
+## 2026-06 — Import updates existing clients
+- CSV rows matching an existing client (Clients-page types) by phone (last 10 digits) or email (case-insensitive) update it; only filled cells that actually differ change (+updated_at). Blank cells keep values.
+- Name-only matches skipped as duplicates; renames to an existing name blocked; same client matched twice → later row skipped.
+- Review dialog shows New/Update badges + "Updates <name>: fields"; toast "Added X · updated Y".

@@ -1,0 +1,51 @@
+{
+  "summary": "Tested Clients CSV 'Import Updates Existing'. Backend: 9/9 pytest pass (4 new + 5 iter19 regression). Phone match ignoring formatting, case-insensitive email match, blank cells keep old values, create, name-duplicate skip, double-match skip, staff not matched and dry_run writing nothing all work. Frontend: review dialog summary, row badges, 'Updates X: ...' line, Cancel, Confirm, list refresh, Download and the select/bulk bar all work. Issues found: (1) the success toast 'Added X · updated Y' never shows because it is swallowed by the global celebration, which shows a generic 'Saved successfully!' instead; (2) 'fields' lists unchanged values (Name always, and identical Company/Phone); (3) the preview shows the default type for update rows with a blank Type cell; (4) updates can rename a client to another existing client's name; (5) the update line is truncated in the dialog.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/clients/import", "issue": "rows[].fields / changes include every filled cell, even when the value equals the current one. Name is always filled, so every update shows 'Name'. Repro: client with company 'Same' + row 'A,9333333333,Same' -> fields ['company','name','phone']. Fix: diff against the matched doc (fetch the full doc, or at least the CSV fields, in `existing`) and drop equal values. For email, compare case-insensitively."},
+      {"endpoint": "POST /api/clients/import (update rows)", "issue": "Preview rows[].client_type is data['client_type'], which falls back to default_type when the Type cell is blank. An Associate Consultant being updated is shown as 'Sub Agent / Associate' in the review. The DB type is unchanged, so the data is correct and only the preview label is wrong. Fix: for update rows, report the matched client's existing type unless Type was filled."},
+      {"endpoint": "POST /api/clients/import (update rows)", "issue": "The name-duplicate rule is not applied to updates. A row matching client B by phone with Name='TEST_PRB_A' (another existing client) renames B and produces 2 clients with the same name. Fix: if 'name' is in changes and differs from match name, check it against `seen` (excluding the matched client's own old name)."},
+      {"endpoint": "POST /api/clients/import", "issue": "A filled phone cell overwrites the stored phone with the raw formatted value, e.g. '9555555555' -> '+91 95555 55555', even though it is the same number. Consider skipping phone when _phone_key is equal. Updates also don't set an updated_at timestamp."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClientsCsvActions.confirm", "issue": "toast.success(`Added ${created} · updated ${updated}`) is never shown. RCA: lib/celebrate.js patches sonner toast.success to return undefined when recentlyCelebrated() (1.6s); the axios interceptor's maybeCelebrate has just fired a generic 'Saved successfully!' for POST /clients/import. Fix: pass skipCelebration:true for the commit call too, or call celebrate({title:'Import complete', subtitle:`Added X · updated Y`}) directly.", "selector": "[data-testid=client-import-confirm]", "priority": "MEDIUM"},
+      {"component": "ClientImportReviewDialog", "issue": "At max-w-lg, the name and the 'Updates <old name>: Company, Name, Phone' line are truncated ('Updates TEST_UI_...') because the right-hand type/phone span takes the space. The changed fields are not readable on desktop. Fix: let the updates line wrap (remove truncate), widen the dialog (max-w-2xl), or move type/phone below.", "selector": "[data-testid^=client-import-row-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Review import dialog", "issues": ["The update-fields line is truncated, so users can't see what will change", "Type label is wrong for update rows with a blank Type (see backend minor)"]}
+    ]
+  },
+  "passed_checks": [
+    "Dry-run summary '1 new · 2 updates · 1 skipped'; badges UPDATE/UPDATE/NEW; skipped 'Row 5: 'TEST_UI_UPD_A' already exists'; button 'Import 3'",
+    "Cancel closes the dialog and saves nothing (OldCoUI still shown)",
+    "Confirm: A company OldCoUI->NewCoUI with place Kochi kept; B place->Mumbai with phone/company kept; NEW created; list refreshed",
+    "Re-upload of the same file -> '0 new · 3 updates' (the new row is now matched by phone)",
+    "'+91 98765 43210' and '98765-43210' / '(911) 111-1111' match by last 10 digits; 'UPD_B@EXAMPLE.COM' matches 'Upd_B@Example.com'",
+    "A second row matching an already-updated client is skipped; staff-type clients are not matched from the Clients page",
+    "Download gives clients.csv; card checkbox -> bulk bar '1 selected'; Select all -> '5 selected'; clear hides the bar"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iteration63_clients_import_updates.py", "/app/backend/tests/test_iteration62_clients_csv_bulk.py", "/app/test_reports/pytest/pytest_iter20.xml"],
+  "action_items": [
+    "Make the post-import 'Added X · updated Y' visible: skipCelebration on the commit call plus the toast, or a celebrate() with a custom subtitle",
+    "Compute rows[].fields/changes as real diffs against the matched client (skip equal values, compare phone by key and email case-insensitively)",
+    "For update rows, show the matched client's existing type in the preview when the Type cell is blank",
+    "Apply the duplicate-name check when an update renames a client to another existing client's name",
+    "Stop the update line in the review dialog from being truncated"
+  ],
+  "critical_code_review_comments": [
+    "routers/clients.py is ~580 lines; the import logic (header map, row parse, match/diff) could move to lib/client_import.py",
+    "`existing` projection only has id/name/phone/email, so a real diff isn't possible; fetch the CSV columns too",
+    "by_phone/by_email dict comprehensions keep the last of any duplicate existing phones silently; acceptable but undocumented"
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration63_clients_import_updates.py"],
+  "success_rate": {"backend": "100% (9/9 tests; 4 minor logic issues found by probes)", "frontend": "90%"},
+  "test_credentials": "admin@educonnect.app / Admin@12345",
+  "seed_data_creation": "TEST_UPD_*, TEST_PRB_*, TEST_UI_UPD_* clients were created and then deleted",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Clients tenant has 2 real clients (Sourav CM, Suhail). Card checkbox testid client-select-{id}. Toasts after CRUD are swallowed by lib/celebrate.js (overlay 'Saved successfully!'), so to verify import result text check the overlay or the API response, not sonner."
+}
