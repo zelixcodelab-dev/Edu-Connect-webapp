@@ -69,7 +69,7 @@ export default function BulkUploadDialog({ open, onOpenChange, onDone }) {
   const apply = async () => {
     setBusy(true);
     try {
-      const { data } = await api.post("/attendance/bulk", { kind, csv, preview: false });
+      const { data } = await api.post("/attendance/bulk", { kind, csv, preview: false }, { skipCelebration: true });
       toast.success(`Applied · ${data.created} added · ${data.updated} updated${data.error_count ? ` · ${data.error_count} skipped` : ""}`);
       onDone?.();
       if (!data.error_count) { close(); return; }
@@ -91,7 +91,7 @@ export default function BulkUploadDialog({ open, onOpenChange, onDone }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
       <DialogContent data-testid="bulk-upload-dialog" className="max-w-2xl">
         <DialogHeader><DialogTitle>Bulk upload</DialogTitle></DialogHeader>
         <div className="space-y-4 py-1">
@@ -158,7 +158,7 @@ export default function BulkUploadDialog({ open, onOpenChange, onDone }) {
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={close}>Close</Button>
           <Button variant="outline" onClick={runPreview} disabled={busy} data-testid="bulk-preview-btn">Preview</Button>
           <Button className="btn-amber" onClick={apply} disabled={busy || !preview || validCount === 0 || applied} data-testid="bulk-submit">
             <UploadSimple size={16} className="mr-1.5" /> Apply{preview ? ` (${validCount})` : ""}

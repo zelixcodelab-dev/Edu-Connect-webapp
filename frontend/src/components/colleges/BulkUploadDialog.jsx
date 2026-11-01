@@ -57,6 +57,7 @@ export default function BulkUploadDialog({ open, onOpenChange, onUploaded }) {
       fd.append("file", file);
       const r = await api.post("/colleges/bulk", fd, {
         headers: { "Content-Type": "multipart/form-data" },
+        skipCelebration: true,
       });
       if (r.data.created_count > 0) {
         toast.success(`Added ${r.data.created_count} college(s)`);

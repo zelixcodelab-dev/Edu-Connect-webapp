@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only test of the change that closes upload pop-ups automatically, plus an audit of other pop-ups. All 4 bulk upload pop-ups behave as specified. A clean upload closes the pop-up and reopening it shows an empty state. An upload with duplicate or error rows keeps the pop-up open and lists them. Leads: 2 new rows closed the pop-up; 1 new + 1 duplicate kept it open with leads-bulk-result and leads-bulk-duplicates. Colleges: same with bulk-result ('1 duplicate(s) skipped — e.g. ...'). Students: clean apply closed it; 1 valid + 1 error row ('name is required') stayed open showing '✓ Applied' with the error row. Attendance: 'Choose CSV file' (bulk-file-input) still loads the file into bulk-csv; clean apply closed it; a row with 'staff not found' stayed open. Clients regression: client-import-review-dialog closes after client-import-confirm and the new client appears in the list. Spot checks in the UI: the Clients add form, the College form (college-dialog) and the Lead add form (lead-form-dialog) all close after saving. A code audit of about 50 pop-up save handlers found only one pop-up that stays open after a successful save (CampaignDistributeDialog). One minor issue: after a manual close, Attendance and Students bulk pop-ups keep their old content.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "attendance/BulkUploadDialog.jsx", "issue": "Closing manually (footer Close, X or Escape) does not reset the pop-up. It uses <Dialog onOpenChange={onOpenChange}> and the Close button calls onOpenChange(false), not close(). Reopening shows the old CSV text and the old preview with '✓ Applied'. Reproduced in the browser. Auto-close after a clean apply does reset correctly.", "selector": "[data-testid=bulk-upload-dialog]", "priority": "LOW"},
+      {"component": "student-detail/StudentBulkUploadDialog.jsx", "issue": "The footer Close button calls onOpenChange(false) directly. This skips the Dialog's reset handler, so reopening shows the old CSV text (reproduced in the browser). X and Escape reset correctly.", "selector": "[data-testid=student-bulk-dialog] footer Close", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All bulk upload pop-ups / CRUD saves", "issues": ["The sonner success toasts (e.g., 'Imported N lead(s)') never appear. lib/celebrate.js replaces them with a generic 'Saved successfully!' overlay (already known from iteration 20). On a partial upload the user only sees the result panel, not the toast text."]}
+    ]
+  },
+  "audit_popups_staying_open_after_success": [
+    {"file": "/app/frontend/src/components/leads/CampaignDistributeDialog.jsx", "testid": "campaign-distribute-dialog / distribute-submit-btn", "behavior": "After a successful distribute it calls setResult(data), shows a toast and calls onDistributed(), but never calls onOpenChange(false). The pop-up stays open showing distribute-result. Found in code review, not run in the UI."},
+    {"file": "/app/frontend/src/components/attendance/EditDaysDialog.jsx", "testid": "edit-days-dialog / edit-day-save", "behavior": "Save works row by row and the pop-up stays open. This looks intentional for editing several days; flagged for awareness only."},
+    {"file": "/app/frontend/src/components/leads/LeadDetailDialog.jsx", "testid": "lead detail", "behavior": "Inline actions (status note, visit, follow-up, campaign change) keep the detail view open. This looks intentional for a detail/workspace view."}
+  ],
+  "audited_ok_close_after_success": ["LeadFormDialog (UI verified)", "CollegeFormDialog (UI verified)", "Clients add/edit (UI verified)", "ClientImportReviewDialog (UI verified)", "FollowUpEditDialog", "EditApplicationDialog", "PaymentDialog/ScheduleDialog via StudentDetail submitPay/submitSch", "ConvertToEnrolledDialog", "InvoiceCreateDialog", "Invoices page dialog", "ClientTxnDialog", "CampaignFormDialog", "CampaignAddLeadsDialog", "CampaignImportSheetsDialog", "CallLogDialog", "InterestedDialog", "ConvertDialog", "StageChangeDialog (LeadsPipeline/LeadDetail)", "LeaveRequestDialog", "EmergencyLeaveDialog", "LeavePolicyDialog", "StaffQuotaDialog", "RegularizationPanel submit/convert", "CompanyProfileDialog", "OfficesSettings request", "AdmissionRevenuePinSettings", "PinSetupDialog", "CreateUserDialog", "ResetPasswordDialog", "PermissionsDialog", "ComposeMessageDialog", "PasteApplicationDialog", "Accounts/Transactions/Categories/Agents/StaffMembers/OfficeStaff/Students/StaffStudents page dialogs", "ExpenseRequests new/action", "Platform* page dialogs"],
+  "test_report_links": [],
+  "action_items": [
+    "CampaignDistributeDialog: after a successful distribute, close the pop-up automatically if no rows were skipped, to match the new rule.",
+    "Attendance BulkUploadDialog: pass a handler like (v) => v ? onOpenChange(true) : close() to the Dialog and make the footer Close call close(), so a manual close also resets csv and preview.",
+    "StudentBulkUploadDialog: the footer Close button should also clear csv and preview (setCsv(''); reset())."
+  ],
+  "critical_code_review_comments": [
+    "In the Attendance and Students bulk pop-ups the file input is never reset after a file is loaded. Choosing the same file again does not fire onChange.",
+    "The Clients add/edit DialogContent (pages/Clients.jsx line 290) has no data-testid."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested flows (7/7); 2 low-priority reset issues on manual close"},
+  "seed_data_creation": "Created TEST_*_67898 leads (4), colleges (3), students (2), clients (2) and 2 attendance rows for test_att_staff_1 (2025-03-03, 2025-03-04) in tenant DB test_database_t_8286d28c6b04042a. All were deleted via pymongo afterwards.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin admin@educonnect.app is tenant ZELIX (DB test_database_t_8286d28c6b04042a). Leads upload button: open /leads, click crm-tab-all, then leads-upload-btn. Students: bulk-upload-students-btn. Attendance: tab-payroll, then bulk-upload-btn. Colleges: bulk-upload-btn. test_att_staff_1@educonnect.app exists in this tenant for attendance CSV rows. Sonner toasts are swallowed by celebrate.js, so check pop-up visibility instead."
+}

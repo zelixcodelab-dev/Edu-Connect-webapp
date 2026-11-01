@@ -48,10 +48,10 @@ export default function CampaignDistributeDialog({ open, onOpenChange, campaignI
       const payload = { method, employee_ids: selected, scope };
       if (method === "count") payload.counts = Object.fromEntries(selected.map((id) => [id, parseInt(counts[id], 10) || 0]));
       if (method === "percentage") payload.percentages = Object.fromEntries(selected.map((id) => [id, parseFloat(percentages[id]) || 0]));
-      const { data } = await api.post(`/campaigns/${campaignId}/distribute`, payload);
-      setResult(data);
+      const { data } = await api.post(`/campaigns/${campaignId}/distribute`, payload, { skipCelebration: true });
       toast.success(`Distributed ${data.assigned} lead(s)`);
       onDistributed?.();
+      onOpenChange(false);
     } catch (err) {
       const detail = err?.response?.data?.detail;
       toast.error(typeof detail === "string" ? detail : "Could not distribute");

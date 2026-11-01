@@ -44,7 +44,7 @@ export default function LeadsBulkUploadDialog({ open, onOpenChange, onUploaded, 
       fd.append("file", file);
       if (campaignMode) fd.append("campaign_id", campaignId);
       else if (!isStaff && assignee) fd.append("assigned_to_user_id", assignee);
-      const r = await api.post("/leads/bulk", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const r = await api.post("/leads/bulk", fd, { headers: { "Content-Type": "multipart/form-data" }, skipCelebration: true });
       const dupN = r.data.duplicate_count || 0;
       const hasSkipped = dupN > 0 || (r.data.unmatched_employees?.length || 0) > 0;
       if (r.data.created_count > 0) {

@@ -42,6 +42,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
   const fileRef = useRef(null);
 
   const reset = () => { setPreview(null); setApplied(false); };
+  const close = () => { onOpenChange(false); setCsv(""); reset(); };
 
   const onFile = async (e) => {
     const f = e.target.files?.[0];
@@ -55,7 +56,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
     if (!csv.trim()) { toast.error("Paste or choose a CSV first"); return; }
     setBusy(true);
     try {
-      const { data } = await api.post("/students/bulk", { csv, preview: isPreview });
+      const { data } = await api.post("/students/bulk", { csv, preview: isPreview }, { skipCelebration: true });
       setPreview(data);
       if (isPreview) {
         setApplied(false);
@@ -63,7 +64,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
       } else {
         toast.success(`${data.created} added · ${data.updated} updated${data.error_count ? ` · ${data.error_count} skipped` : ""}`);
         onDone?.();
-        if (!data.error_count) { onOpenChange(false); setCsv(""); reset(); return; }
+        if (!data.error_count) { close(); return; }
         setPreview(data);
         setApplied(true);
       }
@@ -75,7 +76,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setCsv(""); reset(); } }}>
+    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
       <DialogContent data-testid="student-bulk-dialog" className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Bulk upload admissions</DialogTitle>
@@ -135,7 +136,7 @@ export default function StudentBulkUploadDialog({ open, onOpenChange, onDone }) 
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={close}>Close</Button>
           <Button variant="outline" onClick={() => call(true)} disabled={busy} data-testid="student-bulk-preview-btn">Preview</Button>
           <Button className="btn-amber" onClick={() => call(false)} disabled={busy || !preview || (preview.created + preview.updated) === 0 || applied} data-testid="student-bulk-submit">
             <UploadSimple size={16} className="mr-1.5" /> Apply{preview ? ` (${preview.created + preview.updated})` : ""}

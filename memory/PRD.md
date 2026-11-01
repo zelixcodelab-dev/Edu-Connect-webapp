@@ -460,3 +460,7 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - CSV rows matching an existing client (Clients-page types) by phone (last 10 digits) or email (case-insensitive) update it; only filled cells that actually differ change (+updated_at). Blank cells keep values.
 - Name-only matches skipped as duplicates; renames to an existing name blocked; same client matched twice → later row skipped.
 - Review dialog shows New/Update badges + "Updates <name>: fields"; toast "Added X · updated Y".
+
+## 2026-06 — Upload/update pop-ups auto-close
+- Leads, Colleges, Students, Attendance bulk uploads close automatically on a fully clean upload (toast shown, skipCelebration); stay open listing skipped/duplicate/error rows otherwise. Manual close resets state.
+- Campaign Distribute dialog now closes after distributing. Audit of ~50 save dialogs found no others staying open.
