@@ -464,3 +464,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Upload/update pop-ups auto-close
 - Leads, Colleges, Students, Attendance bulk uploads close automatically on a fully clean upload (toast shown, skipCelebration); stay open listing skipped/duplicate/error rows otherwise. Manual close resets state.
 - Campaign Distribute dialog now closes after distributing. Audit of ~50 save dialogs found no others staying open.
+
+## 2026-06 — Student payment double-credit fix
+- internal_credit ("Company account") adjustments are part of the received amount: same account → no extra tx; different account → transfer (expense on received acct + income on company acct); no received acct → plain income.
+- Linked tx cleanup on edit now by linked_student_payment_id only (no duplicates).
+- One-time startup migration `payment_tx_resync_v1` (flag in gdb.tenants.migrations) rebuilds linked tx for all past payments with internal_credit adjustments, per tenant (runs on live after publish).

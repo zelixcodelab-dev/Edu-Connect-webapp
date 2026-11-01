@@ -400,10 +400,7 @@ async def _auto_log_payment_transaction(user_id: str, student: dict, payment: di
             account_id = await _resolve_default_account_id(user_id)
 
     # Clean up any prior linked tx for this payment id (idempotent)
-    await db.transactions.delete_many({
-        "user_id": user_id,
-        "linked_student_payment_id": payment["id"],
-    })
+    await db.transactions.delete_many({"linked_student_payment_id": payment["id"]})
 
     # Resolve income category from fee_type label
     fee_label_map = {
@@ -451,33 +448,45 @@ async def _auto_log_payment_transaction(user_id: str, student: dict, payment: di
             "linked_student_payment_id": payment["id"],
         })
 
-    # Also auto-log every internal_credit adjustment as its own income tx on
-    # the picked KM-Foundation account. SC-adjusted rows are tracked by the
-    # agent-ledger aggregation and intentionally do NOT create real money
-    # transactions on the books.
+    # internal_credit adjustments are PART of the received amount. Same account
+    # as the receipt → already counted, no extra tx. Different account → a
+    # transfer (debit the received account, credit the company account). With
+    # no received account (e.g. collected by college), it's a plain credit.
+    # SC-adjusted rows are tracked by the agent ledger and create no tx.
     for idx, adj in enumerate(payment.get("adjustments") or []):
         if adj.get("kind") != "internal_credit":
             continue
         adj_account_id = adj.get("account_id")
-        if not adj_account_id:
+        if not adj_account_id or adj_account_id == account_id:
             continue
+        amount = round(adj.get("amount") or 0, 2)
+        adj_date = adj.get("payment_date") or payment.get("date")
+        link = {"linked_student_id": student.get("id"), "linked_student_payment_id": payment["id"], "linked_adjustment_idx": idx}
+        if account_id:
+            await db.transactions.insert_one({
+                "id": gen_id(), "user_id": user_id, "created_at": now_iso(),
+                "type": "expense", "amount": amount, "account_id": account_id, "category_id": None,
+                "date": adj_date,
+                "description": " · ".join(filter(None, [
+                    f"Moved to company account — {student.get('name')}", adj.get("remarks") or "",
+                ])),
+                **link,
+            })
         await db.transactions.insert_one({
             "id": gen_id(),
             "user_id": user_id,
             "created_at": now_iso(),
             "type": "income",
-            "amount": round(adj.get("amount") or 0, 2),
+            "amount": amount,
             "account_id": adj_account_id,
             "category_id": cat["id"] if cat else None,
-            "date": adj.get("payment_date") or payment.get("date"),
+            "date": adj_date,
             "description": " · ".join(filter(None, [
                 f"Student fee — {student.get('name')}",
                 "Company account (adjustment)",
                 adj.get("remarks") or "",
             ])),
-            "linked_student_id": student.get("id"),
-            "linked_student_payment_id": payment["id"],
-            "linked_adjustment_idx": idx,
+            **link,
         })
 
     # Paid-to-College adjustments create an EXPENSE (debit) on the SAME account
@@ -510,6 +519,17 @@ async def _auto_log_payment_transaction(user_id: str, student: dict, payment: di
                 "linked_student_payment_id": payment["id"],
                 "linked_adjustment_idx": idx,
             })
+
+
+async def resync_internal_credit_payments() -> int:
+    """One-off per tenant: rebuild linked tx for payments with internal_credit adjustments."""
+    n = 0
+    async for s in db.students.find({"payments.adjustments.kind": "internal_credit"}, {"_id": 0}):
+        for p in s.get("payments") or []:
+            if any(a.get("kind") == "internal_credit" for a in p.get("adjustments") or []):
+                await _auto_log_payment_transaction(s["user_id"], s, p)
+                n += 1
+    return n
 
 
 async def _delete_payment_transaction(user_id: str, payment_id: str) -> None:

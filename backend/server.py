@@ -257,6 +257,11 @@ async def startup() -> None:
     except Exception:
         logger.exception("[startup] VAPID key setup failed")
 
+    try:
+        await _run_once_per_tenant("payment_tx_resync_v1", "routers.students", "resync_internal_credit_payments")
+    except Exception:
+        logger.exception("[startup] payment tx resync failed")
+
 
     # Per-tenant helper indexes (rate-limit + activity) resolve against the
     # default tenant DB now that it's bound. Non-fatal.
@@ -284,6 +289,22 @@ async def startup() -> None:
     asyncio.create_task(_sheet_sync_loop())
     # Background sweep: ping admins about staff not checked in by 10:30 IST.
     asyncio.create_task(_late_alert_loop())
+
+
+async def _run_once_per_tenant(flag: str, module: str, fn_name: str) -> None:
+    """Run a data fix once per company; marks done in tenants.migrations."""
+    import importlib
+    fn = getattr(importlib.import_module(module), fn_name)
+    async for t in gdb.tenants.find({"migrations": {"$ne": flag}}, {"_id": 0, "id": 1}):
+        token = set_current_tenant(t["id"])
+        try:
+            n = await fn()
+            await gdb.tenants.update_one({"id": t["id"]}, {"$addToSet": {"migrations": flag}})
+            logger.info("[%s] tenant %s: %s payments resynced", flag, t["id"], n)
+        except Exception:
+            logger.exception("[%s] failed for tenant %s", flag, t["id"])
+        finally:
+            reset_current_tenant(token)
 
 
 async def _sweep_all_tenants(fn, label: str, module: str | None = None) -> None:
