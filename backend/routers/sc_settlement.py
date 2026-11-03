@@ -34,7 +34,8 @@ async def _student(student_id: str) -> dict:
 @router.put("/{student_id}/sc-settlement")
 async def settle_sc(student_id: str, payload: ScSettlementIn, user: dict = Depends(_super_admin)):
     s = await _student(student_id)
-    if not await db.accounts.find_one({"id": payload.account_id, "user_id": user["id"]}, {"_id": 1}):
+    acc = await db.accounts.find_one({"id": payload.account_id, "user_id": user["id"]}, {"_id": 0, "name": 1})
+    if not acc:
         raise HTTPException(404, "Account not found")
     await db.transactions.delete_many({"linked_sc_settlement_student_id": student_id})
     tx_id = gen_id()
@@ -54,7 +55,7 @@ async def settle_sc(student_id: str, payload: ScSettlementIn, user: dict = Depen
         "linked_sc_settlement_student_id": student_id,
     })
     settlement = {**payload.model_dump(), "amount": round(payload.amount, 2), "tx_id": tx_id,
-                  "settled_at": now_iso(), "settled_by": user["id"]}
+                  "account_name": acc.get("name"), "settled_at": now_iso(), "settled_by": user["id"]}
     await db.students.update_one({"id": student_id}, {"$set": {"sc_settlement": settlement}})
     return {"ok": True, "sc_settlement": settlement}
 

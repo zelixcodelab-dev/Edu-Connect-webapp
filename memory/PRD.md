@@ -470,3 +470,8 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Linked tx cleanup on edit now by linked_student_payment_id only (no duplicates).
 - One-time startup migration `payment_tx_resync_v1` (flag in gdb.tenants.migrations) rebuilds linked tx for all past payments with internal_credit adjustments, per tenant (runs on live after publish).
 - SC to Client adjustments marked "SC given" now log an SC-payout debit (is_sc_payout, client_id) on the payment's received account; skipped if a one-click SC payout already logged it. Migration `sc_given_tx_resync_v1` backfills past entries. Student detail shows "debited from <account>".
+
+## 2026-06 — Mark SC Settled + Students table pagination
+- PUT/DELETE /api/students/{id}/sc-settlement (super admin only): one income tx "SC received from college — <name>" (linked_sc_settlement_student_id); student.sc_settlement {amount, account_id, account_name, date, payment_mode, tx_id}. Editing the tx on Transactions syncs it; deleting clears it. sc_settled/sc_settlement masked for non-super-admins.
+- UI: ScSettlementCard/Dialog on Student Detail; green check on student cards.
+- StudentsTable: 10/page pagination, continuous serials, reset on filter/sort, nowrap name/course/college, row click opens student.

@@ -6,9 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { PAYMENT_MODES } from "@/components/student-detail/constants";
+import { PAYMENT_MODES } from "@/lib/paymentModes";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 export default function ScSettlementDialog({ open, onOpenChange, s, accounts, onSaved }) {
   const [f, setF] = useState({ amount: "", account_id: "", date: today(), payment_mode: "" });

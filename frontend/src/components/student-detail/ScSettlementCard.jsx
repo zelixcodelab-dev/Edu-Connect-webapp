@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle, PencilSimple, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { PAYMENT_MODES } from "@/components/student-detail/constants";
+import { PAYMENT_MODES } from "@/lib/paymentModes";
 import ScSettlementDialog from "@/components/student-detail/ScSettlementDialog";
 
 export default function ScSettlementCard({ s, accounts, currency, onChanged }) {
@@ -13,7 +13,7 @@ export default function ScSettlementCard({ s, accounts, currency, onChanged }) {
   const st = s.sc_settlement;
   const earned = Number(s.sc_earned_effective || 0);
   if (!st && earned <= 0) return null;
-  const accName = st ? accounts.find((a) => a.id === st.account_id)?.name : null;
+  const accName = st ? (accounts.find((a) => a.id === st.account_id)?.name || st.account_name) : null;
 
   const undo = async () => {
     if (!window.confirm("Undo SC Settled? The credit will be removed from the account.")) return;

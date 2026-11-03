@@ -1,0 +1,36 @@
+{
+  "summary": "Tested (A) Mark SC Settled (backend + UI) and (B) Students table pagination. Backend: 8/8 pytest pass (settle creates exactly one income tx 'SC received from college — <name>', balance +amount; edit replaces the single credit (balance delta correct); office admin gets 403 on PUT/DELETE and sc_settlement is masked; 422 for amount 0, 404 for unknown account/student; deleting the linked tx clears sc_settled; undo removes the credit and balance drops). UI as super admin: sc-settlement-card shows on a student with SC earned 7500, dialog amount pre-filled to 7500, account/date/mode pickers work, save shows sc-settled-info '₹7,500 · TEST_UI_SCAcc · Jan 20, 2026 · Cash'. Edit to 6000 left exactly one tx row of +₹6,000 on Transactions. Deleting that tx from the Transactions page reset the student card to Mark SC Settled. Re-settle then Undo (window.confirm) worked. Card view shows st-card-sc-settled-{id}. Office admin does not see sc-settlement-card. Table view with 14 students: 10 rows, '1–10 of 14 students', 'Page 1 of 2', Prev disabled on page 1. Page 2 shows serial 11–14 with Next disabled. A col-filter-name filter and a column sort both reset to page 1. Course and College cells are single line (all cell heights 45px). Clicking the checkbox, or the padding of its cell, does not navigate. Clicking a row goes to /students/{id}.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/transactions/{id}", "issue": "Editing the linked SC credit amount on the Transactions page does not update students.sc_settlement.amount, so the student card shows a stale amount. Either sync it or block edits of linked SC txs."},
+      {"endpoint": "PUT/DELETE /api/students/{id}/sc-settlement", "issue": "With several super admins, the account check requires the account to belong to the caller, but delete_many removes the linked tx whoever owns it. Another super admin can undo or replace a tx in someone else's ledger, and the card shows 'account' because accounts are listed per user."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Student detail SC card", "issues": ["The 'Balance vs SC earned' tile still shows ₹7,500 in red after SC is settled. Confirm this is intended.", "The ScSettlementDialog default date uses new Date().toISOString(), a UTC date that can be off by one day for IST users near midnight.", "Payment modes offered are Cash, Bank Transfer, UPI and Other. The backend PaymentMode also allows cheque and card."]},
+      {"screen": "Students table", "issues": ["At 1920px the Status, Collected and Balance columns need horizontal scroll (the long Course and College values now stay on one line).", "Select-all selects every filtered row across all pages, not only the current page. Confirm this is intended."]},
+      {"screen": "Students card view (non-super-admin)", "issues": ["sc_settled is not masked for non-super-admins, so office admins also see the green SC-settled check on cards. Confirm this is intended."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration22_sc_settlement.py", "/app/backend/tests/_ui_seed.py", "/app/test_reports/pytest/pytest_iteration22.xml"],
+  "action_items": [
+    "Optional: sync or lock the linked SC tx when it is edited through PATCH /api/transactions/{id}",
+    "Optional: decide whether office admins should see the sc_settled flag on cards",
+    "Optional: build the default date from the local timezone in ScSettlementDialog"
+  ],
+  "critical_code_review_comments": [
+    "sc_settlement.py: delete_many has no user_id scope, which risks cross-ledger deletes when there are several super admins",
+    "transactions.update_transaction leaves sc_settlement out of sync with the tx amount",
+    "Transactions.jsx desktop edit/delete buttons had no data-testid (added tx-edit-{id} / tx-delete-{id})"
+  ],
+  "updated_files": ["/app/frontend/src/pages/Transactions.jsx (added data-testid tx-edit-{id}/tx-delete-{id} on desktop table buttons)", "/app/backend/tests/test_iteration22_sc_settlement.py", "/app/backend/tests/_ui_seed.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created 12 TEST_UIStu_* students and the TEST_UI_SCAcc account for the UI tests, plus TEST_SCStu_*/TEST_SCAcc_* in pytest. All were deleted by id afterwards. No seed data was modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use `pytest -n0 test_iteration22_sc_settlement.py`. For UI pagination run `python _ui_seed.py seed` then `python _ui_seed.py cleanup` (state is kept in /tmp/ui_seed.json). The default tenant has only 2 real students for admin@educonnect.app. Desktop Transactions delete button is tx-delete-{id}. For the confirm dialog, use an async page.on('dialog') handler."
+}

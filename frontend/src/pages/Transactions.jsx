@@ -339,8 +339,8 @@ export default function Transactions() {
                         {t.type === 'income' ? '+' : '−'}{formatMoney(t.amount, currency)}
                       </td>
                       <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                        {allowEdit && <button onClick={() => openEdit(t)} className="text-muted-foreground hover:text-foreground p-1.5"><PencilSimple size={16} /></button>}
-                        {allowEdit && <button onClick={() => remove(t.id)} className="text-muted-foreground hover:text-rose-700 dark:text-rose-400 p-1.5"><Trash size={16} /></button>}
+                        {allowEdit && <button onClick={() => openEdit(t)} data-testid={`tx-edit-${t.id}`} className="text-muted-foreground hover:text-foreground p-1.5"><PencilSimple size={16} /></button>}
+                        {allowEdit && <button onClick={() => remove(t.id)} data-testid={`tx-delete-${t.id}`} className="text-muted-foreground hover:text-rose-700 dark:text-rose-400 p-1.5"><Trash size={16} /></button>}
                       </td>
                     </tr>
                   ))}

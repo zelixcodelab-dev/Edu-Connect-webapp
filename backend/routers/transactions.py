@@ -159,8 +159,15 @@ async def update_transaction(tx_id: str, payload: TransactionIn, user: dict = De
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Transaction not found")
-    return await db.transactions.find_one({"id": tx_id}, {"_id": 0})
-
+    tx = await db.transactions.find_one({"id": tx_id}, {"_id": 0})
+    if tx.get("linked_sc_settlement_student_id"):
+        acc = await db.accounts.find_one({"id": tx["account_id"]}, {"_id": 0, "name": 1}) or {}
+        await db.students.update_one(
+            {"id": tx["linked_sc_settlement_student_id"], "sc_settlement.tx_id": tx_id},
+            {"$set": {"sc_settlement.amount": tx["amount"], "sc_settlement.account_id": tx["account_id"],
+                      "sc_settlement.account_name": acc.get("name"), "sc_settlement.date": tx["date"]}},
+        )
+    return tx
 
 @router.delete("/{tx_id}")
 async def delete_transaction(tx_id: str, user: dict = Depends(require_edit("transactions"))):

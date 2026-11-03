@@ -212,6 +212,7 @@ def _summarize(s: dict, user: Optional[dict] = None) -> dict:
     if user is not None and (user or {}).get("role") != "super_admin":
         s.pop("sc_from_college_override", None)
         s.pop("sc_settlement", None)
+        s.pop("sc_settled", None)
     return s
 
 
