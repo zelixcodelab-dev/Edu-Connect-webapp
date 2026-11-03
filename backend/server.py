@@ -22,6 +22,7 @@ from routers import auth, accounts, clients, categories, transactions, invoices,
 from routers import onboarding as onboarding_router
 from routers import platform as platform_router
 from routers import offices as offices_router
+from routers import sc_settlement as sc_settlement_router
 from routers import branding as branding_router
 from routers import connect as connect_router
 from routers import registry as registry_router
@@ -41,6 +42,7 @@ app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(invoices.router)
 app.include_router(dashboard.router)
+app.include_router(sc_settlement_router.router)
 app.include_router(students.router)
 app.include_router(users.router)
 app.include_router(expense_requests.router)

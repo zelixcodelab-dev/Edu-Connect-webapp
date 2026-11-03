@@ -207,9 +207,11 @@ def _summarize(s: dict, user: Optional[dict] = None) -> dict:
     ):
         s[key] = summary[key]
 
+    s["sc_settled"] = bool(s.get("sc_settlement"))
     # Mask super-admin-only fields from other roles.
     if user is not None and (user or {}).get("role") != "super_admin":
         s.pop("sc_from_college_override", None)
+        s.pop("sc_settlement", None)
     return s
 
 

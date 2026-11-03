@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CaretUp, CaretDown, ArrowsDownUp, ArrowSquareOut } from "@phosphor-icons/react";
+import { CaretUp, CaretDown, ArrowsDownUp, ArrowSquareOut, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { formatMoney } from "@/lib/format";
 import { COLLEGE_PLACES } from "@/lib/places";
 
@@ -50,6 +51,8 @@ function cellValue(s, key, ctx) {
 }
 
 // Numeric vs string comparator helpers
+const PAGE_SIZE = 10;
+
 const cmpNumber = (a, b) => (a === b ? 0 : (a < b ? -1 : 1));
 const cmpString = (a, b) => String(a).localeCompare(String(b));
 
@@ -113,6 +116,14 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
 
     return arr;
   }, [students, sort, colFilters, cityOfStudent, hometownOf]);
+
+  const nav = useNavigate();
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [sort, colFilters]);
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
+  const start = (Math.min(page, pageCount) - 1) * PAGE_SIZE;
+  const pageRows = visible.slice(start, start + PAGE_SIZE);
 
   const visibleIds = visible.map((s) => s.id);
   const allVisibleSelected = selectable && visibleIds.length > 0 && visibleIds.every((id) => selectedIds?.has(id));
@@ -198,7 +209,7 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
                 </td>
               </tr>
             ) : (
-              visible.map((s, i) => {
+              pageRows.map((s, i) => {
                 const date = (s.enrollment_date || s.created_at || "").slice(0, 10);
                 const tone = STATUS_TONE[s.status] || STATUS_TONE.cancelled;
                 const collected = Number(s.collected_total || 0);
@@ -207,20 +218,21 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
                   <tr
                     key={s.id}
                     data-testid={`student-row-${s.id}`}
-                    className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${selectable && selectedIds?.has(s.id) ? "bg-primary/5" : ""}`}
+                    onClick={() => nav(`/students/${s.id}`)}
+                    className={`cursor-pointer border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${selectable && selectedIds?.has(s.id) ? "bg-primary/5" : ""}`}
                   >
                     {selectable && (
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <span onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selectedIds?.has(s.id)} onCheckedChange={() => onToggle?.(s.id)} data-testid={`student-row-select-${s.id}`} aria-label={`Select ${s.name}`} />
                         </span>
                       </td>
                     )}
-                    <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{start + i + 1}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{date || "—"}</td>
-                    <td className="px-3 py-2 font-medium text-foreground">{s.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{s.course || "—"}</td>
-                    <td className="px-3 py-2">{s.college || "—"}</td>
+                    <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{s.name}</td>
+                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{s.course || "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{s.college || "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{cityOfStudent(s) || "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{hometownOf(s) || "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">
@@ -249,6 +261,7 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
                     <td className="px-3 py-2 text-right">
                       <Link
                         to={`/students/${s.id}`}
+                        onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
                         data-testid={`student-row-open-${s.id}`}
                         aria-label="Open student"
@@ -263,8 +276,20 @@ export default function StudentsTable({ students, currency, cityOfStudent, homet
           </tbody>
         </table>
       </div>
-      <div className="px-3 py-2 bg-muted/30 border-t border-border text-[11px] text-muted-foreground text-right" data-testid="students-table-count">
-        {visible.length} of {students.length} students
+      <div className="px-3 py-2 bg-muted/30 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground" data-testid="students-pagination">
+        <span data-testid="students-table-count">
+          {visible.length ? `${start + 1}–${start + pageRows.length}` : 0} of {visible.length} students
+          {visible.length !== students.length ? ` (filtered from ${students.length})` : ""}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} data-testid="students-page-prev">
+            <CaretLeft size={12} weight="bold" className="mr-1" /> Prev
+          </Button>
+          <span className="tabular-nums" data-testid="students-page-indicator">Page {Math.min(page, pageCount)} of {pageCount}</span>
+          <Button variant="outline" size="sm" className="h-7 px-2" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} data-testid="students-page-next">
+            Next <CaretRight size={12} weight="bold" className="ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   );

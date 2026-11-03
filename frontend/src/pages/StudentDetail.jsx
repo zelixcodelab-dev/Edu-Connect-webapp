@@ -14,6 +14,7 @@ import { feesPlanFromApi, normalizeFeesPlanForApi } from "@/components/FeesPlanF
 import HeaderCard from "@/components/student-detail/HeaderCard";
 import EditApplicationDialog from "@/components/student-detail/EditApplicationDialog";
 import SummaryTiles from "@/components/student-detail/SummaryTiles";
+import ScSettlementCard from "@/components/student-detail/ScSettlementCard";
 import PaymentDialog from "@/components/student-detail/PaymentDialog";
 import ScheduleDialog from "@/components/student-detail/ScheduleDialog";
 import {
@@ -309,6 +310,10 @@ export default function StudentDetail() {
       />
 
       <SummaryTiles s={s} currency={currency} />
+
+      {user?.role === "super_admin" && (
+        <ScSettlementCard s={s} accounts={accounts} currency={currency} onChanged={load} />
+      )}
 
       {/* Schedules */}
       <Card className="border border-border bg-card rounded-lg shadow-none overflow-hidden">

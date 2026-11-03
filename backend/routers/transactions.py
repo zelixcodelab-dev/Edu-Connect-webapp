@@ -164,7 +164,9 @@ async def update_transaction(tx_id: str, payload: TransactionIn, user: dict = De
 
 @router.delete("/{tx_id}")
 async def delete_transaction(tx_id: str, user: dict = Depends(require_edit("transactions"))):
-    res = await db.transactions.delete_one({"id": tx_id, "user_id": user["id"]})
-    if res.deleted_count == 0:
+    tx = await db.transactions.find_one_and_delete({"id": tx_id, "user_id": user["id"]}, {"_id": 0})
+    if not tx:
         raise HTTPException(404, "Transaction not found")
+    if tx.get("linked_sc_settlement_student_id"):
+        await db.students.update_one({"id": tx["linked_sc_settlement_student_id"]}, {"$unset": {"sc_settlement": ""}})
     return {"ok": True}
