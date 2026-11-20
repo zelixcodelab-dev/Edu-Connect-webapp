@@ -340,7 +340,8 @@ async def inbox(user: dict = Depends(get_current_user)):
     async for m in db.messages.find({"recipient_ids": user["id"], "parent_id": None}, {"_id": 0, "acks": 1}).limit(500):
         if not ((m.get("acks") or {}).get(user["id"]) or {}).get("read_at"):
             unread += 1
-    return {"followups_due": due, "new_applications": apps, "unread_messages": unread}
+    approvals = await db.expense_requests.count_documents({"status": "pending"}) if user.get("role") == "super_admin" else 0
+    return {"followups_due": due, "new_applications": apps, "unread_messages": unread, "pending_approvals": approvals}
 
 
 PENDING_APP_FILTER = {"application": {"$exists": True}, "status": "inquiry", "application_review": {"$exists": False}}

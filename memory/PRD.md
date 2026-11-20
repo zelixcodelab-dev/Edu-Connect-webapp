@@ -480,3 +480,4 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - Super-admin sidebar groups (Accounts / Office / Add details): label opens /section/:key tile overview page (SectionHub.jsx) with large icon tiles; caret still expands/collapses.
 - Overview page (super admin): "Jump to" tile launcher (HomeLauncher in Dashboard.jsx, launcherItems() in AppShell.jsx) — section tiles open /section/:key, page tiles open directly.
 - Overview "/" (super_admin + office_admin) is now a tile launcher (pages/Overview.jsx). Former dashboard moved to "/dashboard" (sidebar item "Dashboard"). Staff/user roles still see their dashboard at "/".
+- Overview: tile search ("/" to focus, Enter opens first match, searches pages inside sections too) + live red count badges on tiles (unread messages, follow-ups due, new applications, pending approvals; sections sum their pages). Backend /api/dashboard/inbox now also returns pending_approvals (super admin).
