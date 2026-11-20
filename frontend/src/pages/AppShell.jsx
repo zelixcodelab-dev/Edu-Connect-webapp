@@ -136,8 +136,17 @@ export const ITEM_BLURBS = {
   "/invoices": "Bill and track clients", "/office-overview": "Office-wise performance", "/employees": "Employee records",
   "/leads": "Pipeline & follow-ups", "/staff": "Staff profiles & roles", "/attendance": "Attendance & payroll",
   "/expense-requests": "Review expense requests", "/activity": "Audit trail of actions", "/colleges": "Partner colleges & courses",
-  "/categories": "Income & expense categories",
+  "/categories": "Income & expense categories", "/quick-entry": "Log money in seconds", "/admission-revenue": "Revenue per admission",
+  "/messages": "Chats & announcements", "/clients": "Client accounts", "/students": "Admissions & payments",
+  "/users": "Team & approvals", "/branding": "Logo, colours & links", "/settings": "Workspace preferences",
 };
+
+export function launcherItems(user) {
+  const sections = buildSections(visibleNavItems(user, "desktop"), user?.role);
+  return sections.flatMap((sec) => sec.type === "group"
+    ? [{ to: `/section/${sec.key}`, label: sec.label, icon: sec.icon, tid: `launch-${sec.key}`, blurb: GROUP_META[sec.key]?.blurb, count: sec.items.length }]
+    : sec.items.filter((i) => i.to !== "/").map((i) => ({ ...i, blurb: ITEM_BLURBS[i.to] })));
+}
 
 export function sectionItems(user, key) {
   const routes = GROUP_ROUTES[key];
