@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Overview redesign mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{font-family:Poppins,sans-serif;background:#f6f6f7;color:#111;display:flex;min-height:100vh}
+.rail{width:70px;margin:12px;background:#0b0b0b;border-radius:22px;display:flex;flex-direction:column;align-items:center;gap:22px;padding:18px 0}
+.rail i{width:22px;height:22px;border-radius:7px;background:#3a3a3a}.rail i.on{background:#e11d2e;width:36px;height:36px;border-radius:10px}
+main{flex:1;padding:18px 40px}
+.top{display:flex;justify-content:space-between;align-items:center}.top small{font-size:10px;letter-spacing:.2em;color:#888}.top b{display:block;font-size:17px}
+.pill{border:1px solid #e5e5e5;border-radius:999px;padding:6px 12px;font-size:12px;background:#fff}
+.wrap{max-width:1160px;margin:28px auto 0}
+.eyebrow{font-size:11px;letter-spacing:.2em;color:#888;font-weight:600}h1{font-size:36px;font-weight:600;margin-top:4px}.sub{color:#777;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:22px 0}
+.stat{background:#fff;border:1px solid #ececec;border-radius:20px;padding:18px}.stat .ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.stat .n{font-size:28px;font-weight:600;margin-top:12px}.stat .l{font-size:12px;color:#777}
+.search{background:#fff;border:1px solid #ececec;border-radius:16px;height:46px;max-width:560px;display:flex;align-items:center;padding:0 16px;color:#999;font-size:14px}
+h2{font-size:17px;font-weight:600;margin:26px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.t{background:#fff;border:1px solid #ececec;border-radius:22px;padding:20px;position:relative;min-height:150px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.t .ic{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.t b{display:block;font-size:17px;margin-top:16px}.t span{font-size:12px;color:#777}
+.feat{grid-column:span 2;background:linear-gradient(135deg,#eef0ff,#f7f5ff);border-color:#dde0fb}.feat b{font-size:24px}.feat a{display:block;margin-top:14px;color:#5969E8;font-weight:600;font-size:14px;text-decoration:none}
+.tag{position:absolute;top:16px;right:16px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px}
+.chip{position:absolute;top:16px;right:16px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;background:#f1f1f1;color:#666}
+.alert{position:absolute;top:14px;right:14px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;background:#e11d2e;color:#fff}
+.note{text-align:center;font-size:11px;color:#999;margin:22px 0}
+</style></head><body>
+<div class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<main>
+<div class="top"><div><small>WORKSPACE</small><b>Overview</b></div><div style="display:flex;gap:10px;align-items:center"><span class="pill">All years ▾</span><span class="pill">🔔</span><span class="pill"><b style="display:inline">MM</b> Muhammed Muneer</span></div></div>
+<div class="wrap">
+<p class="eyebrow">GOOD EVENING</p><h1>Hi Muhammed.</h1><p class="sub">Your education business at a glance.</p>
+<div class="stats">
+<div class="stat"><div class="ic" style="background:#5969E81a;color:#5969E8">👥</div><div class="n">1,284</div><div class="l">Total leads</div></div>
+<div class="stat"><div class="ic" style="background:#27A7831a;color:#27A783">🎓</div><div class="n">186</div><div class="l">Admissions</div></div>
+<div class="stat"><div class="ic" style="background:#E5A3421f;color:#E5A342">₹</div><div class="n">₹12.8L</div><div class="l">Collections this month</div></div>
+<div class="stat"><div class="ic" style="background:#E477851f;color:#E47785">⏱</div><div class="n">24</div><div class="l">Pending tasks</div></div>
+</div>
+<div class="search">🔍&nbsp; Search pages… (press / to focus)</div>
+<h2>Workspace modules</h2>
+<div class="grid">
+<div class="t feat"><div class="ic" style="background:#5969E81f;color:#5969E8">📊</div><span class="tag" style="background:#5969E81f;color:#5969E8">Overview</span><b>Dashboard</b><span>Business analytics and performance</span><a>Explore workspace →</a></div>
+<div class="t"><div class="ic" style="background:#E5A3421f;color:#E5A342">🪙</div><b>Admission Revenue</b><span>Revenue per admission</span></div>
+<div class="t"><div class="ic" style="background:#E5A3421f;color:#E5A342">👛</div><span class="chip">4 pages</span><b>Accounts</b><span>Balances, money flow & invoices</span></div>
+<div class="t"><div class="ic" style="background:#E477851f;color:#E47785">💬</div><span class="alert">● 3 unread</span><b>Messages</b><span>Chats & announcements</span></div>
+<div class="t"><div class="ic" style="background:#38A8CE1f;color:#38A8CE">🤝</div><b>Clients</b><span>Client accounts</span></div>
+<div class="t"><div class="ic" style="background:#27A7831f;color:#27A783">🎓</div><b>Students</b><span>Admissions & payments</span></div>
+<div class="t"><div class="ic" style="background:#9176E81f;color:#9176E8">🏢</div><span class="alert">● 1 to do</span><b>Office</b><span>Offices, people, leads & approvals</span></div>
+<div class="t"><div class="ic" style="background:#38A8CE1f;color:#38A8CE">📁</div><span class="chip">2 pages</span><b>Add details</b><span>Colleges & categories</span></div>
+<div class="t"><div class="ic" style="background:#5969E81f;color:#5969E8">🛡</div><b>Team</b><span>Team & approvals</span></div>
+<div class="t"><div class="ic" style="background:#9176E81f;color:#9176E8">🎨</div><b>Customize</b><span>Logo, colours & links</span></div>
+<div class="t"><div class="ic" style="background:#64748b1f;color:#64748b">⚙</div><b>Settings</b><span>Workspace preferences</span></div>
+</div>
+<p class="note">Reference mockup · sample numbers · final build uses the app's own icon set (no emoji)</p>
+</div></main></body></html>

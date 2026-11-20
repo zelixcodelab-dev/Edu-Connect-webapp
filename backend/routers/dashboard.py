@@ -378,3 +378,32 @@ async def review_application(student_id: str, payload: ReviewIn, user: dict = De
             patch["notes"] = ((s.get("notes") or "") + f"\n[Application rejected] {review['reason']}").strip()
     await db.students.update_one({"id": student_id}, {"$set": patch})
     return {"ok": True, "review": review}
+
+
+@router.get("/overview-stats")
+async def overview_stats(user: dict = Depends(get_current_user), year: Optional[int] = None):
+    """Key numbers for the Overview launcher (office admins see their own office)."""
+    _admin_only(user)
+    from lib.academic_year import date_filter
+    from routers.students import _office_visibility_clause
+    is_office = user.get("role") == "office_admin"
+    lead_q = {**({"office": user.get("office")} if is_office else {}), **date_filter("created_at", year)}
+    total_leads = await db.leads.count_documents(lead_q)
+    stu_q = {"status": {"$in": list(CLOSED)}, **(_office_visibility_clause(user) if is_office else {})}
+    admissions = 0
+    async for s in db.students.find(stu_q, {"_id": 0, "enrollment_date": 1, "created_at": 1}):
+        if in_year(s.get("enrollment_date") or s.get("created_at"), year):
+            admissions += 1
+    month_start = datetime.now(timezone.utc).replace(day=1).date().isoformat()
+    agg = await db.transactions.aggregate([
+        {"$match": {"user_id": user["id"], "type": "income", "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    box = await inbox(user)
+    return {
+        "total_leads": total_leads,
+        "admissions": admissions,
+        "collections_month": round(agg[0]["total"], 2) if agg else 0.0,
+        "pending_tasks": box["followups_due"] + box["new_applications"] + box["pending_approvals"],
+        "currency": user.get("currency", "USD"),
+    }

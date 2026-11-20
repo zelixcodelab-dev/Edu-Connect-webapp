@@ -4,7 +4,8 @@ import { MagnifyingGlass, X, ArrowElbowDownLeft } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth";
 import { greetingForNow } from "@/lib/format";
 import { useTileAlerts } from "@/lib/useTileAlerts";
-import { HubTile } from "@/pages/SectionHub";
+import { HubTile, TileGrid } from "@/pages/SectionHub";
+import OverviewStats from "@/components/dashboard/OverviewStats";
 import { launcherItems, sectionItems } from "@/pages/AppShell";
 import Dashboard from "@/pages/Dashboard";
 
@@ -60,17 +61,19 @@ export default function Overview() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{greetingForNow()}</p>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight mt-1" data-testid="overview-greeting">Hi {user?.name?.split(" ")[0] || "there"}.</h1>
-          <p className="text-sm text-muted-foreground mt-1">Where would you like to go today?</p>
+          <p className="text-sm text-muted-foreground mt-1">Your education business at a glance.</p>
         </div>
         <p className="text-xs text-muted-foreground" data-testid="overview-count">{term ? `${shown.length} match${shown.length === 1 ? "" : "es"}` : `${items.length} destinations`}</p>
       </div>
+      <OverviewStats />
       <TileSearch value={q} onChange={setQ} inputRef={inputRef} onEnter={() => shown[0] && navigate(shown[0].to)} />
+      <p className="font-display text-lg font-semibold tracking-tight !mt-8" data-testid="overview-modules-title">{term ? "Search results" : "Workspace modules"}</p>
       {shown.length === 0 ? (
         <p className="text-sm text-muted-foreground py-10 text-center" data-testid="overview-search-empty">No pages match "{q}"</p>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5" data-testid="home-launcher-grid">
-          {shown.map((item, i) => <HubTile key={item.tid} item={item} index={i} alert={alertFor(item)} />)}
-        </div>
+        <TileGrid testid="home-launcher-grid">
+          {shown.map((item, i) => <HubTile key={item.tid} item={item} index={i} alert={alertFor(item)} featured={!term && item.to === "/dashboard"} />)}
+        </TileGrid>
       )}
     </div>
   );

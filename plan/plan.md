@@ -1,59 +1,90 @@
-# EduConnect Pro — Full KMConnect Feature Sync + Guided Tour
+# Overview Redesign — Bento Launcher with Live Numbers
 
-Brings every remaining new or changed feature from the uploaded KMConnect repository into the multi-tenant EduConnect Pro SaaS, without breaking the SaaS login, per-company data isolation or the Platform Console.
-Adds a guided product tour, with a Skip option, so new client users can learn the app on their first visit.
+This redesign turns the EduConnect Pro Overview page into a colourful 4-column bento launcher. A row of live business numbers sits on top, and the Dashboard gets a large featured tile.
+It follows the suggested "Workspace Modules" design. All existing destinations, search, live alert badges and permissions stay.
 
 ## Who it's for
-- **Platform Owner**: decides which features each client company gets.
-- **Client company admins and staff**: use the CRM day to day, and new users are shown the app through the tour.
+- Super admins, who see every module across the business.
+- Office admins, who see only their own office's modules and numbers.
+- Staff and sub-agent accounts are not affected. They keep their current dashboards.
 
 ## Core features and experience
-1. **Remaining KMConnect updates, ported one at a time**
-   - Every feature or change in the uploaded repo that isn't in EduConnect Pro yet gets listed, then adapted to work per company.
-   - Already merged and kept as they are: Attendance + Payroll, Academic Year selector, Google Sheets sync, Passkey login.
-   - Repo files never replace the app's own sign-in, company isolation, permissions or Platform Console behaviour. Each feature is merged into the current app.
-   - If a change only made sense in the single-company repo (e.g., its own login/database setup), it is left out and listed in the final report.
-2. **Per-company feature switches**
-   - Each new feature appears as a module in the Platform Console → Clients → company modules.
-   - The owner can turn it on or off for each company. When it's off, the feature disappears from that company's menu and its pages and data can't be reached.
-   - Existing companies keep the features they already use. Newly ported features start **on** for existing companies and can be switched off.
-3. **Leave cleanup**
-   - The Staff Dashboard "Leave" tile opens Attendance on its Leave tab.
-   - All remaining links to the old standalone Leave page are pointed there instead.
-4. **Guided tour for new users**
-   - Starts automatically the first time someone signs in to a company workspace.
-   - Step-by-step highlights cover the main areas: navigation, dashboard, students/leads, attendance, academic year selector, messages and settings.
-   - Each step has Next, Back and **Skip tour**. A finished or skipped tour won't start again on its own.
-   - It can be replayed any time from a "Take the tour" option in the profile/help menu.
-   - Steps match the user's role (admin vs staff) and only cover features enabled for their company.
+- **Key numbers row (4 cards):** Total leads, Admissions, Collections this month (in the workspace currency, short format such as ₹12.8L) and Pending tasks. Pending tasks counts follow-ups due, new applications and pending approvals together. Office admins see figures for their own office only. Each card opens the matching page: Leads, Students, Transactions and the CRM follow-ups.
+- **Bento module grid:** 4 columns on desktop.
+  - A large featured **Dashboard** tile spans 2 columns. It carries an "Overview" tag, the line "Business analytics and performance" and an "Explore workspace →" link.
+  - The remaining modules appear as smaller tiles, each with a coloured icon, the module name and a short one-line description. Section tiles (Accounts, Office, Add details) still open their section pages.
+- **Per-module colours:** each module gets its own accent from the palette Indigo #5969E8, Violet #9176E8, Cyan #38A8CE, Emerald #27A783, Amber #E5A342 and Coral #E47785. The brand red (the custom Branding colour) stays for buttons, active states and alert badges.
+- **Kept as is:** the search bar ("/" to focus, Enter opens the first match), the live red alert badges ("3 due", "1 to do") and permission and module filtering.
+- **Section pages** (Accounts, Office, Add details) get the same tile style and colours.
 
 ## User flow
-- **Owner**: opens Platform Console → Clients → picks a company → switches modules on/off → the change shows in that company's app at the next page load.
-- **New client user**: signs in → the tour starts → they step through it or press Skip → they land on their dashboard → they can replay the tour later from the menu.
-- **Staff**: Dashboard → Leave tile → Attendance (Leave tab) → apply for or view leave.
+1. An admin signs in and lands on Overview.
+2. The greeting appears ("Good evening, Muneer — Your education business at a glance."), then the 4 live numbers.
+3. The admin scans the colourful module grid. Red badges show what needs attention.
+4. Tapping a tile opens that page, and tapping a section tile opens its own tile page. Typing in the search bar filters straight to any page, including pages inside sections.
+
+## Layout reference (desktop)
+A clickable mockup is saved at `/app/plan/overview-mockup.html`. Its numbers are sample data.
+
+```
+GOOD EVENING
+Hi Muhammed.                                   
+Your education business at a glance.
+
+┌───────────┐ ┌───────────┐ ┌──────────────┐ ┌───────────┐
+│ 👥 indigo │ │ 🎓 emerald│ │ ₹  amber     │ │ ⏱ coral   │
+│ 1,284     │ │ 186       │ │ ₹12.8L       │ │ 24        │
+│ Total leads│ │ Admissions│ │ Collections  │ │ Pending   │
+└───────────┘ └───────────┘ └──────────────┘ └───────────┘
+[ 🔍 Search pages… (press / to focus) ]
+
+Workspace modules
+┌─────────────────────────────┐ ┌─────────────┐ ┌─────────────┐
+│ 📊 (indigo)       [Overview]│ │ Admission   │ │ Accounts    │
+│ Dashboard                   │ │ Revenue     │ │  [4 pages]  │
+│ Business analytics…         │ │ (amber)     │ │ (amber)     │
+│ Explore workspace →         │ └─────────────┘ └─────────────┘
+└─────────────────────────────┘
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ Messages    │ │ Clients     │ │ Students    │ │ Office      │
+│ ●3 unread   │ │ (cyan)      │ │ (emerald)   │ │ ●1 to do    │
+│ (coral)     │ │             │ │             │ │ (violet)    │
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ Add details │ │ Team        │ │ Customize   │ │ Settings    │
+│ (cyan)      │ │ (indigo)    │ │ (violet)    │ │ (slate)     │
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+```
 
 ## UI/UX feel
-- Matches the current EduConnect Pro look and each company's branding (logo and colours).
-- The tour uses a soft spotlight on the highlighted element and a compact card showing step progress (e.g., "3 of 7"), with Skip always visible. It works on mobile, where it highlights the bottom navigation.
+- Clean light cards on a soft background, with rounded corners, thin borders and gentle shadows. Tiles lift on hover, and the grid fades in tile by tile.
+- Calm, colour-coded and easy to scan. Colour helps tell modules apart instead of every icon being red.
+- The featured Dashboard tile has a soft tinted background so it stands out.
+- Dark mode is supported with the same accents on dark cards.
+- On mobile:
+  - the number cards show in a 2×2 grid
+  - the module grid becomes 2 columns
+  - the featured tile spans the full width.
 
 ## Implementation phases
-- **Phase 1 (MVP, built now)**
-  - Inventory and port of all remaining KMConnect features, adapted to multi-tenant.
-  - Each feature registered as a per-company module.
-  - Leave tile/link cleanup.
-  - Role-aware guided tour with Skip and replay.
-- **Phase 2**
-  - Owner-editable tour content per company (custom steps and text).
-  - Short tours on individual pages (e.g., the first visit to Payroll).
-- **Phase 3**
-  - Onboarding checklist for new companies (add first student, invite staff, connect Google Sheets).
-  - Tour completion stats in the Platform Console.
+**Phase 1 — MVP (built now)**
+- Live key-numbers row (4 cards) with role-aware figures.
+- 4-column bento grid with the featured Dashboard tile.
+- Per-module colour palette, with brand red kept for actions and alerts.
+- Same tile style on the section pages, with search and live badges kept.
+
+**Phase 2**
+- Admins can pick which 4 numbers appear and drag tiles to reorder them.
+- Small trend arrows on the number cards (up or down compared with last month).
+
+**Phase 3**
+- Favourite (starred) tiles that are always shown first.
+- A "Recent pages" row and a personalised module order based on usage.
 
 ## Assumptions
-- "Remaining features" means anything in the uploaded repo that EduConnect Pro doesn't have, or has in an older version. Where the two versions differ, the app's current multi-tenant version wins, and only the new behaviour is added on top.
-- Ported features start enabled for existing companies, and the owner can switch them off.
-- The tour runs once per user, not once per company. Skipping counts as completed.
-- Tour text is in English.
-- The Leave feature (backend and the Attendance Leave tab) stays. Only the standalone page route is gone.
-- Onboarding the new customer company is not part of this round. The owner will do it via Clients → Add company.
-- Google Sheets stays in "not configured" mode until OAuth credentials are provided. Passkeys still need testing on a real device on educonnectpro.app.
+- The palette colours are assigned to modules automatically and stay the same each time. Similar modules share related tones, for example the finance modules use Amber.
+- Collections means money received this calendar month, in the workspace currency.
+- Total leads and Admissions are all-time counts that follow the academic year selector when a year is chosen.
+- The Branding page colour still drives buttons, highlights and alerts. It no longer colours the tile icons.
+- Tile icons stay as the current icon set, in the new colours. No custom 3D artwork is added.
+- Staff and sub-agent dashboards are unchanged.
