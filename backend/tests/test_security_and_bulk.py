@@ -103,7 +103,7 @@ class TestCORS:
         assert acao == origin, f"expected {origin}, got {acao}"
 
     def test_allowed_origin_preview_emergent(self):
-        origin = "https://edu-crm-hub-15.preview.emergentagent.com"
+        origin = "https://educonnect-sc--8r4sp0s7.preview.emergentagent.com"
         r = requests.get(f"{DIRECT_URL}/api/", headers={"Origin": origin})
         acao = r.headers.get("access-control-allow-origin")
         assert acao == origin

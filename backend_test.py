@@ -7,7 +7,7 @@ import json
 from typing import Dict, Optional
 
 # Base URL from frontend/.env
-BASE_URL = "https://edu-crm-hub-15.preview.emergentagent.com"
+BASE_URL = "https://educonnect-sc--8r4sp0s7.preview.emergentagent.com"
 
 # Test credentials
 PLATFORM_OWNER = {

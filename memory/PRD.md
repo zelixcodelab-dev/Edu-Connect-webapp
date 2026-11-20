@@ -475,3 +475,6 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 - PUT/DELETE /api/students/{id}/sc-settlement (super admin only): one income tx "SC received from college — <name>" (linked_sc_settlement_student_id); student.sc_settlement {amount, account_id, account_name, date, payment_mode, tx_id}. Editing the tx on Transactions syncs it; deleting clears it. sc_settled/sc_settlement masked for non-super-admins.
 - UI: ScSettlementCard/Dialog on Student Detail; green check on student cards.
 - StudentsTable: 10/page pagination, continuous serials, reset on filter/sort, nowrap name/course/college, row click opens student.
+
+## 2026-06 — Section Hub pages
+- Super-admin sidebar groups (Accounts / Office / Add details): label opens /section/:key tile overview page (SectionHub.jsx) with large icon tiles; caret still expands/collapses.

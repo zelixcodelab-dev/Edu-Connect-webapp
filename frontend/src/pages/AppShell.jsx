@@ -125,6 +125,27 @@ function initialsOf(name) {
 
 // Super Admin gets a grouped sidebar with collapsible sections (Accounts /
 // Office / Add details). Every other role keeps a single flat list.
+export const GROUP_META = {
+  accounts: { label: "Accounts", blurb: "Balances, money flow, sub-agent ledgers and invoices" },
+  office: { label: "Office", blurb: "Your offices, people, leads, attendance and approvals" },
+  details: { label: "Add details", blurb: "Master data used across the workspace" },
+};
+
+export const ITEM_BLURBS = {
+  "/accounts": "Bank & cash balances", "/transactions": "Every income and expense", "/agents": "Sub-agent payouts & dues",
+  "/invoices": "Bill and track clients", "/office-overview": "Office-wise performance", "/employees": "Employee records",
+  "/leads": "Pipeline & follow-ups", "/staff": "Staff profiles & roles", "/attendance": "Attendance & payroll",
+  "/expense-requests": "Review expense requests", "/activity": "Audit trail of actions", "/colleges": "Partner colleges & courses",
+  "/categories": "Income & expense categories",
+};
+
+export function sectionItems(user, key) {
+  const routes = GROUP_ROUTES[key];
+  if (!routes || user?.role !== "super_admin") return null;
+  const items = visibleNavItems(user, "desktop");
+  return routes.map((t) => items.find((i) => i.to === t)).filter(Boolean);
+}
+
 const GROUP_ROUTES = {
   accounts: ["/accounts", "/transactions", "/agents", "/invoices"],
   office: ["/office-overview", "/employees", "/leads", "/staff", "/attendance", "/expense-requests", "/activity"],
@@ -270,6 +291,8 @@ function RailTip({ show, label, children }) {
 }
 
 function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile", rail = false, onToggleRail, tidPrefix = "" }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const role = user?.role;
   const { branding } = useBranding();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -484,13 +507,18 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
             return (
               <div key={section.key} className="pt-1">
-                <button type="button" onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))} data-testid={`nav-group-${section.key}`} aria-expanded={open}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors">
-                  <section.icon size={19} weight="regular" className="shrink-0" />
-                  <span className="flex-1 text-left">{section.label}</span>
-                  {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
-                  <CaretDown size={13} weight="bold" className={`shrink-0 text-[hsl(var(--sidebar-muted))] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
-                </button>
+                <div className={`w-full flex items-center rounded-xl text-sm font-medium transition-colors ${location.pathname === `/section/${section.key}` ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06]"}`}>
+                  <button type="button" onClick={() => { setCollapsed((c) => ({ ...c, [section.key]: false })); navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`nav-group-open-${section.key}`}
+                    className="flex-1 min-w-0 flex items-center gap-3 pl-3 py-2.5 text-left">
+                    <section.icon size={19} weight="regular" className="shrink-0" />
+                    <span className="flex-1 truncate">{section.label}</span>
+                    {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
+                  </button>
+                  <button type="button" onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))} data-testid={`nav-group-${section.key}`} aria-expanded={open} aria-label={`Toggle ${section.label}`}
+                    className="shrink-0 h-10 w-9 flex items-center justify-center rounded-r-xl">
+                    <CaretDown size={13} weight="bold" className={`opacity-60 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+                  </button>
+                </div>
                 <div className={`nav-collapse ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
                   <div className="overflow-hidden min-h-0">
                     <div className="mt-0.5 space-y-0.5 relative before:absolute before:left-[21px] before:top-1 before:bottom-1 before:w-px before:bg-[hsl(var(--sidebar-border))]">
@@ -576,6 +604,7 @@ export default function AppShell() {
   const pageTitle = (user?.role === "staff" && location.pathname === "/settings" ? "Profile" : null)
     || (user?.role === "staff" && location.pathname === "/leads" ? "My Leads" : null)
     || PAGE_TITLES[location.pathname]
+    || (location.pathname.startsWith("/section/") ? (GROUP_META[location.pathname.split("/")[2]]?.label || "") : "")
     || (location.pathname.startsWith("/students/") ? "Student" : "")
     || (location.pathname.startsWith("/agents/") ? "Agent detail" : "")
     || (branding?.app_name || "EduConnect Pro");

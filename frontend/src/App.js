@@ -54,6 +54,7 @@ import PlatformDatabase from "@/pages/PlatformDatabase";
 import PlatformVps from "@/pages/PlatformVps";
 import PlatformAppDetail from "@/pages/PlatformAppDetail";
 import PermGate from "@/components/PermGate";
+import SectionHub from "@/pages/SectionHub";
 import PinLockScreen from "@/components/auth/PinLockScreen";
 import PinSetupDialog from "@/components/auth/PinSetupDialog";
 
@@ -244,6 +245,7 @@ export default function App() {
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:id" element={<Messages />} />
             <Route path="/expense-requests" element={<PermGate page="expense_requests"><ExpenseRequests /></PermGate>} />
+            <Route path="/section/:key" element={<SectionHub />} />
             <Route path="/activity" element={<PermGate roles={ADMIN_ROLES}><Activity /></PermGate>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
