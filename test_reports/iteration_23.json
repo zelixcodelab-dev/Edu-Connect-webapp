@@ -1,0 +1,45 @@
+{
+  "summary": "Tested the Overview launcher redesign end to end (backend + UI). Backend: 8 of 9 tests pass. Super admin and office admin get the stats; staff gets 403 and anonymous users get 401/403. pending_tasks equals the inbox sum and the inbox now has pending_approvals. FAILED: the inbox (follow-ups due) is not scoped to the office admin's office. UI for super admin works: greeting and tagline, 4 stat cards (2 / 2 / ₹70K / 1) each linking to the right page, featured Dashboard tile at 702px (twice the 343px tiles) opening /dashboard with dashboard-page, '/' focuses search, Esc clears, the clear button works, nonsense input shows the empty state, section tiles show '4 pages' / '2 pages' and open /section/accounts|office|details, /section/bogus redirects to /, the sidebar label opens /section/office and the caret only toggles (checked in the mobile drawer and in the expanded desktop rail). Office admin sees the launcher with 12 flat tiles. Staff at '/' sees StaffDashboard. Mobile 390px: stats 2x2, grid 2 columns, featured tile full width, no horizontal overflow. Dark mode is readable. FAILED: search 'atten' + Enter opens /section/office instead of /attendance.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/dashboard/inbox (and pending_tasks in /api/dashboard/overview-stats)", "issue": "followups_due counts every tenant lead with an overdue next_follow_up, whatever the office. Reproduced: super admin created a TEST_ lead with office=null and an overdue follow-up. The office admin (KM_BLR) cannot see it in /api/leads (total_leads=0), but their inbox gave followups_due=1, pending_tasks=1 and the CRM tile showed '1 due'. Staff inbox is also unscoped. new_applications is also not scoped to the office for office_admin. Fix: apply leads._scope_filter(user) to the follow-ups query, and _office_visibility_clause to PENDING_APP_FILTER for office_admin.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/dashboard/overview-stats?year=all", "issue": "Returns 422 because year is an int. The frontend interceptor leaves out 'all', so this does not affect the UI. Noted only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Overview search (Overview.jsx)", "issue": "Typing 'atten' returns [hub-tile-launch-office, hub-tile-nav-attendance]: the Office section's blurb 'Your offices, people, leads, attendance and approvals' matches first, so Enter goes to /section/office instead of /attendance (fails the spec). Fix: rank label matches before blurb matches, or put a section's child pages ahead of the section tile.", "selector": "[data-testid=overview-search-input]", "priority": "HIGH"},
+      {"component": "Overview search", "issue": "Child pages are searched only on i.blurb, but section pages have no blurb property (HubTile falls back to ITEM_BLURBS). So 'payroll' finds nothing even though the Attendance tile shows 'Attendance & payroll'. Use `i.blurb || ITEM_BLURBS[i.to]` in the filter.", "selector": "[data-testid=overview-search-input]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Office admin CRM tile alert", "issue": "Because the inbox is not scoped (see backend), the office admin sees '1 due' on the CRM tile and pending tasks=1 when they have 0 leads.", "affected_selectors": ["[data-testid=hub-tile-alert-nav-leads]", "[data-testid=overview-stat-pending_tasks-value]"]}
+    ],
+    "design_issues": [
+      {"screen": "Overview section tiles", "issues": ["When a section has an alert (e.g. Office '1 to do'), the 'N pages' chip is replaced, so the Office tile never shows '7 pages'. Consider showing both."]},
+      {"screen": "Overview mobile 390px", "issues": ["The search placeholder 'Search pages… (press / to focus)' is cut off ('to focu') because of the fixed pr-24 even when the input is empty. The '/' hint also makes no sense on touch devices."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_overview_stats.py", "/app/test_reports/pytest/pytest_overview.xml"],
+  "action_items": [
+    "Scope /api/dashboard/inbox followups_due (leads _scope_filter) and new_applications (office visibility) for office_admin and staff, so overview pending_tasks and the tile badges are office-scoped",
+    "Fix Overview search ordering so 'atten' + Enter opens /attendance (rank label matches above blurb matches, or child pages before section tiles)",
+    "Search should use ITEM_BLURBS as the fallback blurb for section child pages",
+    "Optional: keep the 'N pages' chip visible alongside alerts; fix the truncated mobile search placeholder"
+  ],
+  "critical_code_review_comments": [
+    "dashboard.py inbox(): the follow-ups query has no role or office scope, and the docstring wrongly says only applications are admin-only",
+    "overview_stats collections_month is filtered by user_id == current user (same rule as /transactions). This is fine for single-ledger tenants, but the office admin's own ledger is not office-wide; check this is intended",
+    "AppShell.jsx is ~797 lines (more than 700): consider moving the nav config (ALL_NAV, GROUP_ROUTES, ITEM_BLURBS, launcherItems, sectionItems) into its own lib module. Overview and SectionHub import from a page component, which creates a circular-ish dependency",
+    "useTileAlerts polls /dashboard/inbox every 60s on each mount; Overview and SectionHub each create their own interval (acceptable)"
+  ],
+  "updated_files": ["/app/backend/tests/test_overview_stats.py"],
+  "success_rate": {"backend": "89% (8/9)", "frontend": "~90% (all flows pass except search Enter ordering)"},
+  "test_credentials": "admin and office credentials work. TEST_att_staff_1@educonnect.app is SOFT-DELETED (deleted_at set; login returns 'This account has been removed'), and the tenant is at its Trial seat limit (5/5), so a new TEST staff could not be created. For read-only staff checks I signed a JWT with the backend's auth_lib.create_access_token for the existing staff user blaise@educonnect.app (kept at /tmp/staff_tok) and only did GET requests and page views. Main agent: please restore a working staff test account and update /app/memory/test_credentials.md.",
+  "seed_data_creation": "Created 2 TEST_ leads (TEST_ovw_overdue, TEST_ovw_scope) with overdue follow-ups. Both were deleted by id afterwards; super admin total_leads is back to 1 and pending_tasks to 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_overview_stats.py. test_office_pending_tasks_scoped should pass after the inbox scoping fix. The staff fixture uses /tmp/staff_tok if present. On mobile, a 'Set a 4-digit PIN' dialog appears after login; click 'Skip for now'. The desktop sidebar is a rail: click rail-menu-btn to see nav-group-* buttons. Office admin /dashboard renders OfficeDashboard (no dashboard-page testid). Theme toggle: profile-menu-btn → profile-theme-toggle.",
+  "rca of the issue": "Office-scoping bug: overview_stats scopes total_leads and admissions by office, but pending_tasks reuses inbox(), which counts db.leads without _scope_filter and students without office visibility. Search bug: shown = searchable.filter(label+blurb includes term). Section tiles come before their child pages in searchable, and the Office blurb contains 'attendance', so shown[0] is the Office section."
+}

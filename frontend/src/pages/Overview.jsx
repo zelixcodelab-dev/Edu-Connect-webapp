@@ -6,7 +6,7 @@ import { greetingForNow } from "@/lib/format";
 import { useTileAlerts } from "@/lib/useTileAlerts";
 import { HubTile, TileGrid } from "@/pages/SectionHub";
 import OverviewStats from "@/components/dashboard/OverviewStats";
-import { launcherItems, sectionItems } from "@/pages/AppShell";
+import { launcherItems, sectionItems, ITEM_BLURBS } from "@/pages/AppShell";
 import Dashboard from "@/pages/Dashboard";
 
 const LAUNCHER_ROLES = ["super_admin", "office_admin"];
@@ -44,7 +44,10 @@ export default function Overview() {
       .filter((i) => !seen.has(i.tid) && seen.add(i.tid));
   }, [items, user]);
   const term = q.trim().toLowerCase();
-  const shown = term ? searchable.filter((i) => `${i.label} ${i.blurb || ""}`.toLowerCase().includes(term)) : items;
+  const shown = term
+    ? [...searchable.filter((i) => i.label.toLowerCase().includes(term)),
+       ...searchable.filter((i) => !i.label.toLowerCase().includes(term) && (i.blurb || ITEM_BLURBS[i.to] || "").toLowerCase().includes(term))]
+    : items;
 
   useEffect(() => {
     const onKey = (e) => {

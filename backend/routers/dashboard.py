@@ -331,11 +331,15 @@ async def team(user: dict = Depends(get_current_user), year: Optional[int] = Non
 async def inbox(user: dict = Depends(get_current_user)):
     """Hero side cards: follow-ups due, pending applications (admins only), unread messages."""
     now = datetime.now(timezone.utc)
+    from routers.leads import _scope_filter
+    from routers.students import _office_visibility_clause
     due = await db.leads.count_documents({
         "status": {"$in": ["new", "not_connected", "interested", "follow_up"]},
         "next_follow_up": {"$ne": None, "$lte": now.isoformat()},
+        **_scope_filter(user),
     })
-    apps = await db.students.count_documents(PENDING_APP_FILTER) if user.get("role") in ADMIN_ROLES else 0
+    app_q = {**PENDING_APP_FILTER, **(_office_visibility_clause(user) if user.get("role") == "office_admin" else {})}
+    apps = await db.students.count_documents(app_q) if user.get("role") in ADMIN_ROLES else 0
     unread = 0
     async for m in db.messages.find({"recipient_ids": user["id"], "parent_id": None}, {"_id": 0, "acks": 1}).limit(500):
         if not ((m.get("acks") or {}).get(user["id"]) or {}).get("read_at"):
