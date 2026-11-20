@@ -55,6 +55,7 @@ import PlatformVps from "@/pages/PlatformVps";
 import PlatformAppDetail from "@/pages/PlatformAppDetail";
 import PermGate from "@/components/PermGate";
 import SectionHub from "@/pages/SectionHub";
+import Overview from "@/pages/Overview";
 import PinLockScreen from "@/components/auth/PinLockScreen";
 import PinSetupDialog from "@/components/auth/PinSetupDialog";
 
@@ -217,7 +218,8 @@ export default function App() {
           <Route path="/platform/vps-server" element={<PlatformProtected><PlatformVps /></PlatformProtected>} />
           <Route path="/platform/:moduleKey" element={<PlatformProtected><PlatformModulePage /></PlatformProtected>} />
           <Route element={<Protected><AcademicYearProvider><AppShell /></AcademicYearProvider></Protected>}>
-            <Route path="/" element={<PermGate page="overview"><Dashboard /></PermGate>} />
+            <Route path="/" element={<PermGate page="overview"><Overview /></PermGate>} />
+            <Route path="/dashboard" element={<PermGate page="overview"><Dashboard /></PermGate>} />
             <Route path="/quick-entry" element={<PermGate page="quick_entry"><QuickEntry /></PermGate>} />
             <Route path="/transactions" element={<PermGate page="transactions"><Transactions /></PermGate>} />
             <Route path="/accounts" element={<PermGate page="accounts"><Accounts /></PermGate>} />

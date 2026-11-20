@@ -33,25 +33,6 @@ import { ChartTooltip, activePieShape, usePieActive, CHART_CURSOR, CHART_CURSOR_
 import { TxList, StudentList, ClientList, LedgerList } from "@/components/dashboard/OverviewLists";
 import AnnouncementBanners from "@/components/messages/AnnouncementBanners";
 import { officeName } from "@/lib/offices";
-import { HubTile } from "@/pages/SectionHub";
-import { launcherItems } from "@/pages/AppShell";
-
-function HomeLauncher({ user }) {
-  const items = launcherItems(user);
-  if (!items.length) return null;
-  return (
-    <section data-testid="home-launcher">
-      <div className="flex items-baseline justify-between mb-3">
-        <p className="font-display text-sm font-semibold">Jump to</p>
-        <p className="text-xs text-muted-foreground">{items.length} destinations</p>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4" data-testid="home-launcher-grid">
-        {items.map((item, i) => <HubTile key={item.tid} item={item} index={i} compact />)}
-      </div>
-    </section>
-  );
-}
-
 const TILES = [
   { key: "transactions", label: "Accounts", icon: Receipt, palette: "amber" },
   { key: "students", label: "Students", icon: Student, palette: "emerald", roles: ["super_admin", "office_admin"] },
@@ -229,7 +210,6 @@ function SuperAdminDashboard() {
           <div className="min-w-0 lg:pt-8"><TeamStrip role={role} /></div>
         </section>
       )}
-      {role === "super_admin" && <HomeLauncher user={user} />}
       <OnboardingChecklist />
 
       {/* Inline tile tabs — gradient highlight slides to the active tile */}

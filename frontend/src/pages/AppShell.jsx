@@ -35,6 +35,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 //     Omit (or set falsy) to hide the item from "user" role accounts.
 const ALL_NAV = [
   { to: "/", label: "Overview", icon: House, end: true, tid: "nav-overview", perm: "overview", module: "overview", userRoleAllowed: true },
+  { to: "/dashboard", label: "Dashboard", icon: ChartBar, tid: "nav-dashboard", roles: ["super_admin", "office_admin"], perm: "overview", module: "overview" },
   { to: "/quick-entry", label: "Quick entry", icon: PlusCircle, tid: "nav-quick-entry", perm: "quick_entry", module: "quick_entry", userRoleAllowed: true, mobileOnly: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, tid: "nav-transactions", perm: "transactions", module: "transactions", userRoleAllowed: true },
   { to: "/accounts", label: "Accounts", icon: Wallet, tid: "nav-accounts", perm: "accounts", module: "accounts", userRoleAllowed: true },
@@ -91,6 +92,7 @@ const PATH_MODULE = {
 
 const PAGE_TITLES = {
   "/": "Overview",
+  "/dashboard": "Dashboard",
   "/quick-entry": "Quick entry",
   "/transactions": "Transactions",
   "/accounts": "Accounts",
@@ -136,7 +138,7 @@ export const ITEM_BLURBS = {
   "/invoices": "Bill and track clients", "/office-overview": "Office-wise performance", "/employees": "Employee records",
   "/leads": "Pipeline & follow-ups", "/staff": "Staff profiles & roles", "/attendance": "Attendance & payroll",
   "/expense-requests": "Review expense requests", "/activity": "Audit trail of actions", "/colleges": "Partner colleges & courses",
-  "/categories": "Income & expense categories", "/quick-entry": "Log money in seconds", "/admission-revenue": "Revenue per admission",
+  "/categories": "Income & expense categories", "/dashboard": "Numbers, charts & activity", "/quick-entry": "Log money in seconds", "/admission-revenue": "Revenue per admission",
   "/messages": "Chats & announcements", "/clients": "Client accounts", "/students": "Admissions & payments",
   "/users": "Team & approvals", "/branding": "Logo, colours & links", "/settings": "Workspace preferences",
 };
@@ -169,7 +171,7 @@ function buildSections(navItems, role) {
     return [{ type: "items", label: "Workspace", items: navItems }];
   }
   return [
-    { type: "items", label: "Workspace", items: pick(["/", "/quick-entry", "/admission-revenue"]) },
+    { type: "items", label: "Workspace", items: pick(["/", "/dashboard", "/quick-entry", "/admission-revenue"]) },
     { type: "group", key: "accounts", label: "Accounts", icon: Wallet, items: pick(GROUP_ROUTES.accounts) },
     { type: "items", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "office", label: "Office", icon: Buildings, items: pick(GROUP_ROUTES.office) },

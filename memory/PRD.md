@@ -479,3 +479,4 @@ global search, "Needs Your Attention". Built phase-by-phase. Design blueprint: /
 ## 2026-06 — Section Hub pages
 - Super-admin sidebar groups (Accounts / Office / Add details): label opens /section/:key tile overview page (SectionHub.jsx) with large icon tiles; caret still expands/collapses.
 - Overview page (super admin): "Jump to" tile launcher (HomeLauncher in Dashboard.jsx, launcherItems() in AppShell.jsx) — section tiles open /section/:key, page tiles open directly.
+- Overview "/" (super_admin + office_admin) is now a tile launcher (pages/Overview.jsx). Former dashboard moved to "/dashboard" (sidebar item "Dashboard"). Staff/user roles still see their dashboard at "/".
