@@ -404,7 +404,10 @@ async def overview_stats(user: dict = Depends(get_current_user), year: Optional[
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]).to_list(1)
     box = await inbox(user)
+    app_q = {"application_submitted_at": {"$gte": month_start}, **(_office_visibility_clause(user) if is_office else {})}
+    applications_month = await db.students.count_documents(app_q)
     return {
+        "applications_month": applications_month,
         "total_leads": total_leads,
         "admissions": admissions,
         "collections_month": round(agg[0]["total"], 2) if agg else 0.0,

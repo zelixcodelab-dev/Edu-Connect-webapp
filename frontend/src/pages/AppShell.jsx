@@ -138,7 +138,7 @@ export const ITEM_BLURBS = {
   "/invoices": "Bill and track clients", "/office-overview": "Office-wise performance", "/employees": "Employee records",
   "/leads": "Pipeline & follow-ups", "/staff": "Staff profiles & roles", "/attendance": "Attendance & payroll",
   "/expense-requests": "Review expense requests", "/activity": "Audit trail of actions", "/colleges": "Partner colleges & courses",
-  "/categories": "Income & expense categories", "/dashboard": "Numbers, charts & activity", "/quick-entry": "Log money in seconds", "/admission-revenue": "Revenue per admission",
+  "/categories": "Income & expense categories", "/dashboard": "Numbers, charts & activity", "/sc-report": "Service charge summary", "/quick-entry": "Log money in seconds", "/admission-revenue": "Revenue per admission",
   "/messages": "Chats & announcements", "/clients": "Client accounts", "/students": "Admissions & payments",
   "/users": "Team & approvals", "/branding": "Logo, colours & links", "/settings": "Workspace preferences",
 };

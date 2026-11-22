@@ -26,10 +26,14 @@ const CARDS = [
   { k: "pending_tasks", label: "Pending tasks", Icon: Timer, accent: "coral", to: "/leads" },
 ];
 
-export default function OverviewStats() {
+export function useOverviewStats() {
   const [d, setD] = useState(null);
   const { year } = useAcademicYear();
   useEffect(() => { api.get("/dashboard/overview-stats").then((r) => setD(r.data)).catch(() => setD({})); }, [year]);
+  return d;
+}
+
+export default function OverviewStats({ d }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" data-testid="overview-stats">
       {CARDS.map(({ k, label, Icon, accent, to, money }, i) => {
@@ -37,12 +41,14 @@ export default function OverviewStats() {
         const v = d?.[k];
         return (
           <Link key={k} to={to} data-testid={`overview-stat-${k}`} style={{ animationDelay: `${i * 50}ms` }}
-            className="hub-tile group rounded-[20px] border border-border bg-card p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300">
-            <span className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: `${c}1f`, color: c }}><Icon size={18} weight="duotone" /></span>
-            <p className="font-display text-2xl sm:text-[28px] font-semibold tabular-nums mt-3 truncate" data-testid={`overview-stat-${k}-value`}>
-              {d === null ? "…" : money ? shortMoney(v, d?.currency) : (v ?? 0).toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">{label}</p>
+            className="hub-tile group flex items-center gap-3 rounded-[18px] border border-border bg-card px-4 py-2.5 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300">
+            <span className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0" style={{ background: `${c}1f`, color: c }}><Icon size={20} weight="duotone" /></span>
+            <div className="min-w-0">
+              <p className="font-display text-xl sm:text-2xl font-semibold tabular-nums leading-tight truncate" data-testid={`overview-stat-${k}-value`}>
+                {d === null ? "…" : money ? shortMoney(v, d?.currency) : (v ?? 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{label}</p>
+            </div>
           </Link>
         );
       })}

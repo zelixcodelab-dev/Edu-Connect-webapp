@@ -30,24 +30,24 @@ function TileBadge({ item, alert }) {
   return <ArrowUpRight size={16} weight="bold" className="absolute top-4 right-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />;
 }
 
-export function HubTile({ item, index, alert = null, featured = false }) {
+export function HubTile({ item, index, alert = null, featured = false, dense = false }) {
   const Icon = item.icon;
   const c = accentFor(item.to);
   const blurb = featured ? "Business analytics and performance" : item.blurb || ITEM_BLURBS[item.to];
   return (
     <Link to={item.to} data-testid={`hub-tile-${item.tid}`}
       style={{ animationDelay: `${index * 50}ms`, ...(featured ? { backgroundImage: `linear-gradient(135deg, ${c}24, ${c}08)`, borderColor: `${c}40` } : {}) }}
-      className={`hub-tile group relative flex flex-col rounded-[22px] border border-border bg-card p-5 min-h-[150px] shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-[0_18px_36px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300 ${featured ? "col-span-2 sm:row-span-1" : ""}`}>
-      <span className="w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${c}1f`, color: c }}>
+      className={`hub-tile group relative flex flex-col rounded-[22px] border border-border bg-card ${dense ? "p-4 min-h-[100px]" : "p-5 min-h-[150px]"} shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-[0_18px_36px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300 ${featured ? "col-span-2 sm:row-span-1" : ""}`}>
+      <span className={`${dense ? "w-10 h-10" : "w-11 h-11"} rounded-[14px] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`} style={{ background: `${c}1f`, color: c }}>
         <Icon size={24} weight="duotone" />
       </span>
       {featured ? (
         <span className="absolute top-4 right-4 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: `${c}1f`, color: c }} data-testid="hub-tile-featured-tag">Overview</span>
       ) : <TileBadge item={item} alert={alert} />}
-      <p className={`font-display font-semibold tracking-tight mt-4 truncate ${featured ? "text-2xl" : "text-base"}`} data-testid={`hub-tile-label-${item.tid}`}>{item.label}</p>
-      {blurb && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{blurb}</p>}
+      <p className={`font-display font-semibold tracking-tight ${dense ? "mt-2.5" : "mt-4"} truncate ${featured ? (dense ? "text-xl" : "text-2xl") : "text-base"}`} data-testid={`hub-tile-label-${item.tid}`}>{item.label}</p>
+      {blurb && <p className={`text-xs text-muted-foreground mt-0.5 ${dense ? "truncate" : "line-clamp-2"}`} title={blurb}>{blurb}</p>}
       {featured && (
-        <span className="mt-auto pt-3 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: c }}>
+        <span className={`mt-auto ${dense ? "pt-1.5" : "pt-3"} inline-flex items-center gap-1.5 text-sm font-semibold`} style={{ color: c }}>
           Explore workspace <ArrowRight size={14} weight="bold" className="transition-transform group-hover:translate-x-1" />
         </span>
       )}
@@ -55,8 +55,8 @@ export function HubTile({ item, index, alert = null, featured = false }) {
   );
 }
 
-export function TileGrid({ children, testid }) {
-  return <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" data-testid={testid}>{children}</div>;
+export function TileGrid({ children, testid, wide = false }) {
+  return <div className={`grid grid-cols-2 lg:grid-cols-4 ${wide ? "xl:grid-cols-5 sm:gap-3" : "sm:gap-4"} gap-3`} data-testid={testid}>{children}</div>;
 }
 
 export default function SectionHub() {
