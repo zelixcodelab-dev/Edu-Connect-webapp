@@ -212,7 +212,7 @@ function DesktopSidebar({ user, alerts, onLogout }) {
   const toggle = () => setRail((r) => { localStorage.setItem(RAIL_KEY, r ? "0" : "1"); return !r; });
   return (
     <TooltipProvider>
-      <div className={`hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 z-40 transition-[width] duration-300 ${rail ? "w-[104px]" : "w-[264px]"}`}>
+      <div className={`hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 z-40 transition-[width] duration-300 ${rail ? "w-[84px]" : "w-[264px]"}`}>
         <aside className="glass-panel h-full flex flex-col rounded-[28px] overflow-hidden" data-testid="desktop-sidebar" data-collapsed={rail ? "true" : "false"}>
           <SidebarContent user={user} alerts={alerts} variant="desktop" rail={rail} onToggleRail={toggle} onLogout={onLogout} />
         </aside>
@@ -380,7 +380,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   return (
     <>
       {/* Brand + collapse */}
-      <div className={`group/brand flex items-center gap-3 pt-5 pb-4 ${rail ? "px-3 flex-col" : "px-4"}`}>
+      <div className={`group/brand flex items-center gap-3 pt-5 pb-4 ${rail ? "px-2 flex-col" : "px-4"}`}>
         <span className="relative shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm">
           <BrandMark size={rail ? 34 : 36} className={`shadow-sm transition-opacity ${rail && onToggleRail ? "group-hover/brand:opacity-0" : ""}`} />
           {rail && onToggleRail && (
@@ -406,7 +406,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
       {/* Search */}
       {rail ? (
-        <div className="px-3 flex flex-col items-center">
+        <div className="px-2 flex flex-col items-center">
           <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-11 h-11 rounded-2xl text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center transition-colors" data-testid="sidebar-rail-search" aria-label="Search menu">
             <MagnifyingGlass size={19} weight="light" />
           </button></RailTip>
@@ -479,7 +479,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       </nav>
 
       {/* Bottom: profile card with theme + sign out */}
-      <div className={`p-3 shrink-0 ${rail ? "flex flex-col items-center gap-1.5" : ""}`}>
+      <div className={`shrink-0 ${rail ? "p-2 flex flex-col items-center gap-1.5" : "p-3"}`}>
         {rail ? (
           <>
             <RailTip show label={theme === "dark" ? "Light mode" : "Dark mode"}>
