@@ -42,7 +42,7 @@ function LinkLeaderboard({ count }) {
   return (
     <Popover onOpenChange={load}>
       <PopoverTrigger asChild>
-        <button type="button" className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors" data-testid="overview-link-share-count" title="See who brought in applications this month">
+        <button type="button" className="col-span-3 sm:col-span-1 inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors" data-testid="overview-link-share-count" title="See who brought in applications this month">
           <Tray size={15} weight="duotone" /> {count} application{count === 1 ? "" : "s"} this month
         </button>
       </PopoverTrigger>
@@ -67,7 +67,7 @@ function LinkLeaderboard({ count }) {
   );
 }
 
-const ACTION_BTN = "inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition-colors";
+const ACTION_BTN = "inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition-colors";
 
 function ShareApplyActions({ user, count }) {
   const url = buildApplyUrl();
@@ -78,7 +78,7 @@ function ShareApplyActions({ user, count }) {
     () => { window.prompt("Copy the application link:", url); },
   );
   return (
-    <div className="flex flex-wrap items-center gap-2" data-testid="overview-share-actions">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-2 w-full sm:w-auto sm:flex sm:flex-wrap sm:items-center" data-testid="overview-share-actions">
       {count != null && <LinkLeaderboard count={count} />}
       <button type="button" onClick={copy} className={ACTION_BTN} data-testid="share-apply-link-btn" title="Copy the public admission form link">
         <ShareNetwork size={16} /> Share application link
