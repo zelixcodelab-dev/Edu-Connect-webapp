@@ -294,6 +294,21 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     return init;
   });
   const navItems = visibleNavItems(user, variant);
+  // Keep a roomy row gap, shrinking it only as far as needed to avoid scrolling.
+  const navRef = React.useRef(null);
+  const fitNav = React.useCallback(() => {
+    const el = navRef.current;
+    if (!el) return;
+    for (let py = 9; py >= 3; py -= 1) {
+      el.style.setProperty("--row-py", `${py}px`);
+      if (el.scrollHeight <= el.clientHeight) break;
+    }
+  }, []);
+  React.useLayoutEffect(() => { fitNav(); });
+  React.useEffect(() => {
+    window.addEventListener("resize", fitNav);
+    return () => window.removeEventListener("resize", fitNav);
+  }, [fitNav]);
 
   const isMobile = variant === "mobile";
   const pinnedItems = pins.map((to) => navItems.find((i) => i.to === to)).filter(Boolean);
@@ -304,7 +319,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
   const linkClass = (indent) => ({ isActive }) => [
     "group relative z-[1] flex items-center gap-3 rounded-2xl text-sm transition-[background-color,color,transform,box-shadow] duration-200",
-    rail ? "justify-center h-10 w-10 mx-auto" : `${indent ? "pl-4 pr-3" : "px-3.5"} py-1`,
+    rail ? "justify-center h-10 w-10 mx-auto" : `${indent ? "pl-4 pr-3" : "px-3.5"} py-[var(--row-py,8px)]`,
     isActive
       ? "nav-active-pill bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold shadow-[0_8px_18px_-8px_hsl(var(--primary)/0.7)]"
       : "text-[hsl(var(--sidebar-fg))]/80 hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--sidebar-fg))]",
@@ -375,12 +390,12 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
   const label = (text) => (rail || !text
     ? <div className={`${rail ? "mx-auto w-6" : "mx-3"} my-2 border-t border-[hsl(var(--sidebar-border))]`} aria-hidden />
-    : <p className="px-3.5 mb-1 text-[10px] uppercase tracking-[0.22em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
+    : <p className="px-3.5 mb-1.5 text-[10px] uppercase tracking-[0.22em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
 
   return (
     <>
       {/* Brand + collapse */}
-      <div className={`group/brand flex items-center gap-3 pt-3.5 pb-2.5 ${rail ? "px-2 flex-col" : "px-4"}`}>
+      <div className={`group/brand flex items-center gap-3 pt-4 pb-3 ${rail ? "px-2 flex-col" : "px-4"}`}>
         <span className="relative shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm">
           <BrandMark size={rail ? 34 : 36} className={`shadow-sm transition-opacity ${rail && onToggleRail ? "group-hover/brand:opacity-0" : ""}`} />
           {rail && onToggleRail && (
@@ -417,13 +432,13 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             <MagnifyingGlass size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
             <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu…" data-testid="sidebar-search"
               onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
-              className="w-full h-9 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.045] border border-[hsl(var(--sidebar-border))]/70 focus:border-[hsl(var(--primary))]/40 focus:ring-4 focus:ring-[hsl(var(--primary))]/10 pl-10 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-[border-color,box-shadow]" />
+              className="w-full h-10 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.045] border border-[hsl(var(--sidebar-border))]/70 focus:border-[hsl(var(--primary))]/40 focus:ring-4 focus:ring-[hsl(var(--primary))]/10 pl-10 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-[border-color,box-shadow]" />
           </div>
         </div>
       )}
 
       {/* Nav */}
-      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-2 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
+      <nav ref={navRef} onTransitionEnd={fitNav} className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-2.5 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
         {!q && pinnedItems.length > 0 && (
           <div className="pb-3 mb-1" data-testid="pinned-section">
             {rail ? null : (
@@ -460,17 +475,17 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             const open = !collapsed[section.key];
             const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
             return (
-              <div key={section.key} className="pt-1.5">
+              <div key={section.key} className="pt-[calc(var(--row-py,8px)+4px)]">
                 <div className={`group flex items-center rounded-xl transition-colors ${location.pathname === `/section/${section.key}` ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))]"}`}>
                   <button type="button" onClick={() => { setCollapsed(Object.fromEntries(Object.keys(GROUP_ROUTES).map((k) => [k, k !== section.key]))); navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`nav-group-open-${section.key}`}
                     title={`Open ${section.label} overview`}
-                    className="flex-1 min-w-0 flex items-center gap-2 pl-3.5 py-0.5 text-left text-[10px] uppercase tracking-[0.22em] font-semibold">
+                    className="flex-1 min-w-0 flex items-center gap-2 pl-3.5 py-1 text-left text-[10px] uppercase tracking-[0.22em] font-semibold">
                     <span className="truncate">{section.label}</span>
                     {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
                     <ArrowUpRight size={11} weight="bold" className="opacity-0 group-hover:opacity-100" />
                   </button>
                   <button type="button" onClick={() => setCollapsed((c) => Object.fromEntries(Object.keys(GROUP_ROUTES).map((k) => [k, k === section.key ? !c[k] : true])))} data-testid={`nav-group-${section.key}`} aria-expanded={open} aria-label={`Toggle ${section.label}`}
-                    className="shrink-0 h-6 w-8 flex items-center justify-center rounded-lg hover:bg-[hsl(var(--sidebar-fg))]/[0.06]">
+                    className="shrink-0 h-7 w-8 flex items-center justify-center rounded-lg hover:bg-[hsl(var(--sidebar-fg))]/[0.06]">
                     <CaretDown size={11} weight="bold" className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
                   </button>
                 </div>
@@ -486,7 +501,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
           }
           if (!rail && !q && section.label === "Settings" && section.items.length > 1) {
             return (
-              <div key="settings" className="pt-2" data-testid="sidebar-settings-grid">
+              <div key="settings" className="pt-[calc(var(--row-py,8px)+6px)]" data-testid="sidebar-settings-grid">
                 {label(section.label)}
                 <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${section.items.length}, minmax(0, 1fr))` }}>
                   {section.items.map((item) => (
@@ -500,7 +515,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             );
           }
           return (
-            <div key={section.key || `sec-${idx}`} className={idx > 0 ? (rail ? "pt-0.5" : "pt-2") : ""}>
+            <div key={section.key || `sec-${idx}`} className={idx > 0 ? (rail ? "pt-0.5" : "pt-[calc(var(--row-py,8px)+6px)]") : ""}>
               {rail ? (idx > 0 && section.type !== "group" && sections[idx - 1]?.type !== "group" ? label("") : null) : section.label ? label(section.label) : null}
               <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>{section.items.map((item) => renderLink(item, false))}</div>
             </div>
@@ -509,7 +524,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       </nav>
 
       {/* Bottom: profile card with theme + sign out */}
-      <div className={`shrink-0 ${rail ? "p-2 flex flex-col items-center gap-0.5" : "px-3 pb-3 pt-1"}`}>
+      <div className={`shrink-0 ${rail ? "p-2 flex flex-col items-center gap-0.5" : "px-3 pb-3 pt-2"}`}>
         {rail ? (
           <>
             <RailTip show label={theme === "dark" ? "Light mode" : "Dark mode"}>
