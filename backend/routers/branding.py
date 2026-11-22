@@ -8,8 +8,8 @@
   workspace branding (name, logo, colours, taglines).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Literal, Optional
 
 from db import gdb
 from auth_lib import get_current_user
@@ -29,6 +29,8 @@ class BrandingPatch(BaseModel):
     hero_tagline: Optional[str] = None
     eyebrow: Optional[str] = None
     currency: Optional[str] = None
+    app_background: Optional[Literal["plain", "gradient", "photo"]] = None
+    app_background_url: Optional[str] = Field(default=None, max_length=500)
 
 
 @router.get("")
@@ -70,6 +72,13 @@ async def update_my_branding(payload: BrandingPatch, user: dict = Depends(get_cu
     raw = payload.model_dump()
     if raw.get("logo_url") is not None:  # allow clearing the logo
         incoming["logo_url"] = raw.get("logo_url")
-    merged = merged_branding({**(tenant.get("branding") or {}), **incoming})
+    if raw.get("app_background_url") is not None:
+        incoming["app_background_url"] = raw.get("app_background_url")
+    bg_url = incoming.get("app_background_url")
+    if bg_url and not bg_url.startswith("/api/files/"):
+        raise HTTPException(status_code=422, detail="Background photo must be uploaded here.")
+    stored = {**(tenant.get("branding") or {}), **incoming}
+    merged = merged_branding(stored)
+    merged["app_background_url"] = stored.get("app_background_url") or ""
     await gdb.tenants.update_one({"id": tenant["id"]}, {"$set": {"branding": merged}})
     return {"branding": merged}

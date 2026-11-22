@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useBranding, applyBranding, DEFAULT_BRANDING } from "@/lib/branding";
 import BrandMark from "@/components/BrandMark";
 import { BrandPreview } from "@/components/branding/BrandPreview";
+import BackgroundPicker from "@/components/branding/BackgroundPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +66,8 @@ export default function Branding() {
         hero_accent: form.hero_accent,
         hero_tagline: form.hero_tagline,
         eyebrow: form.eyebrow,
+        app_background: form.app_background || "gradient",
+        app_background_url: form.app_background_url || "",
       });
       const merged = data?.branding || form;
       setBrandingData(merged, enabledModules);
@@ -134,6 +137,9 @@ export default function Branding() {
               </div>
             </div>
           </div>
+
+          <BackgroundPicker mode={form.app_background || "gradient"} url={form.app_background_url} disabled={!canEdit}
+            onChange={(patch) => setForm((p) => ({ ...p, ...patch }))} />
 
           <details className="text-sm">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Login page hero copy</summary>

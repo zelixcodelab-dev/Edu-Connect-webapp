@@ -9,7 +9,7 @@ import { useBranding } from "@/lib/branding";
 import BrandMark from "@/components/BrandMark";
 import { canView, hasModule } from "@/lib/perm";
 import { buildApplyUrl } from "@/lib/applyUrl";
-import AuthedImage from "@/components/AuthedImage";
+import AuthedImage, { useAuthedObjectUrl } from "@/components/AuthedImage";
 import NotificationsBell from "@/components/NotificationsBell";
 import AcademicYearSelect from "@/components/AcademicYearSelect";
 import BottomNav from "@/components/BottomNav";
@@ -212,7 +212,7 @@ function DesktopSidebar({ user, alerts, onLogout }) {
   const toggle = () => setRail((r) => { localStorage.setItem(RAIL_KEY, r ? "0" : "1"); return !r; });
   return (
     <TooltipProvider>
-      <div className={`hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 z-40 transition-[width] duration-300 ${rail ? "w-[108px]" : "w-[296px]"}`}>
+      <div className={`hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 z-40 transition-[width] duration-300 ${rail ? "w-[104px]" : "w-[264px]"}`}>
         <aside className="glass-panel h-full flex flex-col rounded-[28px] overflow-hidden" data-testid="desktop-sidebar" data-collapsed={rail ? "true" : "false"}>
           <SidebarContent user={user} alerts={alerts} variant="desktop" rail={rail} onToggleRail={toggle} onLogout={onLogout} />
         </aside>
@@ -380,18 +380,26 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   return (
     <>
       {/* Brand + collapse */}
-      <div className={`flex items-center gap-3 pt-5 pb-4 ${rail ? "px-3 flex-col" : "px-5"}`}>
-        <span className="shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm"><BrandMark size={rail ? 34 : 36} className="shadow-sm" /></span>
+      <div className={`group/brand flex items-center gap-3 pt-5 pb-4 ${rail ? "px-3 flex-col" : "px-4"}`}>
+        <span className="relative shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm">
+          <BrandMark size={rail ? 34 : 36} className={`shadow-sm transition-opacity ${rail && onToggleRail ? "group-hover/brand:opacity-0" : ""}`} />
+          {rail && onToggleRail && (
+            <button type="button" onClick={onToggleRail} data-testid="sidebar-collapse-btn" aria-label="Expand menu" title="Expand menu"
+              className="absolute inset-0 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.08] text-[hsl(var(--sidebar-fg))] flex items-center justify-center opacity-0 group-hover/brand:opacity-100 focus-visible:opacity-100 transition-opacity">
+              <CaretDoubleLeft size={15} weight="bold" className="rotate-180" />
+            </button>
+          )}
+        </span>
         {!rail && (
           <div className="flex flex-col min-w-0 flex-1">
             <span className="font-display text-[15px] font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate" data-testid="sidebar-brand-name">{branding?.app_name || "EduConnect Pro"}</span>
             <span className="text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-muted))] truncate">{branding?.company_line || ""}</span>
           </div>
         )}
-        {onToggleRail && (
-          <button type="button" onClick={onToggleRail} data-testid="sidebar-collapse-btn" aria-label={rail ? "Expand menu" : "Collapse menu"} title={rail ? "Expand menu" : "Collapse menu"}
-            className="w-8 h-8 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.09] flex items-center justify-center shrink-0 transition-colors">
-            <CaretDoubleLeft size={14} weight="bold" className={`transition-transform duration-300 ${rail ? "rotate-180" : ""}`} />
+        {onToggleRail && !rail && (
+          <button type="button" onClick={onToggleRail} data-testid="sidebar-collapse-btn" aria-label="Collapse menu" title="Collapse menu"
+            className="w-8 h-8 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.09] flex items-center justify-center shrink-0 opacity-0 group-hover/brand:opacity-100 focus-visible:opacity-100 transition-[opacity,background-color,color]">
+            <CaretDoubleLeft size={14} weight="bold" />
           </button>
         )}
       </div>
@@ -568,6 +576,7 @@ export default function AppShell() {
   };
 
   // Block direct URL access to a module the company has switched off.
+  const bgPhoto = useAuthedObjectUrl(branding?.app_background === "photo" ? branding?.app_background_url : "");
   const disabledModule = useMemo(() => {
     const mod = PATH_MODULE[location.pathname];
     const enabled = user?.enabled_modules;
@@ -575,8 +584,11 @@ export default function AppShell() {
   }, [location.pathname, user]);
   if (disabledModule) return <Navigate to="/" replace />;
 
+  const bgMode = branding?.app_background || "gradient";
+  const bgClass = bgMode === "plain" ? "bg-background" : bgMode === "photo" && bgPhoto ? "app-photo-bg" : "app-glass-bg";
   return (
-    <div className="app-glass-bg min-h-screen w-full text-foreground flex">
+    <div className={`${bgClass} min-h-screen w-full text-foreground flex`} data-testid="app-root" data-bg={bgMode}
+      style={bgClass === "app-photo-bg" ? { "--app-bg-photo": `url("${bgPhoto}")` } : undefined}>
       {/* Desktop Sidebar */}
       <DesktopSidebar user={user} alerts={alerts} onLogout={handleLogout} />
 

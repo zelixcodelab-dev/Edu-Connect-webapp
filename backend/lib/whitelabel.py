@@ -31,6 +31,8 @@ DEFAULT_BRANDING = {
     "hero_tagline": "The complete partner & admission management platform for education consultancies.",
     "eyebrow": "Admissions · Office Portal",
     "currency": "INR",
+    "app_background": "gradient",          # plain | gradient | photo
+    "app_background_url": "",
 }
 
 BRANDING_FIELDS = list(DEFAULT_BRANDING.keys())

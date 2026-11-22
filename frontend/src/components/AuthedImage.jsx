@@ -16,6 +16,22 @@ export function toApiRelative(url) {
   return url.startsWith("/api") ? url.replace(/^\/api/, "") : url;
 }
 
+// Object URL for a protected file (e.g. background photo); null while loading.
+export function useAuthedObjectUrl(url) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = null;
+    setSrc(null);
+    if (!url) return undefined;
+    api.get(toApiRelative(url), { responseType: "blob" })
+      .then((res) => { if (!cancelled) { objectUrl = URL.createObjectURL(res.data); setSrc(objectUrl); } })
+      .catch(() => {});
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [url]);
+  return src;
+}
+
 export default function AuthedImage({ url, alt = "", className = "", testid, fallback = null }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
