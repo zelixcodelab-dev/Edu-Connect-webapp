@@ -304,7 +304,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
   const linkClass = (indent) => ({ isActive }) => [
     "group relative z-[1] flex items-center gap-3 rounded-2xl text-sm transition-[background-color,color,transform,box-shadow] duration-200",
-    rail ? "justify-center h-11 w-11 mx-auto" : `${indent ? "pl-4 pr-3" : "px-3.5"} py-2.5`,
+    rail ? "justify-center h-10 w-10 mx-auto" : `${indent ? "pl-4 pr-3" : "px-3.5"} py-1`,
     isActive
       ? "nav-active-pill bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold shadow-[0_8px_18px_-8px_hsl(var(--primary)/0.7)]"
       : "text-[hsl(var(--sidebar-fg))]/80 hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--sidebar-fg))]",
@@ -375,12 +375,12 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
   const label = (text) => (rail || !text
     ? <div className={`${rail ? "mx-auto w-6" : "mx-3"} my-2 border-t border-[hsl(var(--sidebar-border))]`} aria-hidden />
-    : <p className="px-3.5 mb-2 text-[10px] uppercase tracking-[0.22em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
+    : <p className="px-3.5 mb-1 text-[10px] uppercase tracking-[0.22em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
 
   return (
     <>
       {/* Brand + collapse */}
-      <div className={`group/brand flex items-center gap-3 pt-5 pb-4 ${rail ? "px-2 flex-col" : "px-4"}`}>
+      <div className={`group/brand flex items-center gap-3 pt-3.5 pb-2.5 ${rail ? "px-2 flex-col" : "px-4"}`}>
         <span className="relative shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm">
           <BrandMark size={rail ? 34 : 36} className={`shadow-sm transition-opacity ${rail && onToggleRail ? "group-hover/brand:opacity-0" : ""}`} />
           {rail && onToggleRail && (
@@ -407,7 +407,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       {/* Search */}
       {rail ? (
         <div className="px-2 flex flex-col items-center">
-          <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-11 h-11 rounded-2xl text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center transition-colors" data-testid="sidebar-rail-search" aria-label="Search menu">
+          <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-10 h-10 rounded-2xl text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center transition-colors" data-testid="sidebar-rail-search" aria-label="Search menu">
             <MagnifyingGlass size={19} weight="light" />
           </button></RailTip>
         </div>
@@ -417,13 +417,13 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             <MagnifyingGlass size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
             <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu…" data-testid="sidebar-search"
               onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
-              className="w-full h-10 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.045] border border-[hsl(var(--sidebar-border))]/70 focus:border-[hsl(var(--primary))]/40 focus:ring-4 focus:ring-[hsl(var(--primary))]/10 pl-10 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-[border-color,box-shadow]" />
+              className="w-full h-9 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.045] border border-[hsl(var(--sidebar-border))]/70 focus:border-[hsl(var(--primary))]/40 focus:ring-4 focus:ring-[hsl(var(--primary))]/10 pl-10 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-[border-color,box-shadow]" />
           </div>
         </div>
       )}
 
       {/* Nav */}
-      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
+      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-2 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
         {!q && pinnedItems.length > 0 && (
           <div className="pb-3 mb-1" data-testid="pinned-section">
             {rail ? null : (
@@ -441,27 +441,42 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
           if (q && section.items.length === 0) {
             return <p key="none" className="px-3 py-6 text-sm text-center text-[hsl(var(--sidebar-muted))]" data-testid="sidebar-search-empty">No menu items match "{query}"</p>;
           }
+          if (section.type === "group" && rail) {
+            const active = location.pathname === `/section/${section.key}` || section.items.some((it) => location.pathname === it.to || location.pathname.startsWith(`${it.to}/`));
+            const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
+            return (
+              <div key={section.key} className="flex justify-center pt-0.5">
+                <RailTip show label={`${section.label}${groupAlert ? ` · ${groupAlert}` : ""}`}>
+                  <button type="button" onClick={() => { navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`rail-group-${section.key}`} aria-label={section.label}
+                    className={`relative h-10 w-10 rounded-2xl flex items-center justify-center transition-[background-color,color] duration-200 ${active ? "nav-active-pill bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[0_8px_18px_-8px_hsl(var(--primary)/0.7)]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06]"}`}>
+                    <section.icon size={19} weight={active ? "regular" : "light"} />
+                    {groupAlert > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-black/40" data-testid={`rail-group-alert-${section.key}`} />}
+                  </button>
+                </RailTip>
+              </div>
+            );
+          }
           if (section.type === "group" && !rail) {
             const open = !collapsed[section.key];
             const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
             return (
-              <div key={section.key} className="pt-4">
+              <div key={section.key} className="pt-1.5">
                 <div className={`group flex items-center rounded-xl transition-colors ${location.pathname === `/section/${section.key}` ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))]"}`}>
-                  <button type="button" onClick={() => { setCollapsed((c) => ({ ...c, [section.key]: false })); navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`nav-group-open-${section.key}`}
+                  <button type="button" onClick={() => { setCollapsed(Object.fromEntries(Object.keys(GROUP_ROUTES).map((k) => [k, k !== section.key]))); navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`nav-group-open-${section.key}`}
                     title={`Open ${section.label} overview`}
-                    className="flex-1 min-w-0 flex items-center gap-2 pl-3.5 py-1.5 text-left text-[10px] uppercase tracking-[0.22em] font-semibold">
+                    className="flex-1 min-w-0 flex items-center gap-2 pl-3.5 py-0.5 text-left text-[10px] uppercase tracking-[0.22em] font-semibold">
                     <span className="truncate">{section.label}</span>
                     {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
                     <ArrowUpRight size={11} weight="bold" className="opacity-0 group-hover:opacity-100" />
                   </button>
-                  <button type="button" onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))} data-testid={`nav-group-${section.key}`} aria-expanded={open} aria-label={`Toggle ${section.label}`}
-                    className="shrink-0 h-7 w-8 flex items-center justify-center rounded-lg hover:bg-[hsl(var(--sidebar-fg))]/[0.06]">
+                  <button type="button" onClick={() => setCollapsed((c) => Object.fromEntries(Object.keys(GROUP_ROUTES).map((k) => [k, k === section.key ? !c[k] : true])))} data-testid={`nav-group-${section.key}`} aria-expanded={open} aria-label={`Toggle ${section.label}`}
+                    className="shrink-0 h-6 w-8 flex items-center justify-center rounded-lg hover:bg-[hsl(var(--sidebar-fg))]/[0.06]">
                     <CaretDown size={11} weight="bold" className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
                   </button>
                 </div>
                 <div className={`nav-collapse ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
                   <div className="overflow-hidden min-h-0">
-                    <div className="mt-1 space-y-1">
+                    <div className="mt-0.5 space-y-0.5">
                       {section.items.map((item) => renderLink(item, false))}
                     </div>
                   </div>
@@ -469,39 +484,54 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
               </div>
             );
           }
+          if (!rail && !q && section.label === "Settings" && section.items.length > 1) {
+            return (
+              <div key="settings" className="pt-2" data-testid="sidebar-settings-grid">
+                {label(section.label)}
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${section.items.length}, minmax(0, 1fr))` }}>
+                  {section.items.map((item) => (
+                    <NavLink key={item.to} to={item.to} data-testid={`${tidPrefix}${item.tid}`} onClick={onItemClick} title={item.label}
+                      className={({ isActive }) => `flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] transition-colors ${isActive ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold" : "bg-[hsl(var(--sidebar-fg))]/[0.04] text-[hsl(var(--sidebar-fg))]/80 hover:bg-[hsl(var(--sidebar-fg))]/[0.08]"}`}>
+                      {({ isActive }) => (<><item.icon size={17} weight={isActive ? "regular" : "light"} /><span className="truncate max-w-full px-1">{item.label}</span></>)}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          }
           return (
-            <div key={section.key || `sec-${idx}`} className={idx > 0 ? (rail ? "pt-1" : "pt-4") : ""}>
-              {rail ? (idx > 0 ? label("") : null) : section.label ? label(section.label) : null}
-              <div className={rail ? "flex flex-col items-center gap-1" : "space-y-1"}>{section.items.map((item) => renderLink(item, false))}</div>
+            <div key={section.key || `sec-${idx}`} className={idx > 0 ? (rail ? "pt-0.5" : "pt-2") : ""}>
+              {rail ? (idx > 0 && section.type !== "group" && sections[idx - 1]?.type !== "group" ? label("") : null) : section.label ? label(section.label) : null}
+              <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>{section.items.map((item) => renderLink(item, false))}</div>
             </div>
           );
         })}
       </nav>
 
       {/* Bottom: profile card with theme + sign out */}
-      <div className={`shrink-0 ${rail ? "p-2 flex flex-col items-center gap-1.5" : "p-3"}`}>
+      <div className={`shrink-0 ${rail ? "p-2 flex flex-col items-center gap-0.5" : "px-3 pb-3 pt-1"}`}>
         {rail ? (
           <>
             <RailTip show label={theme === "dark" ? "Light mode" : "Dark mode"}>
-              <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode" className="w-11 h-11 rounded-2xl flex items-center justify-center text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors">
+              <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode" className="w-10 h-10 rounded-2xl flex items-center justify-center text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors">
                 {theme === "dark" ? <Sun size={19} className="text-amber-400" /> : <Moon size={19} weight="light" />}
               </button>
             </RailTip>
             <RailTip show label={user?.name}>
-              <button type="button" onClick={() => { navigate("/settings"); onItemClick?.(); }} data-testid="sidebar-profile" aria-label="Open profile" className="rounded-full hover:scale-105 transition-transform"><Avatar user={user} size={38} /></button>
+              <button type="button" onClick={() => { navigate("/settings"); onItemClick?.(); }} data-testid="sidebar-profile" aria-label="Open profile" className="rounded-full hover:scale-105 transition-transform"><Avatar user={user} size={34} /></button>
             </RailTip>
             {onLogout && (
               <RailTip show label="Sign out">
-                <button type="button" onClick={onLogout} data-testid={`${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out" className="w-11 h-11 rounded-2xl flex items-center justify-center text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                <button type="button" onClick={onLogout} data-testid={`${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out" className="w-10 h-10 rounded-2xl flex items-center justify-center text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors">
                   <SignOut size={19} />
                 </button>
               </RailTip>
             )}
           </>
         ) : (
-          <div className="glass-card flex items-center gap-2.5 rounded-[20px] p-2.5" data-testid="sidebar-profile">
+          <div className="glass-card flex items-center gap-2.5 rounded-[20px] p-2" data-testid="sidebar-profile">
             <button type="button" onClick={() => { navigate("/settings"); onItemClick?.(); }} data-testid="sidebar-profile-open" className="flex items-center gap-2.5 min-w-0 flex-1 text-left rounded-xl">
-              <Avatar user={user} size={38} />
+              <Avatar user={user} size={34} />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-[hsl(var(--sidebar-fg))] truncate" data-testid={isMobile ? "drawer-user-name" : "sidebar-user-name"}>{user?.name}</span>
                 <span className="block text-[11px] text-[hsl(var(--sidebar-muted))] truncate" data-testid="sidebar-user-email">{user?.email}</span>
