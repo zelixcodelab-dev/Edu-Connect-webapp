@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only test of the frosted-glass sidebar redesign (AppShell.jsx) as super admin and office admin, at desktop 1920 and mobile 390. All 10 requested flows pass. Expanded sidebar shows the WORKSPACE/ACCOUNTS/OFFICE/PEOPLE/ADD DETAILS/SETTINGS headings. Search filters into 'Results', shows sidebar-search-empty when nothing matches, and Esc clears it. Clicking a nav item navigates and gets the nav-active-pill class. The caret toggles aria-expanded without changing the URL. The group heading opens /section/{key} and expands the group. The collapse button switches to a 92px icon rail with tooltips (e.g. 'CRM') and writes ec_sidebar_rail='1'; the rail survives a reload; expanding writes '0'. The rail search icon expands the sidebar and focuses sidebar-search. The rail avatar and sidebar-profile-open both go to /settings. The theme toggle switches dark mode and back, and the sidebar stays readable apart from the brand logo. Sign out reaches /login on desktop (expanded) and from the mobile drawer. Mobile drawer: no horizontal overflow (scrollWidth 390); it has all sections, search, drawer-user-name and no collapse button; item, group-heading and profile clicks close it; the caret keeps it open; tapping the overlay closes it. Office admin sees one flat WORKSPACE section with 13 items and no groups, and active pills work. Pin/unpin of Clients works: the Pinned section appears, the pinned link navigates, and after unpinning and reloading the section is gone, so the pin state is back to where it started. No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SidebarContent search", "issue": "Search matches only the visible label. Typing 'lead' or 'leads' gives 'No menu items match' because the item is labelled 'CRM' (route /leads). Similar alias problem for 'Approvals' vs expense requests. Suggest also matching ITEM_BLURBS / route / keywords.", "selector": "[data-testid='sidebar-search']", "priority": "LOW"},
+      {"component": "SidebarContent group init (mobile drawer)", "issue": "Opening a group heading (e.g. /section/accounts) from the drawer closes the drawer. On reopen the drawer remounts and the group shows collapsed again, because the initial collapsed state only checks GROUP_ROUTES and ignores /section/{key}.", "selector": "[data-testid='nav-group-accounts']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Sidebar / drawer in dark mode", "issues": ["The BrandMark logo at the top is almost invisible (a dark mark on the dark glass panel) on both desktop and the rail. Needs a light variant or a light chip behind it in dark mode."]},
+      {"screen": "Collapsed rail", "issues": ["Workspace 'Overview' and Office 'Overview' use the same house icon, so in the rail two identical icons appear (tooltips are the only way to tell them apart).", "When the current page is /section/{key}, no rail icon is highlighted, so the rail shows no active state."]},
+      {"screen": "Desktop light (mono theme)", "issues": ["The glass effect is subtle: the panel looks almost solid white and the brand-tinted gradient background is barely visible. Acceptable, but the frosted effect is not obvious."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Make the BrandMark visible in dark mode in the sidebar and rail",
+    "(Optional) Let sidebar search also match route/blurb/keywords (e.g. 'lead' → CRM)",
+    "(Optional) Treat /section/{key} as belonging to group {key} in the initial collapsed state",
+    "(Optional) Give Office 'Overview' a different icon from Workspace 'Overview'"
+  ],
+  "critical_code_review_comments": [
+    "AppShell.jsx is 737 lines (over the 700 guideline). Consider moving DesktopSidebar/SidebarContent/buildSections into components/layout/Sidebar.jsx.",
+    "The data-testid 'sidebar-profile' is a div (the card) in expanded mode but a button in rail mode. It works, but it is inconsistent for automation.",
+    "The desktop sidebar stays in the DOM (hidden md:block) on mobile, so testids like sidebar-theme-toggle and sidebar-search are duplicated in the DOM. Scope selectors to mobile-drawer."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested flows (10/10); 2 low-priority UX bugs + design nits"},
+  "seed_data_creation": "None. A temporary pin (Clients) was added for super admin and removed in the same session (verified after reload). Theme left in light mode.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Sidebar testids: desktop-sidebar[data-collapsed], sidebar-collapse-btn, sidebar-search, sidebar-search-empty, sidebar-rail-search, nav-group-open-{key}, nav-group-{key}, sidebar-profile(-open), sidebar-theme-toggle, sidebar-logout-btn, mobile-drawer, drawer-user-name, drawer-logout-btn, nav-pin-{tid}/unpin-{tid}/pinned-{tid}. On mobile, scope selectors to [data-testid=mobile-drawer] because the desktop sidebar is still in the DOM. Login testids: auth-email-input, auth-password-input, auth-submit-btn."
+}

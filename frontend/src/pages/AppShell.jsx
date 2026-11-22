@@ -289,7 +289,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     const path = typeof window !== "undefined" ? window.location.pathname : "";
     const init = {};
     for (const [key, routes] of Object.entries(GROUP_ROUTES)) {
-      init[key] = !routes.some((t) => path === t || path.startsWith(`${t}/`));
+      init[key] = path !== `/section/${key}` && !routes.some((t) => path === t || path.startsWith(`${t}/`));
     }
     return init;
   });
@@ -299,7 +299,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
   const pinnedItems = pins.map((to) => navItems.find((i) => i.to === to)).filter(Boolean);
   const q = query.trim().toLowerCase();
   const sections = q
-    ? [{ type: "items", label: "Results", items: navItems.filter((i) => i.label.toLowerCase().includes(q)) }]
+    ? [{ type: "items", label: "Results", items: navItems.filter((i) => `${i.label} ${i.to} ${ITEM_BLURBS[i.to] || ""}`.toLowerCase().includes(q)) }]
     : buildSections(navItems, role);
 
   const linkClass = (indent) => ({ isActive }) => [
@@ -381,7 +381,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     <>
       {/* Brand + collapse */}
       <div className={`flex items-center gap-3 pt-5 pb-4 ${rail ? "px-3 flex-col" : "px-5"}`}>
-        <BrandMark size={rail ? 38 : 40} className="shadow-sm shrink-0" />
+        <span className="shrink-0 rounded-2xl dark:bg-white dark:p-1 dark:shadow-sm"><BrandMark size={rail ? 34 : 36} className="shadow-sm" /></span>
         {!rail && (
           <div className="flex flex-col min-w-0 flex-1">
             <span className="font-display text-[15px] font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate" data-testid="sidebar-brand-name">{branding?.app_name || "EduConnect Pro"}</span>
