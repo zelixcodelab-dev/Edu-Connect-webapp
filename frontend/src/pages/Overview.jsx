@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MagnifyingGlass, X, ArrowElbowDownLeft, ShareNetwork, QrCode, WhatsappLogo, Tray } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import api from "@/lib/api";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { buildApplyUrl } from "@/lib/applyUrl";
 import { ApplyQrDialog } from "@/components/ApplyQrDialog";
 import { useAuth } from "@/lib/auth";
@@ -34,6 +36,37 @@ function TileSearch({ value, onChange, onEnter, inputRef }) {
   );
 }
 
+function LinkLeaderboard({ count }) {
+  const [rows, setRows] = useState(null);
+  const load = (open) => { if (open && rows === null) api.get("/dashboard/link-leaderboard").then((r) => setRows(r.data)).catch(() => setRows([])); };
+  return (
+    <Popover onOpenChange={load}>
+      <PopoverTrigger asChild>
+        <button type="button" className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors" data-testid="overview-link-share-count" title="See who brought in applications this month">
+          <Tray size={15} weight="duotone" /> {count} application{count === 1 ? "" : "s"} this month
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-3" data-testid="link-leaderboard">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Referral links · this month</p>
+        {rows === null ? <p className="text-sm text-muted-foreground">Loading…</p>
+          : rows.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="link-leaderboard-empty">No applications through staff links yet this month.</p>
+          : (
+            <ul className="space-y-1.5">
+              {rows.map((r, i) => (
+                <li key={r.user_id} className="flex items-center gap-2 text-sm" data-testid={`link-leaderboard-row-${r.user_id}`}>
+                  <span className="w-5 text-xs text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <span className="flex-1 truncate">{r.name}</span>
+                  <span className="font-semibold tabular-nums">{r.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        <p className="text-[11px] text-muted-foreground mt-3">Staff share their own link from their dashboard.</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 const ACTION_BTN = "inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition-colors";
 
 function ShareApplyActions({ user, count }) {
@@ -46,11 +79,7 @@ function ShareApplyActions({ user, count }) {
   );
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="overview-share-actions">
-      {count != null && (
-        <span className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold" data-testid="overview-link-share-count" title="Applications received through the public form this month">
-          <Tray size={15} weight="duotone" /> {count} application{count === 1 ? "" : "s"} this month
-        </span>
-      )}
+      {count != null && <LinkLeaderboard count={count} />}
       <button type="button" onClick={copy} className={ACTION_BTN} data-testid="share-apply-link-btn" title="Copy the public admission form link">
         <ShareNetwork size={16} /> Share application link
       </button>
@@ -116,7 +145,7 @@ export default function Overview() {
         <p className="text-sm text-muted-foreground py-10 text-center" data-testid="overview-search-empty">No pages match "{q}"</p>
       ) : (
         <TileGrid testid="home-launcher-grid" wide>
-          {shown.map((item, i) => <HubTile key={item.tid} item={item} index={i} alert={alertFor(item)} featured={!term && item.to === "/dashboard"} dense />)}
+          {shown.map((item, i) => <HubTile key={item.tid} item={item} index={i} alert={alertFor(item)} featured={!term && item.to === "/dashboard"} span={!term && item.to === "/section/office"} dense />)}
         </TileGrid>
       )}
     </div>

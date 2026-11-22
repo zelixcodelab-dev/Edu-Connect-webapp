@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   Target, ClockCountdown, GraduationCap, CalendarCheck, UserPlus, PaperPlaneTilt,
-  Copy, ShareNetwork, ArrowRight, Student as StudentIcon, Clock,
+  Copy, ShareNetwork, ArrowRight, Student as StudentIcon, Clock, WhatsappLogo, Tray,
 } from "@phosphor-icons/react";
 import LeaveRequestDialog from "@/components/leave/LeaveRequestDialog";
 import AnimatedNumber from "@/components/dashboard/AnimatedNumber";
@@ -96,6 +96,7 @@ export default function StaffDashboard() {
   const nav = useNavigate();
   const [stats, setStats] = useState({ total: 0, by_status: {}, missed: 0 });
   const [referrals, setReferrals] = useState([]);
+  const [linkStats, setLinkStats] = useState(null);
   const [leaveStats, setLeaveStats] = useState({ pending_mine: 0 });
   const [leaveOpen, setLeaveOpen] = useState(false);
 
@@ -103,6 +104,7 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     api.get("/leads/stats").then(({ data }) => setStats(data)).catch((e) => console.error("[staff] stats", e));
+    api.get("/dashboard/my-link-stats").then(({ data }) => setLinkStats(data)).catch(() => {});
     api.get("/students/me/referrals").then(({ data }) => setReferrals(data)).catch((e) => console.error("[staff] referrals", e));
     refreshLeave();
   }, []);
@@ -112,6 +114,7 @@ export default function StaffDashboard() {
     try { await navigator.clipboard.writeText(referralLink); toast.success("Referral link copied"); }
     catch { toast.error("Copy failed — long-press to copy"); }
   };
+  const waLink = `https://wa.me/?text=${encodeURIComponent(`Apply for admission here: ${referralLink}`)}`;
   const shareLink = async () => {
     if (navigator.share) {
       try { await navigator.share({ title: "Apply now", url: referralLink }); } catch { /* cancelled */ }
@@ -161,8 +164,16 @@ export default function StaffDashboard() {
             <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><ShareNetwork size={16} className="text-orange-600 dark:text-orange-400" /> Your application link</p>
             <p className="text-xs text-muted-foreground mt-1 truncate max-w-md">{referralLink}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Anyone who applies through this link is credited to you.</p>
+            {linkStats && (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" data-testid="staff-link-stats">
+                <Tray size={14} weight="duotone" />
+                <span data-testid="staff-link-month">{linkStats.this_month}</span> this month · <span data-testid="staff-link-total">{linkStats.total}</span> total via your link
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <a href={waLink} target="_blank" rel="noopener noreferrer" data-testid="staff-whatsapp-link" aria-label="Share on WhatsApp" title="Send your link on WhatsApp"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-[#25D366] text-white hover:brightness-95 transition-[filter]"><WhatsappLogo size={17} weight="fill" /></a>
             <Button variant="outline" size="sm" onClick={copyLink} data-testid="staff-copy-link"><Copy size={14} className="mr-1.5" /> Copy</Button>
             <Button size="sm" onClick={shareLink} data-testid="staff-share-link" className="btn-amber border-0"><ShareNetwork size={14} className="mr-1.5" /> Share</Button>
           </div>

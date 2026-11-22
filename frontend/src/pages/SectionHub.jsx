@@ -30,14 +30,14 @@ function TileBadge({ item, alert }) {
   return <ArrowUpRight size={16} weight="bold" className="absolute top-4 right-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />;
 }
 
-export function HubTile({ item, index, alert = null, featured = false, dense = false }) {
+export function HubTile({ item, index, alert = null, featured = false, dense = false, span = false }) {
   const Icon = item.icon;
   const c = accentFor(item.to);
   const blurb = featured ? "Business analytics and performance" : item.blurb || ITEM_BLURBS[item.to];
   return (
     <Link to={item.to} data-testid={`hub-tile-${item.tid}`}
       style={{ animationDelay: `${index * 50}ms`, ...(featured ? { backgroundImage: `linear-gradient(135deg, ${c}24, ${c}08)`, borderColor: `${c}40` } : {}) }}
-      className={`hub-tile group relative flex flex-col rounded-[22px] border border-border bg-card ${dense ? "p-4 min-h-[100px]" : "p-5 min-h-[150px]"} shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-[0_18px_36px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300 ${featured ? "col-span-2 sm:row-span-1" : ""}`}>
+      className={`hub-tile group relative flex flex-col rounded-[22px] border border-border bg-card ${dense ? "p-4 min-h-[100px]" : "p-5 min-h-[150px]"} shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:-translate-y-1 hover:shadow-[0_18px_36px_-20px_rgba(0,0,0,0.35)] transition-[transform,box-shadow] duration-300 ${featured || span ? "col-span-2" : ""}`}>
       <span className={`${dense ? "w-10 h-10" : "w-11 h-11"} rounded-[14px] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`} style={{ background: `${c}1f`, color: c }}>
         <Icon size={24} weight="duotone" />
       </span>
@@ -56,7 +56,7 @@ export function HubTile({ item, index, alert = null, featured = false, dense = f
 }
 
 export function TileGrid({ children, testid, wide = false }) {
-  return <div className={`grid grid-cols-2 lg:grid-cols-4 ${wide ? "xl:grid-cols-5 sm:gap-3" : "sm:gap-4"} gap-3`} data-testid={testid}>{children}</div>;
+  return <div className={`grid grid-cols-2 lg:grid-cols-4 ${wide ? "xl:grid-cols-5 sm:gap-3 grid-flow-row-dense" : "sm:gap-4"} gap-3`} data-testid={testid}>{children}</div>;
 }
 
 export default function SectionHub() {

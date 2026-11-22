@@ -414,3 +414,37 @@ async def overview_stats(user: dict = Depends(get_current_user), year: Optional[
         "pending_tasks": box["followups_due"] + box["new_applications"] + box["pending_approvals"],
         "currency": user.get("currency", "USD"),
     }
+
+
+def _link_q(month_start: Optional[str] = None) -> dict:
+    q = {"source": "public_form", "referrer_user_id": {"$nin": [None, ""]}}
+    if month_start:
+        q["application_submitted_at"] = {"$gte": month_start}
+    return q
+
+
+@router.get("/my-link-stats")
+async def my_link_stats(user: dict = Depends(get_current_user)):
+    """Applications credited to the caller's personal referral link."""
+    month_start = datetime.now(timezone.utc).replace(day=1).date().isoformat()
+    mine = {"referrer_user_id": user["id"]}
+    total = await db.students.count_documents({**_link_q(), **mine})
+    month = await db.students.count_documents({**_link_q(month_start), **mine})
+    return {"total": total, "this_month": month}
+
+
+@router.get("/link-leaderboard")
+async def link_leaderboard(user: dict = Depends(get_current_user)):
+    """Per-person referral-link applications this month (office-scoped for office admins)."""
+    _admin_only(user)
+    month_start = datetime.now(timezone.utc).replace(day=1).date().isoformat()
+    uq = {"role": {"$in": ["staff", "office_admin", "super_admin"]}}
+    if user.get("role") == "office_admin":
+        uq["office"] = user.get("office")
+    people = {u["id"]: u async for u in db.users.find(uq, {"_id": 0, "id": 1, "name": 1, "role": 1})}
+    rows = await db.students.aggregate([
+        {"$match": {**_link_q(month_start), "referrer_user_id": {"$in": list(people)}}},
+        {"$group": {"_id": "$referrer_user_id", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+    ]).to_list(50)
+    return [{"user_id": r["_id"], "name": people[r["_id"]].get("name"), "role": people[r["_id"]].get("role"), "count": r["n"]} for r in rows]

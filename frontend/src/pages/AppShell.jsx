@@ -158,7 +158,7 @@ export function sectionItems(user, key) {
 }
 
 const GROUP_ROUTES = {
-  accounts: ["/accounts", "/transactions", "/agents", "/invoices"],
+  accounts: ["/accounts", "/transactions", "/admission-revenue", "/agents", "/invoices"],
   office: ["/office-overview", "/employees", "/leads", "/staff", "/attendance", "/expense-requests", "/activity"],
   details: ["/colleges", "/categories"],
 };
@@ -171,10 +171,10 @@ function buildSections(navItems, role) {
     return [{ type: "items", label: "Workspace", items: navItems }];
   }
   return [
-    { type: "items", label: "Workspace", items: pick(["/", "/dashboard", "/quick-entry", "/admission-revenue"]) },
+    { type: "items", label: "Workspace", items: pick(["/", "/dashboard", "/quick-entry"]) },
     { type: "group", key: "accounts", label: "Accounts", icon: Wallet, items: pick(GROUP_ROUTES.accounts) },
-    { type: "items", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "office", label: "Office", icon: Buildings, items: pick(GROUP_ROUTES.office) },
+    { type: "items", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "details", label: "Add details", icon: FolderSimplePlus, items: pick(GROUP_ROUTES.details) },
     { type: "items", items: pick(["/users", "/branding", "/settings"]) },
   ].filter((s) => s.items.length > 0);
