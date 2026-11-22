@@ -24,7 +24,7 @@ import {
   Student, Notebook, Sun, Moon, List as ListIcon, MagnifyingGlass,
   ShieldCheck, ReceiptX, Buildings, Coins, ChatCircleDots, ArrowUpRight,
   Target, IdentificationBadge, Handshake, UserCircle, CaretRight, CaretDown, FolderSimplePlus,
-  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CaretUp, CalendarBlank, PushPin, SquaresFour,
+  ClockCounterClockwise, Clock, ChartBar, Palette, Compass, CaretLeft, CaretUp, CalendarBlank, PushPin, SquaresFour, CaretDoubleLeft,
 } from "@phosphor-icons/react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -174,9 +174,9 @@ function buildSections(navItems, role) {
     { type: "items", label: "Workspace", items: pick(["/", "/dashboard", "/quick-entry"]) },
     { type: "group", key: "accounts", label: "Accounts", icon: Wallet, items: pick(GROUP_ROUTES.accounts) },
     { type: "group", key: "office", label: "Office", icon: Buildings, items: pick(GROUP_ROUTES.office) },
-    { type: "items", items: pick(["/messages", "/clients", "/students"]) },
+    { type: "items", label: "People", items: pick(["/messages", "/clients", "/students"]) },
     { type: "group", key: "details", label: "Add details", icon: FolderSimplePlus, items: pick(GROUP_ROUTES.details) },
-    { type: "items", items: pick(["/users", "/branding", "/settings"]) },
+    { type: "items", label: "Settings", items: pick(["/users", "/branding", "/settings"]) },
   ].filter((s) => s.items.length > 0);
 }
 
@@ -204,78 +204,19 @@ export function useMonoTheme() {
   }, []);
 }
 
-const RAIL_DEFAULTS = ["/", "/students", "/my-students", "/leads", "/messages", "/attendance"];
+const RAIL_KEY = "ec_sidebar_rail";
 
-// Black icon rail with a "notch" on the active item; the full menu opens as a flyout.
-function DesktopRail({ user, alerts, onLogout }) {
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const items = visibleNavItems(user, "desktop");
-  const pinned = (user?.nav_pins || []).map((to) => items.find((i) => i.to === to)).filter(Boolean);
-  const rail = (pinned.length ? pinned : RAIL_DEFAULTS.map((to) => items.find((i) => i.to === to)).filter(Boolean)).slice(0, 7);
-  const settings = items.find((i) => i.to === "/settings");
-  const isActive = (to) => (to === "/" ? location.pathname === "/" : location.pathname === to || location.pathname.startsWith(`${to}/`));
-  const anyActive = rail.some((i) => isActive(i.to)) || (settings && isActive(settings.to));
-  useEffect(() => { setOpen(false); }, [location.pathname]);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  const alertFor = (to) => (to === "/messages" ? alerts?.messages || 0 : to === "/expense-requests" && user?.role === "super_admin" ? alerts?.approvals || 0 : 0);
-  const cell = (key, active, label, children, extra = {}) => (
-    <RailTip key={key} show label={label}>
-      <div className={`rail-cell ${active ? "rail-cell-active" : ""}`}>{React.cloneElement(children, extra)}</div>
-    </RailTip>
-  );
-  const iconCls = (active) => `relative w-11 h-11 rounded-2xl flex items-center justify-center transition-[background-color,color,transform] duration-200 ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-md" : "text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 hover:scale-105"}`;
-
+// Floating frosted-glass sidebar; collapses to an icon rail (remembered per device).
+function DesktopSidebar({ user, alerts, onLogout }) {
+  const [rail, setRail] = useState(() => localStorage.getItem(RAIL_KEY) === "1");
+  const toggle = () => setRail((r) => { localStorage.setItem(RAIL_KEY, r ? "0" : "1"); return !r; });
   return (
     <TooltipProvider>
-      <div className="hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 w-[104px] z-40">
-        <aside className="desktop-rail h-full w-[84px] flex flex-col items-center rounded-[28px] bg-[hsl(var(--rail-bg))] py-5" data-testid="desktop-sidebar" data-collapsed="true">
-          <div className="w-12 h-12 rounded-full bg-[hsl(var(--rail-fg))] flex items-center justify-center overflow-hidden shrink-0 mb-6" data-testid="rail-logo">
-            <BrandMark size={40} />
-          </div>
-          <nav className="flex-1 w-full flex flex-col gap-2" data-testid="rail-nav">
-            {rail.map((item) => {
-              const active = isActive(item.to) && !open;
-              const count = alertFor(item.to);
-              return cell(item.to, active, `${item.label}${count ? ` · ${count}` : ""}`, (
-                <NavLink to={item.to} end={item.end} data-testid={item.tid} aria-label={item.label} className={iconCls(active)}>
-                  <item.icon size={20} weight={active ? "fill" : "regular"} />
-                  {count > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" data-testid={`nav-alert-${item.tid}`} />}
-                </NavLink>
-              ));
-            })}
-            {cell("menu", open || !anyActive, "All menu", (
-              <button type="button" onClick={() => setOpen((v) => !v)} data-testid="rail-menu-btn" aria-label="Open full menu" aria-expanded={open} className={iconCls(open || !anyActive)}>
-                <SquaresFour size={20} weight={open || !anyActive ? "fill" : "regular"} />
-              </button>
-            ))}
-            {settings && cell("settings", isActive(settings.to) && !open, settings.label, (
-              <NavLink to={settings.to} data-testid={settings.tid} aria-label={settings.label} className={iconCls(isActive(settings.to) && !open)}>
-                <settings.icon size={20} weight={isActive(settings.to) && !open ? "fill" : "regular"} />
-              </NavLink>
-            ))}
-          </nav>
-          <RailTip show label="Sign out">
-            <button type="button" onClick={onLogout} data-testid="sidebar-logout-btn" aria-label="Sign out" className="w-11 h-11 rounded-2xl flex items-center justify-center text-[hsl(var(--rail-fg))]/70 hover:text-[hsl(var(--rail-fg))] hover:bg-[hsl(var(--rail-fg))]/10 transition-colors">
-              <SignOut size={20} />
-            </button>
-          </RailTip>
+      <div className={`hidden md:block shrink-0 sticky top-0 h-screen py-4 pl-4 z-40 transition-[width] duration-300 ${rail ? "w-[108px]" : "w-[296px]"}`}>
+        <aside className="glass-panel h-full flex flex-col rounded-[28px] overflow-hidden" data-testid="desktop-sidebar" data-collapsed={rail ? "true" : "false"}>
+          <SidebarContent user={user} alerts={alerts} variant="desktop" rail={rail} onToggleRail={toggle} onLogout={onLogout} />
         </aside>
       </div>
-      {open && (
-        <>
-          <div className="hidden md:block fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]" onClick={() => setOpen(false)} data-testid="rail-flyout-overlay" />
-          <aside className="hidden md:flex fixed left-[112px] top-4 bottom-4 z-50 w-[288px] flex-col rounded-[28px] border bg-[hsl(var(--sidebar-bg))] border-[hsl(var(--sidebar-border))] shadow-2xl overflow-hidden animate-fade-in" data-testid="rail-flyout">
-            <SidebarContent user={user} alerts={alerts} variant="flyout" tidPrefix="flyout-" onItemClick={() => setOpen(false)} onLogout={onLogout} />
-          </aside>
-        </>
-      )}
     </TooltipProvider>
   );
 }
@@ -362,11 +303,11 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
     : buildSections(navItems, role);
 
   const linkClass = (indent) => ({ isActive }) => [
-    "group relative z-[1] flex items-center gap-3 rounded-xl text-sm transition-[background-color,color,transform] duration-200",
-    rail ? "justify-center h-11 w-11 mx-auto" : `${indent ? "pl-10 pr-3" : "px-3"} py-2.5`,
+    "group relative z-[1] flex items-center gap-3 rounded-2xl text-sm transition-[background-color,color,transform,box-shadow] duration-200",
+    rail ? "justify-center h-11 w-11 mx-auto" : `${indent ? "pl-4 pr-3" : "px-3.5"} py-2.5`,
     isActive
-      ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold shadow-sm"
-      : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--primary))]",
+      ? "nav-active-pill bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-semibold shadow-[0_8px_18px_-8px_hsl(var(--primary)/0.7)]"
+      : "text-[hsl(var(--sidebar-fg))]/80 hover:bg-[hsl(var(--sidebar-fg))]/[0.06] hover:text-[hsl(var(--sidebar-fg))]",
     !rail && !isActive ? "hover:translate-x-0.5" : "",
   ].join(" ");
 
@@ -411,15 +352,15 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
       <NavLink to={item.to} end={item.end} data-testid={tid} onClick={onItemClick} className={linkClass(indent && !rail)} aria-label={item.label}>
         {({ isActive }) => (
           <>
-            <item.icon size={19} weight={isActive ? "fill" : "regular"} className="shrink-0" />
+            <item.icon size={19} weight={isActive ? "regular" : "light"} className={`shrink-0 ${isActive ? "" : "text-[hsl(var(--sidebar-muted))] group-hover:text-[hsl(var(--sidebar-fg))]"}`} />
             {!rail && <span className="truncate">{item.label}</span>}
             {count > 0 && (
               <span
                 data-testid={`nav-alert-${item.tid}`}
                 title={`${count} ${item.to === "/messages" ? "unread" : "pending"}`}
                 className={rail
-                  ? "absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[hsl(var(--sidebar-bg))]"
-                  : "ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-semibold flex items-center justify-center shrink-0"}
+                  ? "absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-black/40"
+                  : "ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-semibold flex items-center justify-center shrink-0 ring-2 ring-white/70 dark:ring-transparent"}
               >
                 {rail ? "" : count > 9 ? "9+" : count}
               </span>
@@ -434,7 +375,7 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
 
   const label = (text) => (rail || !text
     ? <div className={`${rail ? "mx-auto w-6" : "mx-3"} my-2 border-t border-[hsl(var(--sidebar-border))]`} aria-hidden />
-    : <p className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.2em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
+    : <p className="px-3.5 mb-2 text-[10px] uppercase tracking-[0.22em] text-[hsl(var(--sidebar-muted))] font-semibold">{text}</p>);
 
   return (
     <>
@@ -443,59 +384,38 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
         <BrandMark size={rail ? 38 : 40} className="shadow-sm shrink-0" />
         {!rail && (
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="font-display text-[15px] font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate">{branding?.app_name || "EduConnect Pro"}</span>
+            <span className="font-display text-[15px] font-semibold tracking-tight text-[hsl(var(--sidebar-fg))] truncate" data-testid="sidebar-brand-name">{branding?.app_name || "EduConnect Pro"}</span>
             <span className="text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--sidebar-muted))] truncate">{branding?.company_line || ""}</span>
           </div>
         )}
         {onToggleRail && (
           <button type="button" onClick={onToggleRail} data-testid="sidebar-collapse-btn" aria-label={rail ? "Expand menu" : "Collapse menu"} title={rail ? "Expand menu" : "Collapse menu"}
-            className="w-8 h-8 rounded-lg border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/40 flex items-center justify-center shrink-0 transition-colors">
-            <CaretLeft size={14} weight="bold" className={`transition-transform duration-300 ${rail ? "rotate-180" : ""}`} />
+            className="w-8 h-8 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.09] flex items-center justify-center shrink-0 transition-colors">
+            <CaretDoubleLeft size={14} weight="bold" className={`transition-transform duration-300 ${rail ? "rotate-180" : ""}`} />
           </button>
         )}
       </div>
 
-      {/* Profile card */}
-      <div className={rail ? "px-3 pb-3 flex justify-center" : "px-4 pb-3"}>
-        {rail ? (
-          <RailTip show label={user?.name}><div className="relative" data-testid="sidebar-profile"><Avatar user={user} size={36} /></div></RailTip>
-        ) : (
-          <div className="flex items-center gap-3 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.04] border border-[hsl(var(--sidebar-border))] px-3 py-2.5" data-testid="sidebar-profile">
-            <Avatar user={user} size={38} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[hsl(var(--sidebar-fg))] truncate" data-testid={isMobile ? "drawer-user-name" : "sidebar-user-name"}>{user?.name}</p>
-              <p className="text-[11px] font-medium capitalize text-[hsl(var(--sidebar-muted))] truncate">{(user?.role || "").replace("_", " ")}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Search + academic year */}
-      {!rail && (
-        <div className="px-4 space-y-2">
-          <div className="relative">
-            <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
-            <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu" data-testid="sidebar-search"
-              className="w-full h-9 rounded-xl bg-[hsl(var(--sidebar-fg))]/[0.05] border border-transparent focus:border-[hsl(var(--primary))]/40 focus:bg-[hsl(var(--sidebar-bg))] pl-9 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-colors" />
-          </div>
-          {hasModule(user, "academic_year") && <AcademicYearSelect className="!w-full !justify-start !rounded-xl !h-9" />}
-        </div>
-      )}
-      {rail && (
-        <div className="px-3 space-y-1.5 flex flex-col items-center">
-          <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-search" aria-label="Search menu">
-            <MagnifyingGlass size={18} />
+      {/* Search */}
+      {rail ? (
+        <div className="px-3 flex flex-col items-center">
+          <RailTip show label="Search menu"><button type="button" onClick={expandAndFocus} className="w-11 h-11 rounded-2xl text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center transition-colors" data-testid="sidebar-rail-search" aria-label="Search menu">
+            <MagnifyingGlass size={19} weight="light" />
           </button></RailTip>
-          {hasModule(user, "academic_year") && (
-            <RailTip show label="Academic year"><button type="button" onClick={onToggleRail} className="w-11 h-11 rounded-xl text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] flex items-center justify-center" data-testid="sidebar-rail-year" aria-label="Academic year">
-              <CalendarBlank size={18} />
-            </button></RailTip>
-          )}
+        </div>
+      ) : (
+        <div className="px-4">
+          <div className="relative">
+            <MagnifyingGlass size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[hsl(var(--sidebar-muted))]" />
+            <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search menu…" data-testid="sidebar-search"
+              onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
+              className="w-full h-10 rounded-2xl bg-[hsl(var(--sidebar-fg))]/[0.045] border border-[hsl(var(--sidebar-border))]/70 focus:border-[hsl(var(--primary))]/40 focus:ring-4 focus:ring-[hsl(var(--primary))]/10 pl-10 pr-3 text-sm text-[hsl(var(--sidebar-fg))] placeholder:text-[hsl(var(--sidebar-muted))] outline-none transition-[border-color,box-shadow]" />
+          </div>
         </div>
       )}
 
       {/* Nav */}
-      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
+      <nav className={`sidebar-scroll relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 ${rail ? "px-2" : "px-3"}`} data-testid="sidebar-nav">
         {!q && pinnedItems.length > 0 && (
           <div className="pb-3 mb-1" data-testid="pinned-section">
             {rail ? null : (
@@ -517,23 +437,24 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             const open = !collapsed[section.key];
             const groupAlert = section.items.reduce((n, it) => n + alertFor(it.to), 0);
             return (
-              <div key={section.key} className="pt-1">
-                <div className={`w-full flex items-center rounded-xl text-sm font-medium transition-colors ${location.pathname === `/section/${section.key}` ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06]"}`}>
+              <div key={section.key} className="pt-4">
+                <div className={`group flex items-center rounded-xl transition-colors ${location.pathname === `/section/${section.key}` ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))]"}`}>
                   <button type="button" onClick={() => { setCollapsed((c) => ({ ...c, [section.key]: false })); navigate(`/section/${section.key}`); onItemClick?.(); }} data-testid={`nav-group-open-${section.key}`}
-                    className="flex-1 min-w-0 flex items-center gap-3 pl-3 py-2.5 text-left">
-                    <section.icon size={19} weight="regular" className="shrink-0" />
-                    <span className="flex-1 truncate">{section.label}</span>
-                    {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />}
+                    title={`Open ${section.label} overview`}
+                    className="flex-1 min-w-0 flex items-center gap-2 pl-3.5 py-1.5 text-left text-[10px] uppercase tracking-[0.22em] font-semibold">
+                    <span className="truncate">{section.label}</span>
+                    {!open && groupAlert > 0 && <span data-testid={`nav-group-alert-${section.key}`} title={`${groupAlert} need attention`} className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
+                    <ArrowUpRight size={11} weight="bold" className="opacity-0 group-hover:opacity-100" />
                   </button>
                   <button type="button" onClick={() => setCollapsed((c) => ({ ...c, [section.key]: !c[section.key] }))} data-testid={`nav-group-${section.key}`} aria-expanded={open} aria-label={`Toggle ${section.label}`}
-                    className="shrink-0 h-10 w-9 flex items-center justify-center rounded-r-xl">
-                    <CaretDown size={13} weight="bold" className={`opacity-60 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+                    className="shrink-0 h-7 w-8 flex items-center justify-center rounded-lg hover:bg-[hsl(var(--sidebar-fg))]/[0.06]">
+                    <CaretDown size={11} weight="bold" className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
                   </button>
                 </div>
                 <div className={`nav-collapse ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
                   <div className="overflow-hidden min-h-0">
-                    <div className="mt-0.5 space-y-0.5 relative before:absolute before:left-[21px] before:top-1 before:bottom-1 before:w-px before:bg-[hsl(var(--sidebar-border))]">
-                      {section.items.map((item) => renderLink(item, true))}
+                    <div className="mt-1 space-y-1">
+                      {section.items.map((item) => renderLink(item, false))}
                     </div>
                   </div>
                 </div>
@@ -541,36 +462,54 @@ function SidebarContent({ onItemClick, user, onLogout, alerts, variant = "mobile
             );
           }
           return (
-            <div key={section.key || `sec-${idx}`} className={idx > 0 ? "pt-3" : ""}>
-              {section.label ? label(section.label) : idx > 0 ? label("") : null}
-              <div className={rail ? "flex flex-col items-center gap-0.5" : "space-y-0.5"}>{section.items.map((item) => renderLink(item, false))}</div>
+            <div key={section.key || `sec-${idx}`} className={idx > 0 ? (rail ? "pt-1" : "pt-4") : ""}>
+              {rail ? (idx > 0 ? label("") : null) : section.label ? label(section.label) : null}
+              <div className={rail ? "flex flex-col items-center gap-1" : "space-y-1"}>{section.items.map((item) => renderLink(item, false))}</div>
             </div>
           );
         })}
       </nav>
 
-      {/* Bottom: theme switch + sign out */}
-      <div className={`border-t border-[hsl(var(--sidebar-border))] p-3 space-y-1 shrink-0 ${rail ? "flex flex-col items-center" : ""}`}>
-        <RailTip show={rail} label={theme === "dark" ? "Light mode" : "Dark mode"}>
-        <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode"
-          className={`group relative flex items-center gap-3 rounded-xl text-sm text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors ${rail ? "w-11 h-11 justify-center" : "w-full px-3 py-2.5"}`}>
-          {theme === "dark" ? <Sun size={19} className="shrink-0 text-amber-400" /> : <Moon size={19} className="shrink-0" />}
-          {!rail && <span className="flex-1 text-left">{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
-          {!rail && (
-            <span className={`relative w-9 h-5 rounded-full transition-colors ${theme === "dark" ? "bg-[hsl(var(--primary))]" : "bg-[hsl(var(--sidebar-fg))]/20"}`} aria-hidden>
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[hsl(var(--primary-foreground))] shadow transition-transform duration-200 ${theme === "dark" ? "translate-x-4" : ""}`} />
-            </span>
-          )}
-        </button>
-        </RailTip>
-        {onLogout && (
-          <RailTip show={rail} label="Sign out">
-          <button type="button" onClick={onLogout} data-testid={isMobile ? "drawer-logout-btn" : `${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out"
-            className={`group relative flex items-center gap-3 rounded-xl text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors ${rail ? "w-11 h-11 justify-center" : "w-full px-3 py-2.5"}`}>
-            <SignOut size={19} className="shrink-0" />
-            {!rail && <span>Sign out</span>}
-          </button>
-          </RailTip>
+      {/* Bottom: profile card with theme + sign out */}
+      <div className={`p-3 shrink-0 ${rail ? "flex flex-col items-center gap-1.5" : ""}`}>
+        {rail ? (
+          <>
+            <RailTip show label={theme === "dark" ? "Light mode" : "Dark mode"}>
+              <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode" className="w-11 h-11 rounded-2xl flex items-center justify-center text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.06] transition-colors">
+                {theme === "dark" ? <Sun size={19} className="text-amber-400" /> : <Moon size={19} weight="light" />}
+              </button>
+            </RailTip>
+            <RailTip show label={user?.name}>
+              <button type="button" onClick={() => { navigate("/settings"); onItemClick?.(); }} data-testid="sidebar-profile" aria-label="Open profile" className="rounded-full hover:scale-105 transition-transform"><Avatar user={user} size={38} /></button>
+            </RailTip>
+            {onLogout && (
+              <RailTip show label="Sign out">
+                <button type="button" onClick={onLogout} data-testid={`${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out" className="w-11 h-11 rounded-2xl flex items-center justify-center text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                  <SignOut size={19} />
+                </button>
+              </RailTip>
+            )}
+          </>
+        ) : (
+          <div className="glass-card flex items-center gap-2.5 rounded-[20px] p-2.5" data-testid="sidebar-profile">
+            <button type="button" onClick={() => { navigate("/settings"); onItemClick?.(); }} data-testid="sidebar-profile-open" className="flex items-center gap-2.5 min-w-0 flex-1 text-left rounded-xl">
+              <Avatar user={user} size={38} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-[hsl(var(--sidebar-fg))] truncate" data-testid={isMobile ? "drawer-user-name" : "sidebar-user-name"}>{user?.name}</span>
+                <span className="block text-[11px] text-[hsl(var(--sidebar-muted))] truncate" data-testid="sidebar-user-email">{user?.email}</span>
+              </span>
+            </button>
+            <button type="button" onClick={toggleTheme} data-testid="sidebar-theme-toggle" aria-label="Toggle dark mode" title={theme === "dark" ? "Light mode" : "Dark mode"}
+              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-fg))]/[0.07] transition-colors">
+              {theme === "dark" ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
+            </button>
+            {onLogout && (
+              <button type="button" onClick={onLogout} data-testid={isMobile ? "drawer-logout-btn" : `${tidPrefix || "sidebar-"}logout-btn`} aria-label="Sign out" title="Sign out"
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                <SignOut size={16} />
+              </button>
+            )}
+          </div>
         )}
       </div>
     </>
@@ -637,9 +576,9 @@ export default function AppShell() {
   if (disabledModule) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex">
+    <div className="app-glass-bg min-h-screen w-full text-foreground flex">
       {/* Desktop Sidebar */}
-      <DesktopRail user={user} alerts={alerts} onLogout={handleLogout} />
+      <DesktopSidebar user={user} alerts={alerts} onLogout={handleLogout} />
 
       {/* Mobile Drawer */}
       {mobileOpen && (
@@ -650,7 +589,7 @@ export default function AppShell() {
             data-testid="mobile-drawer-overlay"
           />
           <aside
-            className="md:hidden fixed top-0 left-0 z-[70] w-[84vw] max-w-[300px] h-full bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-border))] rounded-r-2xl shadow-2xl flex flex-col animate-fade-in"
+            className="glass-panel glass-panel-solid md:hidden fixed top-2 left-2 bottom-2 z-[70] w-[84vw] max-w-[300px] rounded-[26px] overflow-hidden flex flex-col animate-fade-in"
             style={{
               paddingTop: "env(safe-area-inset-top)",
               paddingBottom: "env(safe-area-inset-bottom)",

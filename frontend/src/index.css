@@ -792,3 +792,34 @@ html.theme-mono input[type="checkbox"], html.theme-mono input[type="radio"] { ac
 
 @keyframes hub-tile-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
 .hub-tile { animation: hub-tile-in 420ms cubic-bezier(.2,.7,.2,1) both; }
+
+/* Frosted-glass sidebar over a soft brand-tinted gradient */
+.app-glass-bg {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(60rem 40rem at -10% -10%, hsl(var(--primary) / 0.10), transparent 60%),
+    radial-gradient(50rem 36rem at 110% 0%, hsl(220 90% 70% / 0.10), transparent 60%),
+    radial-gradient(48rem 40rem at 40% 120%, hsl(var(--primary) / 0.07), transparent 60%);
+  background-attachment: fixed;
+}
+.dark .app-glass-bg {
+  background-image:
+    radial-gradient(60rem 40rem at -10% -10%, hsl(var(--primary) / 0.16), transparent 60%),
+    radial-gradient(50rem 36rem at 110% 0%, hsl(230 70% 45% / 0.14), transparent 60%),
+    radial-gradient(48rem 40rem at 40% 120%, hsl(var(--primary) / 0.10), transparent 60%);
+}
+.glass-panel {
+  background: hsl(var(--sidebar-bg) / 0.62);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid hsl(0 0% 100% / 0.7);
+  box-shadow: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 24px 48px -28px rgba(15, 23, 42, 0.28);
+}
+.dark .glass-panel { background: hsl(var(--sidebar-bg) / 0.6); border-color: hsl(0 0% 100% / 0.08); box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.7); }
+.glass-panel-solid { background: hsl(var(--sidebar-bg) / 0.88); }
+.glass-card { background: hsl(var(--sidebar-bg) / 0.7); border: 1px solid hsl(var(--sidebar-border) / 0.8); box-shadow: 0 6px 18px -12px rgba(15, 23, 42, 0.25); }
+.nav-active-pill::before {
+  content: ""; position: absolute; left: -12px; top: 50%; width: 4px; height: 22px; transform: translateY(-50%);
+  border-radius: 0 4px 4px 0; background: hsl(var(--primary));
+}
+html.theme-mono header[data-testid="topbar"] { background: hsl(var(--background) / 0.55) !important; }
