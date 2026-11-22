@@ -1,6 +1,9 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MagnifyingGlass, X, ArrowElbowDownLeft } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, ArrowElbowDownLeft, ShareNetwork, QrCode } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { buildApplyUrl } from "@/lib/applyUrl";
+import { ApplyQrDialog } from "@/components/ApplyQrDialog";
 import { useAuth } from "@/lib/auth";
 import { greetingForNow } from "@/lib/format";
 import { useTileAlerts } from "@/lib/useTileAlerts";
@@ -26,6 +29,26 @@ function TileSearch({ value, onChange, onEnter, inputRef }) {
           <button type="button" onClick={() => onChange("")} aria-label="Clear search" data-testid="overview-search-clear" className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center"><X size={14} /></button>
         </div>
       )}
+    </div>
+  );
+}
+
+const ACTION_BTN = "inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-border bg-card text-sm font-medium hover:bg-muted transition-colors";
+
+function ShareApplyActions({ user }) {
+  const url = buildApplyUrl();
+  const copy = () => navigator.clipboard.writeText(url).then(
+    () => toast.success(`Public form link copied · ${url}`),
+    () => { window.prompt("Copy the application link:", url); },
+  );
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="overview-share-actions">
+      <button type="button" onClick={copy} className={ACTION_BTN} data-testid="share-apply-link-btn" title="Copy the public admission form link">
+        <ShareNetwork size={16} /> Share application link
+      </button>
+      <ApplyQrDialog url={url} name={user?.branding?.app_name || user?.business_name} logo={user?.branding?.logo_url}
+        color={user?.branding?.brand_color || "#111111"} testId="overview-apply-qr"
+        trigger={<button type="button" data-testid="overview-apply-qr-open" className={ACTION_BTN}><QrCode size={16} /> QR</button>} />
     </div>
   );
 }
@@ -66,11 +89,14 @@ export default function Overview() {
           <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight mt-1" data-testid="overview-greeting">Hi {user?.name?.split(" ")[0] || "there"}.</h1>
           <p className="text-sm text-muted-foreground mt-1">Your education business at a glance.</p>
         </div>
-        <p className="text-xs text-muted-foreground" data-testid="overview-count">{term ? `${shown.length} match${shown.length === 1 ? "" : "es"}` : `${items.length} destinations`}</p>
+        <ShareApplyActions user={user} />
       </div>
       <OverviewStats />
       <TileSearch value={q} onChange={setQ} inputRef={inputRef} onEnter={() => shown[0] && navigate(shown[0].to)} />
-      <p className="font-display text-lg font-semibold tracking-tight !mt-8" data-testid="overview-modules-title">{term ? "Search results" : "Workspace modules"}</p>
+      <div className="flex items-baseline justify-between !mt-8">
+        <p className="font-display text-lg font-semibold tracking-tight" data-testid="overview-modules-title">{term ? "Search results" : "Workspace modules"}</p>
+        <p className="text-xs text-muted-foreground" data-testid="overview-count">{term ? `${shown.length} match${shown.length === 1 ? "" : "es"}` : `${items.length} destinations`}</p>
+      </div>
       {shown.length === 0 ? (
         <p className="text-sm text-muted-foreground py-10 text-center" data-testid="overview-search-empty">No pages match "{q}"</p>
       ) : (

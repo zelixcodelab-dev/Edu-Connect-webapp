@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ArrowRight, Student as StudentIcon, FileXls, MagnifyingGlass, Buildings, UserCircle, ShareNetwork, ClipboardText, MapPin, SquaresFour, Rows, UploadSimple, Trash, X } from "@phosphor-icons/react";
+import { Plus, ArrowRight, Student as StudentIcon, FileXls, MagnifyingGlass, Buildings, UserCircle, ClipboardText, NotePencil, MapPin, SquaresFour, Rows, UploadSimple, Trash, X } from "@phosphor-icons/react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -23,7 +24,7 @@ import StudentsTable from "@/components/students/StudentsTable";
 import ClientPickerDialog from "@/components/students/ClientPickerDialog";
 import CollegeSelect from "@/components/CollegeSelect";
 import { COLLEGE_PLACES, normalizePlace } from "@/lib/places";
-import { navigateToApply, buildApplyUrl, linkedUserRef } from "@/lib/applyUrl";
+import { navigateToApply, linkedUserRef } from "@/lib/applyUrl";
 import PasteApplicationDialog from "@/components/students/PasteApplicationDialog";
 import StudentBulkUploadDialog from "@/components/student-detail/StudentBulkUploadDialog";
 import Reveal from "@/components/Reveal";
@@ -369,26 +370,6 @@ export default function Students() {
                 </button>
               </div>
             )}
-            {/* Share-application-link is moved to the User dashboard for linked
-                users (where the URL includes their referral code). */}
-            {role !== "user" && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const url = buildApplyUrl();
-                  navigator.clipboard.writeText(url).then(
-                    () => toast.success(`Public form link copied · ${url}`),
-                    () => { window.prompt("Copy the application link:", url); }
-                  );
-                }}
-                className="h-10"
-                data-testid="share-apply-link-btn"
-                title="Copy the public admission form link"
-              >
-                <ShareNetwork size={16} className="mr-1.5" /> Share application link
-              </Button>
-            )}
             <Button
               type="button"
               variant="outline"
@@ -407,18 +388,6 @@ export default function Students() {
             >
               <FileXls size={16} className="mr-1.5" /> Export XLSX
             </Button>
-            {allowEdit && isSuper && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPasteOpen(true)}
-                className="h-10"
-                data-testid="paste-application-btn"
-                title="Paste an application text to auto-fill a new student"
-              >
-                <ClipboardText size={16} className="mr-1.5" /> Paste application
-              </Button>
-            )}
             {allowEdit && isAdmin && (
               <Button
                 type="button"
@@ -431,7 +400,23 @@ export default function Students() {
                 <UploadSimple size={16} className="mr-1.5" /> Bulk upload
               </Button>
             )}
-            {(allowEdit || role === "user") && (
+            {allowEdit && isSuper ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button data-testid="add-student-btn" size="icon" className="h-10 w-10 btn-amber border-0" title="Add student" aria-label="Add student">
+                    <Plus size={18} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onSelect={openAddStudent} data-testid="add-student-fill-option">
+                    <NotePencil size={16} className="mr-2" /> Fill application
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setPasteOpen(true)} data-testid="paste-application-btn">
+                    <ClipboardText size={16} className="mr-2" /> Paste application
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (allowEdit || role === "user") && (
               <Button
                 onClick={openAddStudent}
                 data-testid="add-student-btn"
@@ -626,7 +611,7 @@ export default function Students() {
       <StudentBulkUploadDialog open={bulkOpen} onOpenChange={setBulkOpen} onDone={() => load()} />
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="students-filters">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))] gap-3" data-testid="students-filters">
         <div className="relative">
           <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
           <Input
