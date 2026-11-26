@@ -272,9 +272,9 @@ export default function MithuVoiceAssistant({ user }) {
             }
           }
           finishCaption("user");
-        } else if (event.type === "session.output_transcript.delta") {
+        } else if (event.type === "session.output_transcript.delta" || event.type === "session.output_audio_transcript.delta") {
           appendCaption("mithu", event.delta);
-        } else if (event.type === "session.output_transcript.done" || event.type === "session.output_transcript.completed") {
+        } else if (event.type === "session.output_transcript.done" || event.type === "session.output_transcript.completed" || event.type === "session.output_audio_transcript.done") {
           finishCaption("mithu");
           setStatus("listening");
         } else if (event.type === "session.output_audio.delta") {
@@ -436,14 +436,14 @@ export default function MithuVoiceAssistant({ user }) {
             )}
           </footer>
           <p className="px-4 pb-3 text-center text-[10px] text-muted-foreground">
-            Voice is streamed live. Audio is not saved by this widget.
+            Audio streams to OpenAI Live; this widget does not save recordings.
           </p>
         </section>
       )}
 
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => { if (open && active) void stopVoice(); setOpen((value) => !value); }}
         className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-[94] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 via-fuchsia-600 to-orange-500 text-white shadow-xl shadow-violet-900/20 ring-4 ring-background transition hover:scale-105"
         aria-label={open ? "Close Mithu voice assistant" : "Open Mithu voice assistant"}
         title="Talk to Mithu"
