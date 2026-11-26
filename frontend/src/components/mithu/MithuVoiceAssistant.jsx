@@ -156,11 +156,10 @@ export default function MithuVoiceAssistant({ user }) {
     });
     streamRef.current = stream;
 
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) throw new Error("Web Audio is not supported in this browser.");
-
-    const context = new AudioContextClass({ sampleRate: OUTPUT_RATE });
-    audioContextRef.current = context;
+    const context = audioContextRef.current;
+    if (!context || context.state === "closed") {
+      throw new Error("The audio player is unavailable. Please start voice again.");
+    }
     await context.resume();
 
     const source = context.createMediaStreamSource(stream);
@@ -195,7 +194,7 @@ export default function MithuVoiceAssistant({ user }) {
     silentGain.connect(context.destination);
     captureStartedRef.current = true;
     setStatus("listening");
-  }, [muted]);
+  }, []);
 
   const stopVoice = useCallback(async () => {
     intentionalCloseRef.current = true;
@@ -223,6 +222,14 @@ export default function MithuVoiceAssistant({ user }) {
       if (!window.isSecureContext && window.location.hostname !== "localhost") {
         throw new Error("Microphone access requires HTTPS. Open EduConnect Pro using its secure URL.");
       }
+
+      // Resume the output context during the user's click gesture so mobile
+      // browsers allow subsequent streamed speech to play after the network handshake.
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error("Web Audio is not supported in this browser.");
+      const audioContext = new AudioContextClass({ sampleRate: OUTPUT_RATE });
+      audioContextRef.current = audioContext;
+      await audioContext.resume();
 
       const { data } = await api.post("/mithu/voice-ticket");
       if (!data?.identity_assertion || !data?.websocket_url) {
