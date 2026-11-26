@@ -253,7 +253,9 @@ export default function MithuVoiceAssistant({ user }) {
         }
 
         if (event.type === "mithu.error") {
-          setError(event.message || "Mithu voice encountered an error.");
+          const message = event.message || "Mithu voice encountered an error.";
+          await stopVoice();
+          setError(message);
           setStatus("error");
           return;
         }
@@ -290,6 +292,7 @@ export default function MithuVoiceAssistant({ user }) {
           setStatus("listening");
         } else if (event.type === "error" || event.type === "session.error") {
           const detail = event.error?.message || event.message;
+          await stopVoice();
           setError(detail || "Mithu voice session failed.");
           setStatus("error");
         }
