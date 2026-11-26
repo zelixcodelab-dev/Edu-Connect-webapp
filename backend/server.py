@@ -26,6 +26,7 @@ from routers import sc_settlement as sc_settlement_router
 from routers import branding as branding_router
 from routers import connect as connect_router
 from routers import registry as registry_router
+from routers import mithu as mithu_router
 
 
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +73,7 @@ app.include_router(offices_router.platform)
 app.include_router(branding_router.router)
 app.include_router(connect_router.router)
 app.include_router(registry_router.router)
+app.include_router(mithu_router.router)
 
 # Health endpoint
 health = APIRouter(prefix="/api", tags=["health"])
