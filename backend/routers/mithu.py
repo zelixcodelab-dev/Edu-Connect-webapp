@@ -21,6 +21,9 @@ async def create_voice_ticket(user: dict = Depends(get_current_user)) -> dict:
     if (os.environ.get("MITHU_VOICE_ENABLED") or "").lower() not in {"true", "1", "yes"}:
         raise HTTPException(status_code=503, detail="Mithu voice is not enabled for this workspace yet.")
 
+    if user.get("scope") != "tenant":
+        raise HTTPException(status_code=403, detail="Mithu voice is available only inside a company workspace.")
+
     raw_key = os.environ.get("MITHU_IDENTITY_PRIVATE_KEY_PEM") or ""
     private_key = raw_key.replace("\\n", "\n").strip()
     if not private_key:
