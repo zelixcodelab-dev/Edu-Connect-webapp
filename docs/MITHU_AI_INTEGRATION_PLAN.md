@@ -1,57 +1,101 @@
-# Mithu AI integration plan (feature branch only)
+# Mithu AI integration plan — live voice feature branch
 
-Status: design/contract draft. This file does not enable AI access or change application data.
+Status: live voice scaffolding is implemented on `feat/mithu-voice-integration`. This branch is not deployed and does not enable voice by default. No production database query, migration or write has been made.
 
 ## Confirmed EduConnect implementation
 - Frontend: React 19, Create React App/Craco, React Router 7, Axios. Vercel config: `frontend/vercel.json`.
 - API: FastAPI app in `backend/server.py`; Render blueprint at root `render.yaml` runs `uvicorn server:app` from `backend`.
 - Database: Motor; tenant-specific DB context proxy in `backend/db.py`; shared platform DB is separate.
 - Authentication: `backend/auth_lib.py`, HS256 access JWT, cookie and Bearer token, resolves user from DB and binds tenant context.
-- Roles: tenant `super_admin`, `office_admin`, `user`, `staff`; platform scope/owner roles separately handled.
-- Student scope: `backend/routers/students.py` uses creator + office visibility and linked-client filtering, with super_admin tenant-wide view.
-- Lead scope: `backend/routers/leads.py`: super_admin tenant-wide; office_admin own office; staff assigned leads only.
+- Roles: tenant `super_admin`, `office_admin`, `user`, `staff`; platform scope/owner roles are handled separately.
+- Student scope: `backend/routers/students.py` applies creator + office visibility and linked-client filtering, with super-admin tenant-wide view.
+- Lead scope: `backend/routers/leads.py`: super-admin tenant-wide; office-admin own office; staff assigned leads only.
 - College confidential field: `sc_rates` is stripped for non-super-admin callers in `backend/routers/colleges.py`.
 
-## Non-negotiable architecture
-1. Mithu is a separate FastAPI service in `zelixcodelab-dev/Mithu-AI-Assistant`.
-2. The browser never calls Mithu with a role or tenant identifier as authorization.
-3. EduConnect's `get_current_user` remains the single authentication authority.
-4. EduConnect creates a short-lived signed Ed25519 assertion after authentication and database-backed user resolution.
-5. Mithu validates issuer, audience, signature, expiry, subject and token ID using the public key only.
-6. Mithu never receives `MONGO_URL`, the EduConnect `JWT_SECRET`, or any EduConnect DB credentials.
-7. The gateway must call the same permission-aware application service/query functions used by existing API routes, or reproduce their filters exactly with regression tests.
-8. Initial tools are GET-only. Mutating tools are excluded.
-9. Staging fixtures only; no production data queries or modifications.
+## Voice architecture
+1. An authenticated EduConnect user requests a voice ticket from `POST /api/mithu/voice-ticket`.
+2. EduConnect verifies the current session with its existing `get_current_user` dependency and creates a 90-second Ed25519 identity assertion from server-side user/tenant/role/office/permission context.
+3. The frontend opens a WebSocket directly to the Mithu service. It sends the assertion in the WebSocket subprotocol, not in a URL query parameter.
+4. Mithu verifies issuer, audience, EdDSA signature, subject, role/scope, expiry and assertion lifetime.
+5. Mithu opens the trusted server-to-server WebSocket to GPT-Live. The OpenAI API key remains on the Mithu server.
+6. The browser streams mono PCM16LE at 24 kHz; Mithu forwards input and output audio/transcript events.
+7. GPT-Live Responses delegation can call only registered read-only tools. Mithu executes those tools server-side with the verified identity assertion and returns results to the live session.
+8. The browser widget shows live captions and provides start, mute and end controls. Audio and captions are not saved by the widget.
 
-## Proposed endpoints
-- `POST /internal/ai/identity-assertion`: authenticated EduConnect user; returns a short-lived assertion for server-to-server calls.
-- `GET /internal/ai/colleges`: returns tenant college catalogue while preserving existing `sc_rates` masking.
-- `GET /internal/ai/students`: same list/visibility semantics as `GET /api/students`.
-- `GET /internal/ai/students/{student_id}`: same visibility semantics as `GET /api/students/{student_id}`.
-- `GET /internal/ai/leads`: same scope as `GET /api/leads` with safe filters only.
+## Files changed on this branch
+- `backend/routers/mithu.py`: authenticated 90-second identity assertion endpoint.
+- `backend/server.py`: mounts the Mithu ticket router.
+- `frontend/src/components/mithu/MithuVoiceAssistant.jsx`: browser voice UI, microphone capture, PCM conversion, playback and captions.
+- `frontend/src/pages/AppShell.jsx`: mounts the voice assistant in the authenticated app shell.
+- `frontend/.env.mithu.example`: feature-flag example.
 
-These routes must be authenticated server-to-server. The gateway must not trust user, role, tenant, office or permission headers merely because Mithu supplies them. It should validate the signed assertion itself or accept a signed assertion and reconstruct trusted context.
+## Mithu service counterpart
+Repository: `zelixcodelab-dev/Mithu-AI-Assistant`, branch `feat/mithu-realtime-voice`.
+- `app/voice.py`: authenticated GPT-Live WebSocket bridge, browser event allow-list and server-side Responses function-call handling.
+- `app/voice_prompts.py`: Malayalam/Manglish/English voice behavior and safety instructions.
+- `app/main.py`: mounts the voice WebSocket endpoint and advertises configured capability.
+- `app/security.py`: verifies the short-lived identity assertions.
 
-## Frontend integration
-- Add Mithu widget only after the backend gateway is complete.
-- Reuse existing `AuthProvider` and `frontend/src/lib/api.js` for the current session; do not ask users to log in twice.
-- Main backend should proxy authenticated chat calls to the Mithu service. Do not expose `EDUCONNECT_SERVICE_TOKEN` or OpenAI credentials to the browser.
-- Respect the current user scope and do not render tool data not returned by the authorized backend.
-- Use a feature flag to keep the widget disabled until staging validation passes.
+## Environment variables
 
-## Deployment
-- Existing CRA frontend remains on Vercel.
-- Existing FastAPI remains on its current separate hosting.
-- Mithu is a distinct Docker service with its own isolated database.
-- No deployment or environment-variable changes are included in this plan.
+### EduConnect backend (existing FastAPI service)
+- `MITHU_VOICE_ENABLED=true`
+- `MITHU_IDENTITY_PRIVATE_KEY_PEM`: Ed25519 private key, stored only in backend secret manager.
+- `MITHU_IDENTITY_ISSUER=educonnect-pro`
+- `MITHU_IDENTITY_AUDIENCE=mithu-ai`
+- `MITHU_VOICE_WS_URL=wss://<your-mithu-host>/api/v1/voice/ws`
 
-## Acceptance tests
-- expired, wrong-issuer, wrong-audience and wrong-signature assertions rejected
-- tenant A cannot resolve tenant B records
-- office admin cannot read records outside own office/shared scope
-- staff can only access assigned leads and permitted student scope
-- linked `user` can only see its existing linked-client/referrer/owned student scope
+### Mithu voice service (separate container)
+- `OPENAI_API_KEY`
+- `MITHU_LIVE_MODEL=gpt-live-1.1`
+- `MITHU_RESPONSES_MODEL=gpt-6-luna`
+- `MITHU_LIVE_VOICE=marin`
+- `IDENTITY_ISSUER=educonnect-pro`
+- `IDENTITY_AUDIENCE=mithu-ai`
+- `IDENTITY_PUBLIC_KEY_PEM`: matching Ed25519 public key.
+- `EDUCONNECT_API_ENABLED=false` until the read-only gateway is implemented.
+- `EDUCONNECT_INTERNAL_API_URL` and `EDUCONNECT_SERVICE_TOKEN` only after the gateway is ready.
+- `CORS_ORIGINS`: the approved EduConnect frontend origin(s).
+
+Generate a fresh key pair for Mithu (do not use the existing HS256 JWT secret):
+```bash
+openssl genpkey -algorithm Ed25519 -out mithu_identity_private.pem
+openssl pkey -in mithu_identity_private.pem -pubout -out mithu_identity_public.pem
+```
+Put the private key only in the EduConnect backend's secret manager and the public key in Mithu's secret manager. Never commit either key.
+
+### EduConnect frontend (Vercel)
+- `REACT_APP_MITHU_VOICE_ENABLED=true` to render the voice widget.
+- This flag is deliberately opt-in; it is not enabled by the committed code.
+
+## Read-only gateway dependency
+The existing application still needs its dedicated internal AI gateway endpoints:
+- `GET /internal/ai/colleges`
+- `GET /internal/ai/students`
+- `GET /internal/ai/students/{student_id}`
+- `GET /internal/ai/leads`
+
+These routes have not been implemented in this voice branch. Keep `EDUCONNECT_API_ENABLED=false` until they are implemented and permission-tested. Voice can answer general education questions without them; it must not claim to have checked live records.
+
+The gateway must independently verify the signed assertion and call the same permission-aware logic as the existing routes. It must not trust unsigned role/tenant/office headers, and Mithu must never access EduConnect MongoDB directly.
+
+## Release status
+- Code is present on feature branches only.
+- The assistant is not deployed.
+- No environment variables have been changed in hosting.
+- The production database is not connected to Mithu.
+- No student records or other application data were modified.
+- Voice tools are read-only; the voice widget does not save audio/transcripts.
+
+## Required pre-deployment tests
+- missing, expired, altered, wrong-issuer and wrong-audience identity assertions rejected
+- user identity is derived only by `get_current_user`
+- no assertion can be issued when `MITHU_VOICE_ENABLED` is false
+- only approved EduConnect frontend role/scope claims are included
+- browser cannot send arbitrary GPT-Live commands or call unregistered tools
+- student/lead tools enforce tenant, office, assigned and linked-client visibility
 - non-super-admin responses never contain college `sc_rates`
-- platform scope cannot accidentally route into a tenant database
-- every write tool name is rejected/unregistered
-- all tests run against synthetic fixtures
+- all write tool names are rejected/unregistered
+- microphone input/output, interruption, mute, stop, dropped connection and mobile Safari/Chrome behavior are tested
+- all tests use synthetic fixtures and a non-production OpenAI project/environment
+
