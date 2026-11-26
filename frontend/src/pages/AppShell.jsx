@@ -16,6 +16,7 @@ import BottomNav from "@/components/BottomNav";
 import ProductTour, { START_TOUR_EVENT } from "@/components/ProductTour";
 import TrialBanner from "@/components/TrialBanner";
 import InstallPrompt from "@/components/InstallPrompt";
+import MithuVoiceAssistant from "@/components/mithu/MithuVoiceAssistant";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
@@ -785,6 +786,7 @@ export default function AppShell() {
           </div>
         </div>
       </main>
+      <MithuVoiceAssistant user={user} />
       <BottomNav />
       <ProductTour />
       <InstallPrompt />
