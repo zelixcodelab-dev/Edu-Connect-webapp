@@ -61,6 +61,7 @@ export default function MithuVoiceAssistant({ user }) {
   const playbackSourcesRef = useRef(new Set());
   const playbackCursorRef = useRef(0);
   const captureStartedRef = useRef(false);
+  const mutedRef = useRef(false);
   const intentionalCloseRef = useRef(false);
   const activeCaptionIdsRef = useRef({ user: null, mithu: null });
 
@@ -175,7 +176,7 @@ export default function MithuVoiceAssistant({ user }) {
 
     processor.onaudioprocess = (event) => {
       const socket = socketRef.current;
-      if (!socket || socket.readyState !== WebSocket.OPEN || muted) return;
+      if (!socket || socket.readyState !== WebSocket.OPEN || mutedRef.current) return;
       const samples = downsampleToPcm16(
         event.inputBuffer.getChannelData(0),
         event.inputBuffer.sampleRate,
@@ -204,6 +205,7 @@ export default function MithuVoiceAssistant({ user }) {
       try { socket.close(1000, "User ended Mithu voice session"); } catch {}
     }
     await stopLocalAudio();
+    mutedRef.current = false;
     setMuted(false);
     activeCaptionIdsRef.current = { user: null, mithu: null };
     setStatus("idle");
@@ -241,8 +243,10 @@ export default function MithuVoiceAssistant({ user }) {
           try {
             await startCapture();
           } catch (captureError) {
-            setError(captureError?.message || "Microphone could not be started.");
+            const message = captureError?.message || "Microphone could not be started.";
             await stopVoice();
+            setError(message);
+            setStatus("error");
           }
           return;
         }
@@ -255,7 +259,7 @@ export default function MithuVoiceAssistant({ user }) {
 
         if (event.type === "session.input_transcript.delta") {
           appendCaption("user", event.delta);
-        } else if (event.type === "session.input_transcript.completed") {
+        } else if (event.type === "session.input_transcript.completed" || event.type === "session.input_transcript.done") {
           if (event.transcript) {
             // Replace a partial transcript with the final recognized wording.
             const id = activeCaptionIdsRef.current.user;
@@ -270,7 +274,7 @@ export default function MithuVoiceAssistant({ user }) {
           finishCaption("user");
         } else if (event.type === "session.output_transcript.delta") {
           appendCaption("mithu", event.delta);
-        } else if (event.type === "session.output_transcript.done") {
+        } else if (event.type === "session.output_transcript.done" || event.type === "session.output_transcript.completed") {
           finishCaption("mithu");
           setStatus("listening");
         } else if (event.type === "session.output_audio.delta") {
@@ -315,6 +319,7 @@ export default function MithuVoiceAssistant({ user }) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     const next = !muted;
     socket.send(JSON.stringify({ type: next ? "session.input_audio.mute" : "session.input_audio.unmute" }));
+    mutedRef.current = next;
     setMuted(next);
   }, [muted]);
 
@@ -358,7 +363,7 @@ export default function MithuVoiceAssistant({ user }) {
             </div>
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => { if (active) void stopVoice(); setOpen(false); }}
               className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
               aria-label="Close Mithu voice panel"
             >
