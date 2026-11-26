@@ -134,6 +134,7 @@ export default function MithuVoiceAssistant({ user }) {
     source.onended = () => {
       playbackSourcesRef.current.delete(source);
       try { source.disconnect(); } catch {}
+      if (playbackSourcesRef.current.size === 0) setStatus("listening");
     };
     source.start(startAt);
     setStatus("speaking");
@@ -276,7 +277,6 @@ export default function MithuVoiceAssistant({ user }) {
           appendCaption("mithu", event.delta);
         } else if (event.type === "session.output_transcript.done" || event.type === "session.output_transcript.completed" || event.type === "session.output_audio_transcript.done") {
           finishCaption("mithu");
-          setStatus("listening");
         } else if (event.type === "session.output_audio.delta") {
           playAudio(event.delta);
         } else if (event.type === "session.output_audio.clear") {
